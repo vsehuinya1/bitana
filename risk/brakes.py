@@ -1,0 +1,133 @@
+"""
+Hard Risk Brakes
+
+All brakes are persistent across restarts via SQLite.
+Daily/weekly loss limits, consecutive losses, equity drawdown pauses.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+from config.loader import BrakesConfig
+from core.logging_setup import get_logger
+from core.models import BrakeState, BrakeType
+
+logger = get_logger("brakes")
+
+
+class BrakeManager:
+    """Enforces hard risk brakes. State is persisted via Database."""
+
+    def __init__(self, config: BrakesConfig) -> None:
+        self._cfg = config
+        self.state = BrakeState()
+
+    def load_state(self, state: BrakeState) -> None:
+        self.state = state
+
+    def check_entry_allowed(self) -> tuple[bool, str]:
+        """Check if new entries are allowed. Returns (allowed, reason)."""
+        now = datetime.now(timezone.utc)
+
+        if self.state.is_shutdown:
+            return False, f"SHUTDOWN: {self.state.shutdown_reason}"
+
+        if self.state.manual_review_required:
+            return False, "Manual review required — use /resume"
+
+        if self.state.is_paused:
+            return False, f"PAUSED: {self.state.pause_reason}"
+
+        # Weekly cooldown
+        if self.state.weekly_cooldown_until:
+            try:
+                cooldown = self.state.weekly_cooldown_until
+                if isinstance(cooldown, str):
+                    cooldown = datetime.fromisoformat(cooldown)
+                if cooldown.tzinfo is None:
+                    cooldown = cooldown.replace(tzinfo=timezone.utc)
+                if now < cooldown:
+                    remaining = (cooldown - now).total_seconds() / 3600
+                    return False, f"Weekly cooldown: {remaining:.1f}h remaining"
+            except (ValueError, TypeError):
+                pass
+
+        # Daily loss check
+        today = now.strftime("%Y-%m-%d")
+        if self.state.daily_reset_date != today:
+            self.state.daily_realized_loss = 0.0
+            self.state.daily_reset_date = today
+
+        if self.state.daily_realized_loss >= self._cfg.daily_loss_limit_pct:
+            return False, f"Daily loss limit hit: {self.state.daily_realized_loss:.2%}"
+
+        # Weekly loss check
+        monday = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+        if self.state.weekly_reset_date != monday:
+            self.state.weekly_realized_loss = 0.0
+            self.state.weekly_reset_date = monday
+
+        if self.state.weekly_realized_loss >= self._cfg.weekly_loss_limit_pct:
+            return False, f"Weekly loss limit hit: {self.state.weekly_realized_loss:.2%}"
+
+        return True, ""
+
+    def record_loss(self, loss_pct: float) -> list[BrakeType]:
+        """Record a realized loss (as fraction of equity). Returns triggered brakes."""
+        triggered = []
+        now = datetime.now(timezone.utc)
+
+        # Reset daily/weekly if needed
+        today = now.strftime("%Y-%m-%d")
+        if self.state.daily_reset_date != today:
+            self.state.daily_realized_loss = 0.0
+            self.state.daily_reset_date = today
+
+        monday = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+        if self.state.weekly_reset_date != monday:
+            self.state.weekly_realized_loss = 0.0
+            self.state.weekly_reset_date = monday
+
+        self.state.daily_realized_loss += abs(loss_pct)
+        self.state.weekly_realized_loss += abs(loss_pct)
+
+        if self.state.daily_realized_loss >= self._cfg.daily_loss_limit_pct:
+            triggered.append(BrakeType.DAILY_LOSS)
+            logger.warning("BRAKE: Daily loss limit", loss=self.state.daily_realized_loss)
+
+        if self.state.weekly_realized_loss >= self._cfg.weekly_loss_limit_pct:
+            self.state.weekly_cooldown_until = now + timedelta(
+                hours=self._cfg.weekly_cooldown_hours
+            )
+            triggered.append(BrakeType.WEEKLY_LOSS)
+            logger.warning("BRAKE: Weekly loss limit — 48h cooldown")
+
+        return triggered
+
+    def check_equity_brakes(self, drawdown_pct: float) -> list[BrakeType]:
+        """Check equity-based brakes. Returns triggered brakes."""
+        triggered = []
+
+        if drawdown_pct >= self._cfg.equity_shutdown_drawdown:
+            self.state.is_shutdown = True
+            self.state.shutdown_reason = f"Equity DD {drawdown_pct:.1%} >= {self._cfg.equity_shutdown_drawdown:.0%}"
+            triggered.append(BrakeType.EQUITY_SHUTDOWN)
+            logger.critical("BRAKE: EQUITY SHUTDOWN", dd=drawdown_pct)
+
+        elif drawdown_pct >= self._cfg.equity_pause_drawdown:
+            self.state.manual_review_required = True
+            self.state.is_paused = True
+            self.state.pause_reason = f"Equity DD {drawdown_pct:.1%} — manual review required"
+            triggered.append(BrakeType.EQUITY_PAUSE)
+            logger.critical("BRAKE: EQUITY PAUSE — manual review", dd=drawdown_pct)
+
+        return triggered
+
+    def pause(self, reason: str = "Manual pause") -> None:
+        self.state.is_paused = True
+        self.state.pause_reason = reason
+
+    def resume(self) -> None:
+        self.state.is_paused = False
+        self.state.pause_reason = ""
+        self.state.manual_review_required = False

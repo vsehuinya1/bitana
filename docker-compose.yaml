@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  bitana:
+    build: .
+    container_name: bitana
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config/settings.yaml:/opt/bitana/config/settings.yaml:ro
+      - ./data:/opt/bitana/data
+      - ./logs:/opt/bitana/logs
+    ports:
+      - "8080:8080"
+    command: ["--mode", "paper"]
