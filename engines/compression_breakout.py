@@ -171,7 +171,7 @@ class CompressionBreakoutEngine(BaseEngine):
             if breakout.close <= breakout.open:
                 return None  # bearish candle, not a valid long breakout
             side = Side.LONG
-            stop_price = min(range_low, breakout.close - cfg.atr_multiplier * current_atr)
+            stop_price = min(range_low, breakout.close - 1.5 * current_atr)
             # Ensure stop makes sense
             stop_price = max(stop_price, breakout.close * 0.95)
 
@@ -180,7 +180,7 @@ class CompressionBreakoutEngine(BaseEngine):
             if breakout.close >= breakout.open:
                 return None  # bullish candle, not a valid short breakout
             side = Side.SHORT
-            stop_price = max(range_high, breakout.close + cfg.atr_multiplier * current_atr)
+            stop_price = max(range_high, breakout.close + 1.5 * current_atr)
             stop_price = min(stop_price, breakout.close * 1.05)
 
         if side is None:

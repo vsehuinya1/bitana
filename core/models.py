@@ -27,6 +27,7 @@ class Side(str, Enum):
 class EngineType(str, Enum):
     COMPRESSION = "COMPRESSION"
     SQUEEZE = "SQUEEZE"
+    SWING_BREAK = "SWING_BREAK"
 
 
 class AlertTier(str, Enum):

@@ -1,0 +1,17 @@
+[Unit]
+Description=Bitana Forward Test — SB_DATR_ASIA_HALF_WEAK
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/bitana
+ExecStart=/opt/bitana/venv/bin/python -m tools.forward_test
+Restart=on-failure
+RestartSec=20
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=append:/tmp/ft_startup.log
+StandardError=append:/tmp/ft_startup.log
+
+[Install]
+WantedBy=multi-user.target
