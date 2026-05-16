@@ -34,6 +34,7 @@ Thumbs.db
 
 # Research data (large parquet files)
 research/output/data/
+research/output/reports/*.parquet
 research/venv/
 
 # Replay output
