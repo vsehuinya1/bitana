@@ -31,3 +31,10 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Research data (large parquet files)
+research/output/data/
+research/venv/
+
+# Replay output
+replay_output/
