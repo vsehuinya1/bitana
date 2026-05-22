@@ -171,6 +171,56 @@ class BinanceRestClient:
             params={"symbol": symbol}, weight=1,
         )
 
+    async def get_all_force_orders(
+        self,
+        symbol: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = 1000,
+    ) -> list[dict]:
+        """Get market-wide forced liquidation orders (public endpoint).
+
+        Returns individual liquidation orders. Aggregate by day for liq volumes.
+        Max 7 days without startTime; up to 90 days with startTime.
+        """
+        params: dict[str, Any] = {"limit": limit}
+        if symbol:
+            params["symbol"] = symbol
+        if start_time:
+            params["startTime"] = start_time
+        if end_time:
+            params["endTime"] = end_time
+        weight = 20 if symbol else 50
+        return await self._request(
+            "GET", "/fapi/v1/allForceOrders",
+            params=params, weight=weight,
+        )
+
+    async def get_long_short_ratio(
+        self,
+        symbol: str,
+        period: str = "1d",
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = 30,
+    ) -> list[dict]:
+        """Get top trader long/short ratio (public endpoint).
+
+        Used as a sentiment proxy when liquidation history is thin.
+        period: 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol, "period": period, "limit": limit,
+        }
+        if start_time:
+            params["startTime"] = start_time
+        if end_time:
+            params["endTime"] = end_time
+        return await self._request(
+            "GET", "/futures/data/topLongShortAccountRatio",
+            params=params, weight=1,
+        )
+
     # ------------------------------------------------------------------
     # Account endpoints (signed)
     # ------------------------------------------------------------------
