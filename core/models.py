@@ -28,6 +28,7 @@ class EngineType(str, Enum):
     COMPRESSION = "COMPRESSION"
     SQUEEZE = "SQUEEZE"
     SWING_BREAK = "SWING_BREAK"
+    LIQ_CLUSTER = "LIQ_CLUSTER"
 
 
 class AlertTier(str, Enum):
@@ -139,6 +140,7 @@ class Candle(BaseModel):
     low: float
     close: float
     volume: float
+    taker_buy_volume: float = 0.0
     is_closed: bool = True
 
     @property

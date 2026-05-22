@@ -126,10 +126,7 @@ def collect_liquidations(
     interval: str = "daily",
 ) -> pd.DataFrame:
     """Collect liquidation history for a symbol."""
-    coinalyze_sym = COINALYZE_SYMBOL_MAP.get(symbol)
-    if not coinalyze_sym:
-        logger.error(f"No Coinalyze symbol mapping for {symbol}")
-        return pd.DataFrame()
+    coinalyze_sym = COINALYZE_SYMBOL_MAP.get(symbol, f"{symbol}_PERP.A")
 
     suffix = "daily" if interval == "daily" else "1h"
     out_path = LIQUIDATION_DIR / f"{symbol}_liq_{suffix}.parquet"

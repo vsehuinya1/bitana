@@ -66,3 +66,7 @@ telegram:
 fees:
   taker_bps: 4.5
   slippage_bps: 2.0
+
+coinalyze:
+  api_key: "be291954-992e-489d-8ab5-5d34a0dfcf41"
+

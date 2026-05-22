@@ -53,6 +53,12 @@ COINALYZE_SYMBOL_MAP: Dict[str, str] = {
     "BNBUSDT": "BNBUSDT_PERP.A",
     "DOGEUSDT": "DOGEUSDT_PERP.A",
     "SUIUSDT": "SUIUSDT_PERP.A",
+    "ADAUSDT": "ADAUSDT_PERP.A",
+    "AVAXUSDT": "AVAXUSDT_PERP.A",
+    "MATICUSDT": "MATICUSDT_PERP.A",
+    "LINKUSDT": "LINKUSDT_PERP.A",
+    "NEARUSDT": "NEARUSDT_PERP.A",
+    "FILUSDT": "FILUSDT_PERP.A",
 }
 
 # ──────────────────────────────────────────────

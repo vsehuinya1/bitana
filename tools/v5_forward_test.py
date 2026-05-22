@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
+import websockets
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -289,6 +290,7 @@ class V5ForwardTest:
     def __init__(self):
         self.app_cfg = load_config()
         self.v5_cfg = load_v5_config()
+        self.ca_api_key = self.v5_cfg.get("coinalyze", {}).get("api_key", "")
         self.db = V5Database(DB_PATH)
         self.engine = LiqClusterEngineV5()
         self.alerts = TelegramAlerts(
@@ -385,11 +387,12 @@ class V5ForwardTest:
                 self._candle_loop(),
                 self._daily_report_loop(),
                 self._liq_refresh_loop(),
+                self._liq_websocket_loop(),
                 return_exceptions=True,
             )
             for i, r in enumerate(results):
                 if isinstance(r, Exception):
-                    names = ["candle_loop", "daily_report", "liq_refresh"]
+                    names = ["candle_loop", "daily_report", "liq_refresh", "liq_websocket"]
                     name = names[i] if i < len(names) else f"task_{i}"
                     logger.critical("Task died", task=name, error=str(r))
                     await self.alerts.critical(f"V5.1 task crashed: {name}: {r}")
@@ -477,145 +480,118 @@ class V5ForwardTest:
                 deduped.append(c)
         return sorted(deduped, key=lambda c: c.open_time)
 
-    # ── Liquidation Context (Binance-native) ─────────────────────
+    # ── Liquidation Context (Hybrid & WebSocket Aggregated) ──────
 
     async def _update_liq_context(self):
-        """Fetch liquidation data from Binance and merge with local cache.
+        """Fetch liquidation data and merge with local cache using the hybrid model.
 
         Strategy:
-        1. Load cached daily liq data from SQLite (accumulated over time)
-        2. Check if cache is cold (< 30 days) → backfill up to 90 days
-        3. Otherwise fetch recent 7 days of force orders from Binance
-        4. Aggregate into daily buckets (long_liq, short_liq, total_liq)
-        5. Merge with daily close prices from Binance klines
-        6. Upsert into cache, then feed to engine
+        1. Prune old cache entries from SQLite.
+        2. Check if the database cache for each symbol has >= 30 days of data.
+        3. If cached_count < 30 (cold start), seed the last 90 days of history from Coinalyze.
+           - Query Coinalyze history endpoint.
+           - Stagger Coinalyze REST calls by 3.0s to avoid 429s.
+           - Fetch daily closes from Binance klines.
+           - Upsert results into local SQLite cache.
+        4. Otherwise, skip Coinalyze queries completely on restart/daily refresh.
+        5. In either case, query complete cache history from SQLite and feed it to the trading engine.
         """
-        logger.info("Fetching Binance liquidation data...")
+        logger.info("Updating liquidation context...")
 
         # Prune old cache entries
         prune_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
         self.db.prune_liq_cache(prune_date)
 
+        min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
+
+        from engines.liq_cluster_engine_v5 import CascadeTracker
+
         for sym in self.symbols:
             try:
-                # Determine fetch window: backfill 90d if cold, else 7d refresh
-                min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
-                cached_count = len(self.db.get_liq_cache(sym, min_date))
+                # Check cache count in the last 120 days
+                cached = self.db.get_liq_cache(sym, min_date)
+                cached_count = len(cached)
 
                 if cached_count < 30:
-                    # Cold start — backfill up to 90 days in 7-day windows
-                    fetch_days = 90
-                    logger.info("Cold start backfill", symbol=sym, cached_days=cached_count,
-                                fetch_days=fetch_days)
-                else:
-                    fetch_days = LIQ_FETCH_DAYS
+                    logger.info("Cold start detected: seeding history from Coinalyze", symbol=sym, cached_days=cached_count)
+                    if not self.ca_api_key:
+                        logger.warning("No Coinalyze API key available for seeding!", symbol=sym)
+                        continue
 
-                now_ms = int(time.time() * 1000)
-                start_ms = now_ms - (fetch_days * 86400 * 1000)
+                    # Cold start seeding from Coinalyze
+                    now_ts = int(time.time())
+                    fr_ts = now_ts - 90 * 86400
+                    ca_sym = f"{sym}_PERP.A"
+                    data = None
 
-                daily_liq = defaultdict(lambda: {"long_liq": 0.0, "short_liq": 0.0})
-
-                # Paginate in 7-day windows (Binance limit)
-                window_ms = 7 * 86400 * 1000
-                window_start = start_ms
-                consecutive_failures = 0
-
-                while window_start < now_ms:
-                    window_end = min(window_start + window_ms, now_ms)
-                    fetch_cursor = window_start
-                    window_got_data = False
-
-                    while fetch_cursor < window_end:
+                    for attempt in range(5):
                         try:
-                            orders = await self.rest.get_all_force_orders(
-                                symbol=sym, start_time=fetch_cursor,
-                                end_time=window_end, limit=1000,
+                            resp = requests.get(
+                                "https://api.coinalyze.net/v1/liquidation-history",
+                                params={
+                                    "symbols": ca_sym,
+                                    "interval": "daily",
+                                    "from": fr_ts,
+                                    "to": now_ts,
+                                    "api_key": self.ca_api_key,
+                                },
+                                timeout=20,
                             )
+                            if resp.status_code == 429:
+                                wait = (attempt + 1) * 15
+                                logger.warning("Coinalyze rate limit during seeding", symbol=sym, attempt=attempt+1, wait_s=wait)
+                                await asyncio.sleep(wait)
+                                continue
+                            if resp.status_code != 200:
+                                logger.warning("Coinalyze error during seeding", symbol=sym, status=resp.status_code)
+                                await asyncio.sleep(5)
+                                continue
+                            data = resp.json()
+                            break
                         except Exception as e:
-                            logger.warning("Force orders fetch failed", symbol=sym, error=str(e))
-                            break
+                            logger.error("Coinalyze fetch error during seeding", symbol=sym, error=str(e), attempt=attempt+1)
+                            await asyncio.sleep(5)
 
-                        if not orders or not isinstance(orders, list):
-                            break
+                    if data is not None and isinstance(data, list) and data:
+                        history = data[0].get("history", [])
+                        if history:
+                            # Fetch daily closes from Binance
+                            daily_closes = await self._get_daily_closes(sym)
 
-                        window_got_data = True
-                        for order in orders:
-                            ts = order.get("time", 0)
-                            dt_str = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-                            qty = float(order.get("executedQty", 0))
-                            price = float(order.get("avgPrice", 0) or order.get("price", 0))
-                            volume = qty * price  # USD volume of liquidation
+                            for h in history:
+                                dt_str = datetime.fromtimestamp(h["t"], tz=timezone.utc).strftime("%Y-%m-%d")
+                                long_liq = float(h.get("l", 0))
+                                short_liq = float(h.get("s", 0))
+                                total_liq = long_liq + short_liq
+                                close = daily_closes.get(dt_str, 0.0)
 
-                            side = order.get("side", "")
-                            if side == "SELL":
-                                # Sell-side force order = long position liquidated
-                                daily_liq[dt_str]["long_liq"] += volume
-                            elif side == "BUY":
-                                # Buy-side force order = short position liquidated
-                                daily_liq[dt_str]["short_liq"] += volume
+                                self.db.upsert_liq_cache(sym, dt_str, total_liq, long_liq, short_liq, close)
 
-                        if len(orders) < 1000:
-                            break
-                        # Move cursor past last order
-                        fetch_cursor = orders[-1].get("time", window_end) + 1
-                        await asyncio.sleep(0.1)
+                            logger.info("Successfully seeded from Coinalyze", symbol=sym, records=len(history))
+                    
+                    # Polite pacing to respect free-tier rate limits (3.0s stagger)
+                    await asyncio.sleep(3.0)
 
-                    # Track consecutive failures to bail on bad symbols
-                    if not window_got_data:
-                        consecutive_failures += 1
-                        if consecutive_failures >= 3:
-                            logger.warning("Skipping symbol after 3 consecutive window failures",
-                                          symbol=sym)
-                            break
-                    else:
-                        consecutive_failures = 0
+                else:
+                    logger.debug("Skipping Coinalyze seeding; cache has sufficient history", symbol=sym, cached_days=cached_count)
 
-                    window_start = window_end
-                    await asyncio.sleep(0.2)  # polite pacing between windows
-
-                # Get daily closes from Binance
-                daily_closes = await self._get_daily_closes(sym)
-
-                # Upsert fresh data into cache
-                for date_str, liq in daily_liq.items():
-                    total = liq["long_liq"] + liq["short_liq"]
-                    close = daily_closes.get(date_str, 0)
-                    self.db.upsert_liq_cache(sym, date_str, total, liq["long_liq"],
-                                             liq["short_liq"], close)
-
-                # Also update closes for cached dates that might be missing close prices
-                for date_str, close_price in daily_closes.items():
-                    if close_price > 0:
-                        existing = self.db.conn.execute(
-                            "SELECT close FROM liq_cache WHERE symbol=? AND date=?",
-                            (sym, date_str),
-                        ).fetchone()
-                        if existing and (existing["close"] or 0) == 0:
-                            self.db.conn.execute(
-                                "UPDATE liq_cache SET close=? WHERE symbol=? AND date=?",
-                                (close_price, sym, date_str),
-                            )
-
-                # Load full history from cache and feed to engine
+                # Fetch full history from local cache and feed it to the trading engine
                 cached = self.db.get_liq_cache(sym, min_date)
-
                 if cached:
+                    # Reset the engine's CascadeTracker to avoid duplicates or stale metrics
+                    self.engine._cascades[sym] = CascadeTracker()
                     self.engine.update_daily_liq(sym, cached)
 
-                logger.debug("Liq data updated", symbol=sym, cached_days=len(cached),
-                            fresh_days=len(daily_liq))
+                logger.debug("Liq data updated from local cache", symbol=sym, cached_days=len(cached))
 
             except Exception as e:
-                logger.error("Liq update error", symbol=sym, error=str(e))
-
-            await asyncio.sleep(0.5)  # polite pacing between symbols
+                logger.error("Liq update error", symbol=sym, error=str(e), exc_info=True)
 
         self._last_liq_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         self.db.set_state("last_liq_date", self._last_liq_date)
 
         n_active = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
-        logger.info(f"Liq context updated: {n_active}/{len(self.symbols)} cascades active "
-                    f"(Binance allForceOrders)")
+        logger.info(f"Liq context updated: {n_active}/{len(self.symbols)} cascades active (hybrid model)")
 
     async def _get_daily_closes(self, symbol):
         closes = {}
@@ -636,11 +612,113 @@ class V5ForwardTest:
 
     async def _liq_refresh_loop(self):
         while not self._shutdown.is_set():
-            await asyncio.sleep(3600)
+            # Sleep in 1-second chunks to exit promptly on shutdown
+            for _ in range(3600):
+                if self._shutdown.is_set():
+                    break
+                await asyncio.sleep(1)
+            if self._shutdown.is_set():
+                break
+
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             if today != self._last_liq_date:
                 logger.info("Daily liq refresh triggered")
                 await self._update_liq_context()
+
+    async def _liq_websocket_loop(self):
+        """Websocket client that streams market-wide liquidations in real-time,
+        aggregates them on-the-fly, updates the SQLite cache database, and pushes
+        the updates directly into the trading engine.
+        """
+        url = "wss://fstream.binance.com/market/ws/!forceOrder@arr"
+        logger.info("Liquidation WebSocket stream starting", url=url)
+
+        from engines.liq_cluster_engine_v5 import CascadeTracker
+
+        while not self._shutdown.is_set():
+            try:
+                async with websockets.connect(url, ping_interval=20, ping_timeout=20) as ws:
+                    logger.info("Liquidation WebSocket connected successfully")
+
+                    async for message in ws:
+                        if self._shutdown.is_set():
+                            break
+
+                        try:
+                            msg = json.loads(message)
+                        except Exception as e:
+                            logger.error("Failed to parse websocket message", error=str(e))
+                            continue
+
+                        if not isinstance(msg, dict) or msg.get("e") != "forceOrder":
+                            continue
+
+                        order = msg.get("o", {})
+                        symbol = order.get("s")
+
+                        if symbol not in self.symbols:
+                            continue
+
+                        # Extract details
+                        side = order.get("S")
+                        qty = float(order.get("q", 0))
+                        price = float(order.get("p", 0))
+                        volume = qty * price
+                        time_ms = msg.get("E", 0)
+
+                        if volume <= 0:
+                            continue
+
+                        # Update database cache for the given date
+                        dt = datetime.fromtimestamp(time_ms / 1000, tz=timezone.utc)
+                        date_str = dt.strftime("%Y-%m-%d")
+
+                        # Get existing entry for this day
+                        existing = self.db.conn.execute(
+                            "SELECT total_liq, long_liq, short_liq FROM liq_cache WHERE symbol=? AND date=?",
+                            (symbol, date_str)
+                        ).fetchone()
+
+                        if existing:
+                            long_liq = existing["long_liq"] + (volume if side == "SELL" else 0.0)
+                            short_liq = existing["short_liq"] + (volume if side == "BUY" else 0.0)
+                            total_liq = long_liq + short_liq
+                        else:
+                            long_liq = volume if side == "SELL" else 0.0
+                            short_liq = volume if side == "BUY" else 0.0
+                            total_liq = volume
+
+                        # Running daily close is tracked via last_prices (updated by candle_loop)
+                        # or fallback to current liquidation price if last_prices is not set yet
+                        close = self.last_prices.get(symbol, price)
+
+                        # Write to SQLite
+                        self.db.upsert_liq_cache(symbol, date_str, total_liq, long_liq, short_liq, close)
+
+                        # Reload history from DB cache to update the trading engine
+                        min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
+                        cached = self.db.get_liq_cache(symbol, min_date)
+
+                        if cached:
+                            # Reset the engine's CascadeTracker to avoid duplicating entries
+                            self.engine._cascades[symbol] = CascadeTracker()
+                            self.engine.update_daily_liq(symbol, cached)
+
+                        logger.debug(
+                            "Real-time liquidation aggregated via WebSocket",
+                            symbol=symbol,
+                            side=side,
+                            volume=f"${volume:,.2f}",
+                            daily_total=f"${total_liq:,.2f}",
+                        )
+
+            except Exception as e:
+                if self._shutdown.is_set():
+                    break
+                logger.error("Liquidation WebSocket error or disconnect, reconnecting in 5s...", error=str(e))
+                await asyncio.sleep(5)
+
+        logger.info("Liquidation WebSocket stream stopped")
 
     # ── Main Candle Loop ─────────────────────────────────────────
 
@@ -909,7 +987,14 @@ class V5ForwardTest:
 
     async def _daily_report_loop(self):
         while not self._shutdown.is_set():
-            await asyncio.sleep(60)
+            # Sleep in 1-second chunks to exit promptly on shutdown
+            for _ in range(60):
+                if self._shutdown.is_set():
+                    break
+                await asyncio.sleep(1)
+            if self._shutdown.is_set():
+                break
+
             now = datetime.now(timezone.utc)
             today = now.strftime("%Y-%m-%d")
 
