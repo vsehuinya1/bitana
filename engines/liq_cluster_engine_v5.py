@@ -1,9 +1,18 @@
 """
-Liquidation Cluster Expansion Engine — Production V5.
+Liquidation Cluster Expansion Engine — Production V6.
 
-V5 philosophy: D1-D3, D5-D9 only. Flat 4% risk per trade.
+V6 changes from V5.3:
+  - Fixed double bars_held increment (was cutting winners at 2x speed)
+  - Fixed imb_z confirmation to use real taker buy imbalance z-score
+  - Widened aggression score mapping (prevents D10 saturation on strong signals)
+  - Added cascade-deactivation exit tightening (1.0 ATR trail)
+  - Added time-based stop_cooldown fallback (288 bars = 24h)
+  - Fixed get_risk_pct() to return vol-targeted risk (was returning stale flat 4%)
+  - Renamed oi_acceleration → vol_acceleration (was mislabeled)
+
+V5 philosophy: D1-D3, D5-D9 only. Vol-targeted risk per trade.
 - D4 and D10 dropped (negative expectancy in backtest)
-- Flat 4% risk for all remaining deciles (simpler, more robust)
+- Vol-targeted risk sizing (1%-12% based on ATR normalization)
 - Per-decile exit parameters preserved (trail, decay, hold, struct_lookback)
 
 NO BTC alignment — removed. Useless correlation risk.
@@ -282,7 +291,7 @@ def _compute_aggression(candles_5m: list[Candle]) -> float:
 
     vol_short = np.mean(v[-5:])
     vol_long = np.mean(v[:-5]) + 1e-10
-    scores['oi_acceleration'] = (vol_short - vol_long) / vol_long
+    scores['vol_acceleration'] = (vol_short - vol_long) / vol_long
 
     ranges = h[:-1] - l[:-1]
     current_range = h[-1] - l[-1]
@@ -319,13 +328,14 @@ def _compute_aggression(candles_5m: list[Candle]) -> float:
     scores['cascade_intensity'] = (vol_z + range_z) / 2
 
     weights = {
-        'taker_imb_z': 0.10, 'delta_persistence': 0.10, 'oi_acceleration': 0.08,
+        'taker_imb_z': 0.10, 'delta_persistence': 0.10, 'vol_acceleration': 0.08,
         'range_expansion_pctile': 0.15, 'volume_concentration': 0.10, 'clv': 0.07,
         'wick_rejection': 0.08, 'spread_expansion': 0.10, 'velocity': 0.07,
         'cascade_intensity': 0.15,
     }
     composite = sum(scores.get(k, 0) * w for k, w in weights.items())
-    return max(0, min(100, (composite + 2) / 4 * 100))
+    # V6: wider mapping [-3, +3] → [0, 100] to prevent D10 saturation on strong signals
+    return max(0, min(100, (composite + 3) / 6 * 100))
 
 
 # ═══════════════════════════════════════════════════
@@ -433,9 +443,20 @@ class LiqClusterEngineV5:
             logger.info("Cascade active", symbol=symbol, strength=f"{strength:.2f}",
                        imb=f"{imb:.2f}", ret_5d=f"{ret_5d:.1f}")
 
-    def get_risk_pct(self, decile: int) -> float:
-        """Return flat 4% risk for all tradeable deciles."""
-        return FLAT_RISK_PCT
+    def get_risk_pct(self, symbol: str, candles_5m: list[Candle]) -> float:
+        """Return vol-targeted risk pct based on ATR normalization."""
+        if len(candles_5m) < CFG.atr_period + 1:
+            return BASE_RISK_PCT
+        closes = np.array([c.close for c in candles_5m])
+        highs = np.array([c.high for c in candles_5m])
+        lows = np.array([c.low for c in candles_5m])
+        atr = _atr(highs, lows, closes, CFG.atr_period)
+        entry_price = closes[-1]
+        atr_pct = (atr / entry_price) * 100 if entry_price > 0 else 0
+        if atr_pct > 0:
+            risk_pct = BASE_RISK_PCT * (TARGET_ATR_PCT / atr_pct)
+            return max(MIN_RISK_PCT, min(MAX_RISK_PCT, risk_pct))
+        return BASE_RISK_PCT
 
     def evaluate(self, symbol: str, candles_5m: list[Candle]) -> Optional[Signal]:
         """V5 entry: ALL deciles, 4/6 confirms, per-decile half-Kelly sizing."""
@@ -454,7 +475,9 @@ class LiqClusterEngineV5:
         if CFG.min_cascade_strength > 0 and st.cascade_strength < CFG.min_cascade_strength:
             return None
 
-        if CFG.max_consecutive_stops > 0 and st.stop_cooldown > 0:
+        # V6: time-based stop_cooldown fallback (288 bars = 24h)
+        if st.stop_cooldown > 0:
+            st.stop_cooldown -= 1
             return None
 
         n_needed = max(CFG.range_lookback, CFG.z_lookback, CFG.ema_period * 3)
@@ -480,15 +503,16 @@ class LiqClusterEngineV5:
 
         vol_z = _z_score(volumes, CFG.z_lookback)
 
+        # V6: Fixed imb_z — compute real taker buy imbalance z-score
         taker_buys = np.array([c.taker_buy_volume for c in candles_5m])
-        has_taker = taker_buys[-1] > 0
-        if has_taker:
-            imb = float(np.sum(taker_buys[-1])) / max(float(np.sum(volumes[-1])), 1e-10)
+        if len(taker_buys) >= CFG.z_lookback and np.any(taker_buys[-CFG.z_lookback:] > 0):
+            # Taker buy ratio per bar: taker_buy_volume / total_volume
+            taker_ratios = taker_buys / np.maximum(volumes, 1e-10)
+            imb_z = _z_score(taker_ratios, CFG.z_lookback)
+        else:
+            # Fallback: price-position relative to bar midpoint, normalized by ATR
             mid = (highs[-1] + lows[-1]) / 2
             imb_z = (closes[-1] - mid) / (atr + 1e-10)
-        else:
-            imb = 0.0
-            imb_z = 0.0
 
         # 6 confirmation checks — need 4/6
         confirmations = {}
@@ -571,14 +595,15 @@ class LiqClusterEngineV5:
         )
 
     def manage_position(self, symbol: str, candles_5m: list[Candle]) -> Optional[dict]:
-        """V5 exits: per-decile parameters. Wide trail for low deciles, tight for high."""
+        """V6 exits: per-decile parameters + cascade-deactivation tightening."""
         st = self._get_state(symbol)
         if not st.in_trade:
             return None
         if len(candles_5m) < 2:
             return None
 
-        st.bars_held += 1
+        # V6: bars_held is managed by the runner, NOT incremented here
+        # (was double-counted in V5, cutting winners at 2x speed)
         candle = candles_5m[-1]
         price = candle.close
         high = candle.high
@@ -612,7 +637,7 @@ class LiqClusterEngineV5:
             st.cooldown = CFG.cooldown_bars
             st.consecutive_stops += 1
             if st.consecutive_stops >= CFG.max_consecutive_stops:
-                st.stop_cooldown = 999999
+                st.stop_cooldown = 288  # V6: 24h cooldown (was 999999 = permanent)
             return {"action": "close", "reason": "stop_loss", "exit_price": stop_price,
                     "r": (stop_price - st.entry_price) / st.risk_per_unit,
                     "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
@@ -649,6 +674,19 @@ class LiqClusterEngineV5:
                 st.consecutive_stops = 0
                 return {"action": "close", "reason": "struct_trail", "exit_price": st.struct_trail,
                         "r": (st.struct_trail - st.entry_price) / st.risk_per_unit,
+                        "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                        "decile": st.decile, "aggression": st.aggression_score}
+
+        # V6: Cascade-deactivation tightening — if cascade turned off mid-trade,
+        # tighten to 1.0 ATR trail to protect profits
+        if not st.cascade_active and st.bars_held > 6:
+            tight_trail = st.best_price - atr * 1.0
+            if tight_trail > st.entry_price and low <= tight_trail:
+                st.in_trade = False
+                st.cooldown = CFG.cooldown_bars
+                st.consecutive_stops = 0
+                return {"action": "close", "reason": "cascade_deactivated", "exit_price": tight_trail,
+                        "r": (tight_trail - st.entry_price) / st.risk_per_unit,
                         "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                         "decile": st.decile, "aggression": st.aggression_score}
 

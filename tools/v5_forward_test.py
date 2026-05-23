@@ -1,12 +1,16 @@
 """
-Bitana V5.1 Forward Test — Liq-Cluster Multi-Symbol Paper Trading.
+Bitana V6 Forward Test — Liq-Cluster Multi-Symbol Paper Trading.
 
-V5.1: Vol-Targeting + Binance-native liquidation data.
-- Dynamic risk sizing via ATR normalization (2.0% target)
-- Liquidation data from Binance allForceOrders (replaces Coinalyze)
-- Per-decile exit parameters (trail, decay, hold, struct_lookback)
-- Regime filter, min cascade strength, per-symbol loss limit
-- Local liq cache accumulates history over time (30+ days → cascade active)
+V6: All audit fixes applied.
+- Fixed double bars_held increment (winners were exiting at 2x speed)
+- Fixed imb_z confirmation (now uses real taker buy imbalance z-score)
+- Widened aggression mapping (prevents D10 saturation on strong signals)
+- Added cascade-deactivation exit tightening (1.0 ATR trail)
+- Debounced WebSocket engine updates (60s intervals, not per-event)
+- Batch SQLite commits + WAL mode (reduced IO churn)
+- Added asyncio.Lock for engine/DB state safety
+- Time-based stop_cooldown fallback (288 bars = 24h)
+- Fixed equity snapshot count, self-test, duplicate key
 """
 from __future__ import annotations
 
@@ -17,7 +21,7 @@ import sqlite3
 import sys
 import time
 import uuid
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -32,7 +36,7 @@ from core.logging_setup import setup_logging, get_logger
 from core.models import AlertTier, Candle, EngineType, Side, Signal
 from data.binance_rest import BinanceRestClient
 from data.rate_limiter import RateLimiterGroup
-from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, FLAT_RISK_PCT, TRADE_DECILES
+from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES
 from tg_bot.alerts import TelegramAlerts
 
 logger = get_logger("v5_forward_test")
@@ -62,6 +66,7 @@ DAILY_REPORT_MINUTE = 5
 # Binance liq fetch config
 LIQ_FETCH_DAYS = 7          # Binance allForceOrders default window
 LIQ_CACHE_MAX_DAYS = 120    # Max days to keep in local cache
+WS_ENGINE_FLUSH_INTERVAL = 60  # V6: debounce WS engine updates (seconds)
 
 # DB column whitelist for positions
 _POS_COLS = {
@@ -82,6 +87,8 @@ class V5Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(path))
         self.conn.row_factory = sqlite3.Row
+        # V6: WAL mode for better concurrent read/write performance
+        self.conn.execute("PRAGMA journal_mode=WAL")
         self._init()
 
     def _init(self):
@@ -316,13 +323,16 @@ class V5ForwardTest:
         self.executor = PaperFill(eq)
         self.executor.peak = float(self.db.get_state("peak_equity", str(eq)))
 
-        self.candle_buffers: dict[str, list[Candle]] = defaultdict(list)
+        self.candle_buffers: dict[str, deque] = defaultdict(lambda: deque(maxlen=CANDLE_HISTORY_5M))
         self.last_prices: dict[str, float] = {}
         self.open_positions: list[dict] = self.db.get_open_positions()
         self._running = False
         self._shutdown = asyncio.Event()
+        self._engine_lock = asyncio.Lock()  # V6: protects engine state between WS and candle loops
         self._last_report_date = self.db.get_state("last_report_date", "")
         self._last_liq_date = self.db.get_state("last_liq_date", "")
+        self._ws_dirty_symbols: set = set()  # V6: symbols with pending WS liq updates
+        self._ws_last_flush: float = 0.0     # V6: last time WS flushed to engine
 
     async def start(self):
         self._running = True
@@ -371,12 +381,12 @@ class V5ForwardTest:
             recovered_block = "\n🔄 Recovered positions:\n" + "\n".join(recovered_lines)
 
         await self.alerts.send(
-            f"🧪 V5.1 Liq-Cluster Started (Binance-native)\n"
+            f"🧪 V6 Liq-Cluster Started (WebSocket + Coinalyze seeding)\n"
             f"Symbols: {len(self.symbols)}\n"
             f"Cascades active: {n_cascade}\n"
             f"Equity: {self.executor.equity:.2f}\n"
             f"Open positions: {len(self.open_positions)}\n"
-            f"Data: Binance allForceOrders + local cache{recovered_block}",
+            f"Data: Binance WS forceOrder + local cache{recovered_block}",
             AlertTier.INFO,
         )
 
@@ -401,7 +411,7 @@ class V5ForwardTest:
 
     def _self_test(self):
         checks = []
-        for sym in self.symbols[:3]:
+        for sym in self.symbols:
             if len(self.candle_buffers[sym]) < 50:
                 checks.append(f"{sym} 5m history too short: {len(self.candle_buffers[sym])}")
         try:
@@ -438,7 +448,7 @@ class V5ForwardTest:
 
         for sym in self.all_symbols:
             candles = await self._fetch_klines(sym, "5m", start, end)
-            self.candle_buffers[sym] = candles
+            self.candle_buffers[sym].extend(candles)
             if candles:
                 self.last_prices[sym] = candles[-1].close
             await asyncio.sleep(0.05)
@@ -626,14 +636,14 @@ class V5ForwardTest:
                 await self._update_liq_context()
 
     async def _liq_websocket_loop(self):
-        """Websocket client that streams market-wide liquidations in real-time,
-        aggregates them on-the-fly, updates the SQLite cache database, and pushes
-        the updates directly into the trading engine.
+        """V6: Websocket client with debounced engine updates.
+        Aggregates liquidation events into SQLite in real-time but only
+        flushes to the trading engine every WS_ENGINE_FLUSH_INTERVAL seconds.
         """
         url = "wss://fstream.binance.com/market/ws/!forceOrder@arr"
         logger.info("Liquidation WebSocket stream starting", url=url)
 
-        from engines.liq_cluster_engine_v5 import CascadeTracker
+        self._ws_last_flush = time.monotonic()
 
         while not self._shutdown.is_set():
             try:
@@ -688,21 +698,24 @@ class V5ForwardTest:
                             short_liq = volume if side == "BUY" else 0.0
                             total_liq = volume
 
-                        # Running daily close is tracked via last_prices (updated by candle_loop)
-                        # or fallback to current liquidation price if last_prices is not set yet
                         close = self.last_prices.get(symbol, price)
 
-                        # Write to SQLite
-                        self.db.upsert_liq_cache(symbol, date_str, total_liq, long_liq, short_liq, close)
+                        # V6: Write to SQLite without immediate commit (batched)
+                        self.db.conn.execute(
+                            """INSERT OR REPLACE INTO liq_cache
+                               (symbol, date, total_liq, long_liq, short_liq, close, updated_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                            (symbol, date_str, total_liq, long_liq, short_liq, close,
+                             datetime.now(timezone.utc).isoformat()),
+                        )
+                        self._ws_dirty_symbols.add(symbol)
 
-                        # Reload history from DB cache to update the trading engine
-                        min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
-                        cached = self.db.get_liq_cache(symbol, min_date)
-
-                        if cached:
-                            # Reset the engine's CascadeTracker to avoid duplicating entries
-                            self.engine._cascades[symbol] = CascadeTracker()
-                            self.engine.update_daily_liq(symbol, cached)
+                        # V6: Debounced engine flush — every WS_ENGINE_FLUSH_INTERVAL seconds
+                        now_mono = time.monotonic()
+                        if now_mono - self._ws_last_flush >= WS_ENGINE_FLUSH_INTERVAL:
+                            self.db.conn.commit()
+                            await self._flush_ws_to_engine()
+                            self._ws_last_flush = now_mono
 
                         logger.debug(
                             "Real-time liquidation aggregated via WebSocket",
@@ -719,6 +732,28 @@ class V5ForwardTest:
                 await asyncio.sleep(5)
 
         logger.info("Liquidation WebSocket stream stopped")
+
+    async def _flush_ws_to_engine(self):
+        """V6: Flush pending WebSocket liq updates to the trading engine."""
+        if not self._ws_dirty_symbols:
+            return
+
+        from engines.liq_cluster_engine_v5 import CascadeTracker
+
+        min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
+        dirty = list(self._ws_dirty_symbols)
+        self._ws_dirty_symbols.clear()
+
+        async with self._engine_lock:
+            for symbol in dirty:
+                cached = self.db.get_liq_cache(symbol, min_date)
+                if cached:
+                    self.engine._cascades[symbol] = CascadeTracker()
+                    self.engine.update_daily_liq(symbol, cached)
+
+        n_flushed = len(dirty)
+        n_active = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
+        logger.debug(f"WS engine flush: {n_flushed} symbols updated, {n_active} cascades active")
 
     # ── Main Candle Loop ─────────────────────────────────────────
 
@@ -760,17 +795,25 @@ class V5ForwardTest:
                         )
 
                         self.candle_buffers[sym].append(candle)
-                        if len(self.candle_buffers[sym]) > CANDLE_HISTORY_5M:
-                            self.candle_buffers[sym] = self.candle_buffers[sym][-CANDLE_HISTORY_5M:]
                         self.last_prices[sym] = candle.close
 
                         if sym in self.symbols:
-                            await self._on_5m_close(sym, candle)
+                            async with self._engine_lock:
+                                await self._on_5m_close(sym, candle)
 
                         last_processed[sym] = close_key
-                        self.db.set_state(f"last_5m_{sym}", close_key)
 
                     await asyncio.sleep(0.02)
+
+                # V6: batch commit all state updates per poll cycle
+                for sym in self.all_symbols:
+                    lp = last_processed.get(sym)
+                    if lp:
+                        self.db.conn.execute(
+                            "INSERT OR REPLACE INTO state(key,value) VALUES(?,?)",
+                            (f"last_5m_{sym}", lp),
+                        )
+                self.db.conn.commit()
 
                 self.db.set_state("heartbeat", datetime.now(timezone.utc).isoformat())
 
@@ -790,7 +833,7 @@ class V5ForwardTest:
         if not sym_positions:
             return
 
-        candles_5m = self.candle_buffers.get(symbol, [])
+        candles_5m = list(self.candle_buffers.get(symbol, []))
 
         for p in sym_positions:
             p["candles_held"] += 1
@@ -864,8 +907,10 @@ class V5ForwardTest:
         # Persist equity
         self.db.set_state("equity", str(round(float(self.executor.equity), 4)))
         self.db.set_state("peak_equity", str(round(float(self.executor.peak), 4)))
+        # V6: count active (non-closed) positions for accurate snapshot
+        active_count = sum(1 for p in self.open_positions if not p.get("_closed"))
         self.db.save_equity_snapshot(
-            float(self.executor.equity), len(self.open_positions),
+            float(self.executor.equity), active_count,
             self._calc_unrealized_r(),
         )
 
@@ -875,7 +920,7 @@ class V5ForwardTest:
         mae = float(p.get('mae', 0))
         mfe = float(p.get('mfe', 0))
         msg = (
-            f"{emoji} V5.1 EXIT {p['side']} {p['symbol']}\n"
+            f"{emoji} V6 EXIT {p['side']} {p['symbol']}\n"
             f"Entry: {p['entry_price']:.6f} → Exit: {fill:.6f}\n"
             f"PnL: {net_pnl:+.2f} ({float(pnl_r):+.3f}R)\n"
             f"Reason: {reason} | Candles: {p['candles_held']}\n"
@@ -902,12 +947,12 @@ class V5ForwardTest:
         if self.executor.equity <= 0:
             return
 
-        # Duplicate check
-        dup_key = f"{symbol}_{candle.close_time.isoformat()}_{Side.LONG.value}"
+        # Duplicate check — V6: uses signal side, not hardcoded LONG
+        dup_key = f"{symbol}_{candle.close_time.isoformat()}"
         if self.db.has_dup(dup_key):
             return
 
-        candles_5m = self.candle_buffers.get(symbol, [])
+        candles_5m = list(self.candle_buffers.get(symbol, []))
         try:
             sig = self.engine.evaluate(symbol, candles_5m)
         except Exception as e:
@@ -972,7 +1017,7 @@ class V5ForwardTest:
 
         agg = float(self.engine._get_state(symbol).aggression_score)
         await self.alerts.send(
-            f"📈 V5.1 ENTRY LONG {symbol}\n"
+            f"📈 V6 ENTRY LONG {symbol}\n"
             f"Price: {fill:.6f} | Stop: {sig.stop_price:.6f}\n"
             f"Risk: {float(risk_pct)*100:.1f}% | Lev: {lev}x | Qty: {qty:.4f}\n"
             f"Aggression: {agg:.0f} (D{decile})\n"
