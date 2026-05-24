@@ -1208,6 +1208,7 @@ class V5ForwardTest:
                     equity=float(self.executor.equity),
                     open_count=active_count,
                     btc_price=btc_price,
+                    is_experimental=sym in self.experimental_symbols,
                 )
             except Exception as e:
                 logger.debug("Telemetry entry logging error (non-fatal)", error=str(e))

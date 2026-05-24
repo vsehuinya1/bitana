@@ -169,6 +169,7 @@ class TelemetryDB:
         equity: float,
         open_count: int,
         btc_price: float = 0.0,
+        is_experimental: bool = False,
     ):
         """Log full state snapshot at trade entry."""
         try:
@@ -181,7 +182,7 @@ class TelemetryDB:
             self.conn.execute("""
                 INSERT OR REPLACE INTO trade_entries VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?
                 )
             """, (
                 trade_uuid, symbol, side, entry_time, entry_price, stop_price,
@@ -206,6 +207,7 @@ class TelemetryDB:
                 open_count,
                 btc_price,
                 datetime.now(timezone.utc).isoformat(),
+                1 if is_experimental else 0,
             ))
             self.conn.commit()
         except Exception as e:
