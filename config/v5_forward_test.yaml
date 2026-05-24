@@ -1,58 +1,71 @@
 # V5 Liq-Cluster Forward Test Config
-# V5.1: Vol-Targeting + Binance-native liq data (no Coinalyze dependency)
+# V6.2 + Tier 2 Experimental (Phase 1)
 #
-# Backtest-optimized symbol selection (Jan-May 2026):
-# - tier_a: Top performers (positive Net R, PF > 1.5) — higher priority
-# - tier_b: Original 20M+ symbols — still solid, kept as core
+# Symbol selection:
+# - tier_a: Top performers from backtest (positive Net R, PF > 1.5)
+# - tier_b: Core 20M+ pairs + Tier 2 experimental (15 new, no Coinalyze data)
 # - Excluded: Negative Net R symbols (MUSDT, ETHUSDT, LDOUSDT, etc.)
+# Tier 2 pairs use WebSocket-only cascade detection (no Coinalyze dependency)
 
 symbols:
   tier_a:
-    # 5-19M top performers (from backtest)
-    - RUNEUSDT      # +21.60R, PF 7.61, 67% WR
-    - BLUAIUSDT     # +17.33R, PF 17.99, 83% WR
-    - BERAUSDT      # +16.13R, PF inf, 100% WR
-    - SIRENUSDT     # +11.96R, PF 3.34, 50% WR
-    - EDGEUSDT      # +9.52R, PF 5.57, 56% WR
-    - MEGAUSDT      # +9.04R, PF 9.13, 50% WR
-    - KITEUSDT      # +6.75R, PF 4.26, 80% WR
-    - ONTUSDT       # +6.30R, PF 3.95, 62% WR
-    - KAITOUSDT     # +5.30R, PF 3.50, 83% WR
-    - RAVEUSDT      # +4.59R, PF 5.47, 67% WR
-    - ENJUSDT       # +3.54R, PF 2.13, 71% WR
-    - CRVUSDT       # +3.24R, PF 4.11, 75% WR
-    - IRYSUSDT      # +2.71R, PF 3.65, 83% WR
-    - DEXEUSDT      # +7.20R, PF 2.68, 46% WR (5-9M)
-    - WIFUSDT       # +6.93R, 50% WR (10-19M)
-    # 20M+ top performers
-    - ARBUSDT       # +18.53R, PF 763.65, 92% WR
-    - APTUSDT       # +15.49R, PF inf, 100% WR
-    - DOTUSDT       # +15.35R, PF 15.47, 90% WR
-    - FETUSDT       # +14.23R, PF inf, 100% WR
-    - TAOUSDT       # +11.31R, PF 4.52, 76% WR
-    - NEARUSDT      # +7.31R, PF 2.72, 43% WR
+    - RUNEUSDT
+    - BLUAIUSDT
+    - BERAUSDT
+    - SIRENUSDT
+    - EDGEUSDT
+    - MEGAUSDT
+    - KITEUSDT
+    - ONTUSDT
+    - KAITOUSDT
+    - RAVEUSDT
+    - ENJUSDT
+    - CRVUSDT
+    - IRYSUSDT
+    - DEXEUSDT
+    - WIFUSDT
+    - ARBUSDT
+    - APTUSDT
+    - DOTUSDT
+    - FETUSDT
+    - TAOUSDT
+    - NEARUSDT
 
   tier_b:
-    # Original 20M+ core (solid but lower edge)
-    - SOLUSDT       # +2.42R, PF 1.70, 62% WR
-    - XRPUSDT       # +2.93R, PF 2.15, 50% WR
-    - PENDLEUSDT    # +6.24R, PF 2.19, 64% WR
-    - DASHUSDT      # +3.85R, PF 4.72, 88% WR
-    - WLDUSDT       # +2.97R, PF 2.36, 62% WR
-    - TONUSDT       # +0.61R, PF 1.18, 57% WR
-    - CHZUSDT       # +2.75R, PF 1.86, 60% WR
-    - QNTUSDT       # +2.57R, PF 2.20, 75% WR
-    - NMRUSDT       # +2.61R, PF 3.26, 50% WR
-    - UNIUSDT       # +0.75R, PF inf, 100% WR
-    - BNBUSDT       # +0.49R, PF 1.13, 57% WR
-    - 1000LUNCUSDT  # +0.57R, PF 1.11, 29% WR
-    - ZECUSDT       # -0.67R — kept for diversification
-    - 1000PEPEUSDT  # -0.60R — kept for diversification
+    # Original core
+    - SOLUSDT
+    - XRPUSDT
+    - PENDLEUSDT
+    - DASHUSDT
+    - WLDUSDT
+    - TONUSDT
+    - CHZUSDT
+    - QNTUSDT
+    - NMRUSDT
+    - UNIUSDT
+    - BNBUSDT
+    - 1000LUNCUSDT
+    - ZECUSDT
+    - 1000PEPEUSDT
+    # === TIER 2 EXPERIMENTAL (Phase 1) ===
+    # No Coinalyze data — WebSocket-only cascade detection
+    - HYPEUSDT
+    - DOGEUSDT
+    - SUIUSDT
+    - GRASSUSDT
+    - ONDOUSDT
+    - LINKUSDT
+    - AVAXUSDT
+    - INJUSDT
+    - AAVEUSDT
+    - PENGUUSDT
+    - LTCUSDT
+    - TRUMPUSDT
+    - FARTCOINUSDT
+    - VIRTUALUSDT
+    - TIAUSDT
 
 risk:
-  # Per-decile half-Kelly sizing (set in engine, not here)
-  # D1: 0.9%, D2: 11.0%, D3: 10.0%, D4: 6.2%, D5: 18.4%
-  # D6: 5.3%, D7: 5.1%, D8: 16.0%, D9: 23.5%, D10: 16.9%
   max_leverage: 10
   max_positions: 15
   max_per_symbol: 1
@@ -69,4 +82,3 @@ fees:
 
 coinalyze:
   api_key: "be291954-992e-489d-8ab5-5d34a0dfcf41"
-
