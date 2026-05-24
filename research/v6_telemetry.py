@@ -67,7 +67,8 @@ class TelemetryDB:
                 equity_at_entry REAL,
                 open_positions_at_entry INTEGER,
                 btc_price REAL,
-                created_at TEXT DEFAULT (datetime('now'))
+                created_at TEXT DEFAULT (datetime('now')),
+                is_experimental INTEGER DEFAULT 0
             );
 
             -- Per-candle R-path while in trade

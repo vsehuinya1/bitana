@@ -998,7 +998,7 @@ class V5ForwardTest:
             "quantity": round(p["orig_quantity"], 6),
             "leverage": p["leverage"],
             "stop_dist": round(sd, 6),
-                    "is_experimental": sym in self.experimental_symbols,
+                    "is_experimental": p["symbol"] in self.experimental_symbols,
             "pnl_usd": round(net_pnl, 4),
             "pnl_r": round(float(pnl_r), 4),
             "fees": round(float(p["fees"]), 4),
