@@ -55,7 +55,7 @@ MIN_RISK_PCT = 0.01
 FLAT_RISK_PCT = 0.04
 
 # Deciles to trade (D4 and D10 dropped — negative expectancy)
-TRADE_DECILES = {1, 2, 3, 5, 6, 7, 8, 9}
+TRADE_DECILES = {1, 2, 5, 6, 7, 8, 9}
 
 
 # ═══════════════════════════════════════════════════
@@ -133,6 +133,7 @@ class V5Config:
 
     # V5 minimum cascade strength gate
     min_cascade_strength: float = 0.10
+    min_cascade_imb: float = 0.30  # Min directional imb (long_liq - short_liq)/total
 
     # V5: NO aggression gate — all deciles accepted
     # Sizing is handled by per-decile half-Kelly
@@ -335,7 +336,7 @@ def _compute_aggression(candles_5m: list[Candle]) -> float:
     }
     composite = sum(scores.get(k, 0) * w for k, w in weights.items())
     # V6: wider mapping [-3, +3] → [0, 100] to prevent D10 saturation on strong signals
-    return max(0, min(100, (composite + 3) / 6 * 100))
+    return max(0, min(100, (composite + 2) / 4 * 100))
 
 
 # ═══════════════════════════════════════════════════
@@ -475,6 +476,10 @@ class LiqClusterEngineV5:
         if CFG.min_cascade_strength > 0 and st.cascade_strength < CFG.min_cascade_strength:
             return None
 
+        # V6.1: Filter neutral cascades — require directional imb
+        if CFG.min_cascade_imb > 0 and st.liq_direction_imb < CFG.min_cascade_imb:
+            return None
+
         # V6: time-based stop_cooldown fallback (288 bars = 24h)
         if st.stop_cooldown > 0:
             st.stop_cooldown -= 1
@@ -537,8 +542,12 @@ class LiqClusterEngineV5:
         aggression = _compute_aggression(candles_5m)
         decile = _score_to_decile(aggression)
 
-        # Reject D4 and D10 (negative expectancy in backtest)
+        # Reject D3, D4 and D10 (negative expectancy in backtest + live forward validation)
         if decile not in TRADE_DECILES:
+            return None
+
+        # V6.2: D1-D2 require directional confirmation (imb_z or vol_z)
+        if decile in (1, 2) and not (confirmations.get('imb') or confirmations.get('vol')):
             return None
 
         # V5.1 Vol-Targeting Normalization
@@ -689,6 +698,17 @@ class LiqClusterEngineV5:
                         "r": (tight_trail - st.entry_price) / st.risk_per_unit,
                         "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                         "decile": st.decile, "aggression": st.aggression_score}
+
+        # V6.2: Cut dead trades at decay bar — never showed life, stop the bleed
+        if st.bars_held >= exits.decay_start_bar and current_r < -0.3 and st.mfe < 0.3:
+            st.in_trade = False
+            st.cooldown = CFG.cooldown_bars
+            st.consecutive_stops += 1
+            if st.consecutive_stops >= CFG.max_consecutive_stops:
+                st.stop_cooldown = 288
+            return {"action": "close", "reason": "early_cut", "exit_price": price,
+                    "r": current_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                    "decile": st.decile, "aggression": st.aggression_score}
 
         # Decay exit (decile-specific)
         if exits.decay_enabled and current_r >= exits.decay_min_r and st.bars_held >= exits.decay_start_bar:

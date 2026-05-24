@@ -68,6 +68,7 @@ class CandleManager:
             low=float(k["l"]),
             close=float(k["c"]),
             volume=float(k["v"]),
+            taker_buy_volume=float(k.get("V", 0)),
             is_closed=is_closed,
         )
 
@@ -122,6 +123,7 @@ class CandleManager:
                         low=float(k[3]),
                         close=float(k[4]),
                         volume=float(k[5]),
+                        taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
                         is_closed=True,
                     )
                     dq.append(candle)
@@ -179,6 +181,7 @@ class CandleManager:
                                     low=float(k[3]),
                                     close=float(k[4]),
                                     volume=float(k[5]),
+                                    taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
                                     is_closed=True,
                                 )
                                 dq[i] = corrected

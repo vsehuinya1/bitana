@@ -8,7 +8,7 @@ All trade records linked by trade_uuid (AD-8).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -126,7 +126,7 @@ def _trade_uuid() -> str:
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc)
 
 
 class Candle(BaseModel):
@@ -255,7 +255,7 @@ class Position(BaseModel):
         """Attempt state transition. Returns True if valid, False if rejected."""
         if validate_transition(self.state, new_state):
             self.state = new_state
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
             return True
         return False
 
