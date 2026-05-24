@@ -1,11 +1,16 @@
 # V5 Liq-Cluster Forward Test Config
-# V6.2 + Tier 2 Experimental (Phase 1)
+# V6.3: Tier 2 Experimental (15 new pairs, WebSocket-only)
 #
-# Symbol selection:
-# - tier_a: Top performers from backtest (positive Net R, PF > 1.5)
-# - tier_b: Core 20M+ pairs + Tier 2 experimental (15 new, no Coinalyze data)
-# - Excluded: Negative Net R symbols (MUSDT, ETHUSDT, LDOUSDT, etc.)
-# Tier 2 pairs use WebSocket-only cascade detection (no Coinalyze dependency)
+# V6.3 changes:
+# - Added 15 Tier 2 experimental pairs (no Coinalyze historical data)
+# - Tier 2 marked with experimental: true in config
+# - WebSocket-only cascade detection for Tier 2 (no Coinalyze dependency)
+# - Total: 50 pairs (35 proven + 15 experimental)
+#
+# Evaluation gate: after 50+ trades per Tier 2 pair:
+#   Keep: WR > 50% AND PF > 1.3
+#   Cut:  WR < 35% OR PF < 0.8 OR Net R < -3R
+#   Promote keepers to proven tier after 100+ trades
 
 symbols:
   tier_a:
@@ -32,7 +37,7 @@ symbols:
     - NEARUSDT
 
   tier_b:
-    # Original core
+    # PROVEN — Backtested with Coinalyze data (20M+ daily volume)
     - SOLUSDT
     - XRPUSDT
     - PENDLEUSDT
@@ -47,23 +52,26 @@ symbols:
     - 1000LUNCUSDT
     - ZECUSDT
     - 1000PEPEUSDT
-    # === TIER 2 EXPERIMENTAL (Phase 1) ===
-    # No Coinalyze data — WebSocket-only cascade detection
-    - HYPEUSDT
-    - DOGEUSDT
-    - SUIUSDT
-    - GRASSUSDT
-    - ONDOUSDT
-    - LINKUSDT
-    - AVAXUSDT
-    - INJUSDT
-    - AAVEUSDT
-    - PENGUUSDT
-    - LTCUSDT
-    - TRUMPUSDT
-    - FARTCOINUSDT
-    - VIRTUALUSDT
-    - TIAUSDT
+
+  tier_c_experimental:
+    # EXPERIMENTAL — No Coinalyze data, WebSocket-only cascade detection
+    # >00M/day volume group
+    - HYPEUSDT      # .9B/day
+    - DOGEUSDT      # 06M/day
+    - SUIUSDT       # 82M/day
+    - GRASSUSDT     # 40M/day
+    - ONDOUSDT      # 16M/day
+    - LINKUSDT      # 26M/day
+    - AVAXUSDT      # 22M/day
+    # 5-100M/day narrative diversity group
+    - INJUSDT       # 3M/day
+    - AAVEUSDT      # 2M/day
+    - PENGUUSDT     # 6M/day
+    - LTCUSDT       # 9M/day
+    - TRUMPUSDT     # 3M/day
+    - FARTCOINUSDT  # 7M/day
+    - VIRTUALUSDT   # 6M/day
+    - TIAUSDT       # 5M/day
 
 risk:
   max_leverage: 10

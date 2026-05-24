@@ -317,6 +317,9 @@ class V5ForwardTest:
 
         # Symbols — NO BTC
         self.symbols = self.v5_cfg["symbols"]["tier_a"] + self.v5_cfg["symbols"]["tier_b"]
+        tier_c = self.v5_cfg["symbols"].get("tier_c_experimental", [])
+        self.experimental_symbols = set(tier_c)
+        self.symbols += tier_c
         self.all_symbols = list(self.symbols)  # no BTC
 
         # Risk config — per-decile half-Kelly
@@ -440,7 +443,9 @@ class V5ForwardTest:
             msg = "Self-test FAILED:\n" + "\n".join(f"  - {c}" for c in checks)
             logger.critical(msg)
             raise RuntimeError(msg)
+        n_exp = len(self.experimental_symbols)
         logger.info("Self-test passed", symbols=len(self.symbols),
+                    proven=len(self.symbols) - n_exp, experimental=n_exp,
                      total_candles=sum(len(v) for v in self.candle_buffers.values()))
 
     async def _cleanup(self):
@@ -993,6 +998,7 @@ class V5ForwardTest:
             "quantity": round(p["orig_quantity"], 6),
             "leverage": p["leverage"],
             "stop_dist": round(sd, 6),
+                    "is_experimental": sym in self.experimental_symbols,
             "pnl_usd": round(net_pnl, 4),
             "pnl_r": round(float(pnl_r), 4),
             "fees": round(float(p["fees"]), 4),
