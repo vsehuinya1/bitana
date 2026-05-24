@@ -86,7 +86,8 @@ class BinanceRestClient:
 
         for attempt in range(3):
             try:
-                assert self._session is not None
+                if self._session is None:
+                    raise RuntimeError("BinanceRestClient.start() must be called before making requests")
                 async with self._session.request(
                     method, url, params=params if method == "GET" else None,
                     data=params if method != "GET" else None,
@@ -96,6 +97,7 @@ class BinanceRestClient:
                         wait = int(resp.headers.get("Retry-After", "30"))
                         logger.warning("Rate limited by Binance", wait_s=wait)
                         await asyncio.sleep(wait)
+                        await limiter.acquire(weight)
                         continue
                     if resp.status >= 400:
                         logger.error(

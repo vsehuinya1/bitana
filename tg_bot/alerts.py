@@ -20,6 +20,8 @@ logger = get_logger("telegram_alerts")
 class TelegramAlerts:
     """Sends tiered Telegram alerts."""
 
+    MAX_MESSAGE_LENGTH = 4000
+
     def __init__(self, bot_token: str, chat_id: str) -> None:
         self._token = bot_token
         self._chat_id = chat_id
@@ -52,35 +54,32 @@ class TelegramAlerts:
             AlertTier.CRITICAL: "🚨",
         }.get(tier, "")
 
-        text = f"{prefix} [{tier.value}]\n{message}"
+        text = f"{prefix} <b>{tier.value}</b>\n{message}"
 
-        async def _do_send():
+        if len(text) > self.MAX_MESSAGE_LENGTH:
+            text = text[: self.MAX_MESSAGE_LENGTH - 3] + "..."
+
+        last_exc: Exception | None = None
+        for attempt in range(2):
             try:
-                await asyncio.wait_for(
-                    self._bot.send_message(
-                        chat_id=self._chat_id,
-                        text=text,
-                        parse_mode="HTML",
-                    ),
-                    timeout=10,
+                await self._bot.send_message(
+                    chat_id=self._chat_id,
+                    text=text,
+                    parse_mode="HTML",
                 )
-            except asyncio.TimeoutError:
-                logger.warning("Telegram send timed out", tier=tier.value)
+                return
             except Exception as e:
-                # Fallback: retry without parse_mode
-                try:
-                    await asyncio.wait_for(
-                        self._bot.send_message(
-                            chat_id=self._chat_id,
-                            text=text,
-                        ),
-                        timeout=10,
-                    )
-                except Exception as e2:
-                    logger.error("Telegram send failed", error=str(e2), tier=tier.value)
+                last_exc = e
+                logger.warning(
+                    "Telegram send attempt failed",
+                    attempt=attempt + 1,
+                    error=str(e),
+                    tier=tier.value,
+                )
+                if attempt < 1:
+                    await asyncio.sleep(2)
 
-        # Fire-and-forget: never block the caller
-        asyncio.ensure_future(_do_send())
+        logger.error("Telegram send failed after retries", error=str(last_exc), tier=tier.value)
 
     # Convenience methods
     async def info(self, msg: str) -> None:
@@ -97,11 +96,11 @@ class TelegramAlerts:
         engine: str, trade_uuid: str,
     ) -> None:
         await self.info(
-            f"📈 ENTRY {side} {symbol}\n"
-            f"Price: {price:.4f}\n"
-            f"Qty: {qty:.4f}\n"
+            f"📈 <b>ENTRY</b> {side} {symbol}\n"
+            f"Price: <code>{price:.4f}</code>\n"
+            f"Qty: <code>{qty:.4f}</code>\n"
             f"Engine: {engine}\n"
-            f"UUID: {trade_uuid[:8]}"
+            f"UUID: <code>{trade_uuid[:8]}</code>"
         )
 
     async def exit_alert(
@@ -110,20 +109,21 @@ class TelegramAlerts:
     ) -> None:
         emoji = "✅" if pnl_usd >= 0 else "❌"
         await self.info(
-            f"{emoji} EXIT {side} {symbol}\n"
-            f"Price: {price:.4f}\n"
-            f"PnL: {pnl_usd:+.2f} ({pnl_r:+.2f}R)\n"
+            f"{emoji} <b>EXIT</b> {side} {symbol}\n"
+            f"Price: <code>{price:.4f}</code>\n"
+            f"PnL: <code>${pnl_usd:+.2f}</code> ({pnl_r:+.2f}R)\n"
             f"Reason: {reason}"
         )
 
     async def brake_alert(self, brake_type: str, details: str) -> None:
         await self.critical(
-            f"🛑 BRAKE: {brake_type}\n{details}"
+            f"🛑 <b>BRAKE: {brake_type}</b>\n{details}"
         )
 
     async def startup_alert(self, mode: str, config_checksum: str) -> None:
         await self.info(
-            f"🚀 Bitana Started\n"
+            f"🚀 <b>Bitana Started</b>\n"
             f"Mode: {mode}\n"
-            f"Config: {config_checksum[:12]}..."
+            f"Config: <code>{config_checksum[:12]}...</code>"
         )
+

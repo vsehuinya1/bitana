@@ -14,7 +14,7 @@ import logging
 import logging.handlers
 import os
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import structlog
@@ -34,10 +34,10 @@ def _gzip_namer(name: str) -> str:
 def _cleanup_old_logs(log_dir: Path, retention_days: int) -> None:
     if not log_dir.exists():
         return
-    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     for f in log_dir.glob("*.gz"):
         try:
-            if datetime.utcfromtimestamp(f.stat().st_mtime) < cutoff:
+            if datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc) < cutoff:
                 f.unlink()
         except OSError:
             pass
@@ -56,7 +56,7 @@ def setup_logging(
 
     root = logging.getLogger()
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
-    root.handlers.clear()
+    root.handlers = [h for h in root.handlers if not isinstance(h, (logging.StreamHandler, logging.FileHandler))]
 
     console = logging.StreamHandler()
     console.setLevel(getattr(logging, level.upper(), logging.INFO))
@@ -109,11 +109,21 @@ def get_logger(name: str = "", **kwargs) -> structlog.stdlib.BoundLogger:
 class TradeLogger:
     """Append-only JSONL logger for trade records."""
 
+    _MAX_SIZE = 50 * 1024 * 1024  # 50 MB
+
     def __init__(self, path: str = "logs/trades.jsonl") -> None:
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
+    def _rotate_if_needed(self) -> None:
+        if self._path.exists() and self._path.stat().st_size > self._MAX_SIZE:
+            rotated = self._path.with_suffix(".jsonl.1")
+            if rotated.exists():
+                rotated.unlink()
+            self._path.rename(rotated)
+
     def log_trade(self, trade_data: dict) -> None:
-        trade_data["_logged_at"] = datetime.utcnow().isoformat()
+        self._rotate_if_needed()
+        trade_data["_logged_at"] = datetime.now(timezone.utc).isoformat()
         with open(self._path, "a", encoding="utf-8") as f:
             f.write(json.dumps(trade_data, default=str) + "\n")

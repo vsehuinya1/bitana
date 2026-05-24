@@ -43,28 +43,30 @@ class RateLimiter:
 
     async def acquire(self, weight: int = 1) -> None:
         """Acquire tokens, blocking if necessary."""
-        async with self._lock:
-            self._refill()
-            while self._tokens < weight:
-                wait_time = (weight - self._tokens) / self._refill_rate
-                logger.warning(
-                    "Rate limit near capacity, waiting",
-                    limiter=self._name,
-                    wait_s=round(wait_time, 2),
-                    tokens_available=round(self._tokens, 1),
-                )
-                await asyncio.sleep(min(wait_time + 0.1, 5.0))
+        while True:
+            async with self._lock:
                 self._refill()
-
-            self._tokens -= weight
-
-            if self._tokens < self._max_tokens - self._warn_threshold:
-                logger.warning(
-                    "Rate limiter approaching limit",
-                    limiter=self._name,
-                    remaining=round(self._tokens, 1),
-                    max=self._max_tokens,
-                )
+                if self._tokens >= weight:
+                    self._tokens -= weight
+                    if self._tokens < self._max_tokens - self._warn_threshold:
+                        logger.warning(
+                            "Rate limiter approaching limit",
+                            limiter=self._name,
+                            remaining=round(self._tokens, 1),
+                            max=self._max_tokens,
+                        )
+                    return
+                # Calculate wait time but DON'T sleep inside the lock
+                deficit = weight - self._tokens
+                wait_time = deficit / self._refill_rate
+            # Sleep OUTSIDE the lock
+            logger.warning(
+                "Rate limit near capacity, waiting",
+                limiter=self._name,
+                wait_s=round(wait_time, 2),
+                tokens_available=round(self._tokens, 1),
+            )
+            await asyncio.sleep(min(wait_time + 0.1, 5.0))
 
     @property
     def available_tokens(self) -> float:

@@ -39,6 +39,14 @@ from data.rate_limiter import RateLimiterGroup
 from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES
 from tg_bot.alerts import TelegramAlerts
 
+# Research telemetry — purely observational, never affects trading
+try:
+    from research.v6_telemetry import TelemetryDB
+    from research.shadow_exits import evaluate_shadows
+    _HAS_TELEMETRY = True
+except ImportError:
+    _HAS_TELEMETRY = False
+
 logger = get_logger("v5_forward_test")
 
 # ═══════════════════════════════════════════════════
@@ -333,6 +341,16 @@ class V5ForwardTest:
         self._last_liq_date = self.db.get_state("last_liq_date", "")
         self._ws_dirty_symbols: set = set()  # V6: symbols with pending WS liq updates
         self._ws_last_flush: float = 0.0     # V6: last time WS flushed to engine
+
+        # V6.2 Research telemetry — purely observational
+        self._telemetry = None
+        self._post_exit_tracking: dict[str, dict] = {}  # trade_uuid -> {entry_price, risk_per_unit, exit_bar_time, bars_tracked}
+        if _HAS_TELEMETRY:
+            try:
+                self._telemetry = TelemetryDB()
+                logger.info("Research telemetry initialized")
+            except Exception as e:
+                logger.warning("Telemetry init failed (non-fatal)", error=str(e))
 
     async def start(self):
         self._running = True
@@ -817,12 +835,58 @@ class V5ForwardTest:
 
                 self.db.set_state("heartbeat", datetime.now(timezone.utc).isoformat())
 
+                # V6.2: Log regime snapshot periodically (every 5 minutes / 300s)
+                now_mono = time.monotonic()
+                if not hasattr(self, "_last_regime_log") or now_mono - self._last_regime_log >= 300:
+                    if self._telemetry:
+                        try:
+                            btc_p = self.last_prices.get("BTCUSDT", 0.0)
+                            n_cascades = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
+                            n_pos = sum(1 for p in self.open_positions if not p.get("_closed"))
+                            self._telemetry.log_regime(
+                                btc_price=btc_p,
+                                n_cascades=n_cascades,
+                                n_positions=n_pos,
+                                n_symbols=len(self.symbols),
+                                equity=float(self.executor.equity),
+                            )
+                            self._telemetry.commit()
+                            self._last_regime_log = now_mono
+                        except Exception as e:
+                            logger.debug("Telemetry regime log error (non-fatal)", error=str(e))
+
+
             except Exception as e:
                 logger.error("Candle loop error", error=str(e), exc_info=True)
 
             await asyncio.sleep(POLL_INTERVAL_S)
 
     async def _on_5m_close(self, symbol: str, candle: Candle):
+        # ── Telemetry: post-exit continuation tracking ──
+        if self._telemetry and self._post_exit_tracking:
+            try:
+                to_remove = []
+                for tuuid, ctx in self._post_exit_tracking.items():
+                    if ctx["symbol"] != symbol:
+                        continue
+                    ctx["bars_tracked"] += 1
+                    rpu = ctx["risk_per_unit"]
+                    if rpu > 0:
+                        hyp_r = (candle.close - ctx["entry_price"]) / rpu
+                        self._telemetry.log_post_exit_point(
+                            trade_uuid=tuuid,
+                            bars_after=ctx["bars_tracked"],
+                            timestamp=candle.close_time.isoformat() if hasattr(candle, 'close_time') else "",
+                            price=candle.close,
+                            hypothetical_r=round(hyp_r, 4),
+                        )
+                    if ctx["bars_tracked"] >= ctx["max_bars"]:
+                        to_remove.append(tuuid)
+                for tuuid in to_remove:
+                    del self._post_exit_tracking[tuuid]
+            except Exception as e:
+                logger.debug("Telemetry post-exit error (non-fatal)", error=str(e))
+
         await self._manage_positions(symbol, candle)
         await self._check_entry(symbol, candle)
 
@@ -841,6 +905,53 @@ class V5ForwardTest:
 
             # Sync bars_held to engine state so time_stop check works
             self.engine._get_state(symbol).bars_held = p["candles_held"]
+
+            # ── Telemetry: log R-path point + evaluate shadow exits ──
+            if self._telemetry and candles_5m:
+                try:
+                    st = self.engine._get_state(symbol)
+                    bar = candles_5m[-1]
+                    rpu = abs(p["entry_price"] - p["init_stop"])
+                    if rpu > 0:
+                        cur_r = (bar.close - p["entry_price"]) / rpu
+                        self._telemetry.log_r_point(
+                            trade_uuid=p["trade_uuid"],
+                            bar_index=p["candles_held"],
+                            timestamp=bar.close_time.isoformat() if hasattr(bar, 'close_time') else "",
+                            price=bar.close,
+                            unrealized_r=round(cur_r, 4),
+                            mae_so_far=round(float(st.mae), 4),
+                            mfe_so_far=round(float(st.mfe), 4),
+                            atr=0,  # computed inside shadow_exits
+                            consecutive_red=st.consecutive_red,
+                            above_ema=False,  # populated by shadow evaluator
+                            above_range_high=False,
+                            vol_trail_level=st.vol_trail,
+                            struct_trail_level=st.struct_trail,
+                        )
+
+                        # Shadow exit evaluation
+                        entry_ctx = json.loads(p.get("_entry_context", "{}")) if isinstance(p.get("_entry_context"), str) else p.get("_entry_context", {})
+                        shadows = evaluate_shadows(
+                            candles_5m=candles_5m,
+                            entry_price=p["entry_price"],
+                            risk_per_unit=rpu,
+                            best_price=st.best_price,
+                            bars_held=p["candles_held"],
+                            consecutive_red=st.consecutive_red,
+                            entry_context=entry_ctx,
+                        )
+                        for sname, sprice, sr in shadows:
+                            self._telemetry.log_shadow_trigger(
+                                trade_uuid=p["trade_uuid"],
+                                shadow_name=sname,
+                                trigger_bar=p["candles_held"],
+                                trigger_time=bar.close_time.isoformat() if hasattr(bar, 'close_time') else "",
+                                trigger_price=round(sprice, 6),
+                                shadow_r=round(sr, 4),
+                            )
+                except Exception as e:
+                    logger.debug("Telemetry r_path/shadow error (non-fatal)", error=str(e))
 
             try:
                 result = self.engine.manage_position(symbol, candles_5m)
@@ -931,6 +1042,37 @@ class V5ForwardTest:
 
         logger.info("Position closed", symbol=p["symbol"], pnl_r=round(float(pnl_r), 4),
                      reason=reason, equity=round(float(self.executor.equity), 2))
+
+        # ── Telemetry: exit attribution + shadow finalization ──
+        if self._telemetry:
+            try:
+                st = self.engine._get_state(p["symbol"])
+                self._telemetry.log_exit(
+                    trade_uuid=p["trade_uuid"],
+                    exit_time=ct.isoformat() if isinstance(ct, datetime) else str(ct),
+                    exit_price=round(fill, 6),
+                    exit_reason=reason,
+                    pnl_r=round(float(pnl_r), 4),
+                    hold_bars=p["candles_held"],
+                    mae=round(float(p.get("mae", 0)), 4),
+                    mfe=round(float(p.get("mfe", 0)), 4),
+                )
+                self._telemetry.finalize_shadows(
+                    trade_uuid=p["trade_uuid"],
+                    actual_exit_r=round(float(pnl_r), 4),
+                    actual_exit_bar=p["candles_held"],
+                )
+                # Start post-exit tracking (48 bars = 4 hours)
+                self._post_exit_tracking[p["trade_uuid"]] = {
+                    "symbol": p["symbol"],
+                    "entry_price": p["entry_price"],
+                    "risk_per_unit": abs(p["entry_price"] - p["init_stop"]),
+                    "bars_tracked": 0,
+                    "max_bars": 48,
+                }
+                self._telemetry.commit()
+            except Exception as e:
+                logger.debug("Telemetry exit logging error (non-fatal)", error=str(e))
 
     # ── Entry Logic ──────────────────────────────────────────────
 
@@ -1027,6 +1169,42 @@ class V5ForwardTest:
 
         logger.info("Entry", symbol=symbol, price=round(fill, 6),
                      risk=float(risk_pct), aggression=round(agg, 1), decile=decile)
+
+        # ── Telemetry: log entry snapshot ──
+        if self._telemetry:
+            try:
+                st = self.engine._get_state(symbol)
+                # Store entry context on position for shadow exits
+                entry_ctx = {
+                    "range_high": sig.signal_data.get("range_high", 0),
+                    "ema_value": sig.signal_data.get("ema_value", 0),
+                    "decile": decile,
+                }
+                pos["_entry_context"] = json.dumps(entry_ctx)
+                self.db.save_position(pos)  # re-save with context
+
+                btc_price = self.last_prices.get("BTCUSDT", 0)
+                active_count = sum(1 for p in self.open_positions if not p.get("_closed"))
+                self._telemetry.log_entry(
+                    trade_uuid=sig.trade_uuid,
+                    symbol=symbol,
+                    side=sig.side.value,
+                    entry_time=candle.close_time.isoformat(),
+                    entry_price=fill,
+                    stop_price=sig.stop_price,
+                    signal_data=sig.signal_data,
+                    engine_state={
+                        "cascade_active": st.cascade_active,
+                        "cascade_strength": st.cascade_strength,
+                        "liq_direction_imb": st.liq_direction_imb,
+                        "ret_5d": st.ret_5d,
+                    },
+                    equity=float(self.executor.equity),
+                    open_count=active_count,
+                    btc_price=btc_price,
+                )
+            except Exception as e:
+                logger.debug("Telemetry entry logging error (non-fatal)", error=str(e))
 
     # ── Daily Report ─────────────────────────────────────────────
 
