@@ -1,0 +1,39 @@
+[Unit]
+Description=Bitana Trading Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=bitana
+Group=bitana
+WorkingDirectory=/opt/bitana
+EnvironmentFile=/opt/bitana/.env
+
+# Config validation before start
+ExecStartPre=/opt/bitana/venv/bin/python -c "from config.loader import load_config; load_config()"
+
+# Main process
+ExecStart=/opt/bitana/venv/bin/python main.py --mode paper
+
+# Health check after start
+ExecStartPost=/bin/bash -c 'sleep 5 && curl -sf http://localhost:8080/health || exit 1'
+
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bitana
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/bitana/data /opt/bitana/logs
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,63 @@
+V3 DYNAMIC RISK ALLOCATION
+============================================================
+
+baseline: agg=False corr=False exit_v2=False regime=False
+  Finding signals...
+/root/bitana/research/scripts/v3_dynamic_allocation.py:308: RuntimeWarning: invalid value encountered in divide
+  bs=np.where(cr>0,cb/cr,0)
+  Signals: 399
+  Replaying...
+  Done: 386 trades, $8110.98
+  Time: 181s
+
+
+agg_sizing: agg=True corr=False exit_v2=False regime=False
+  Finding signals...
+  Signals: 399
+  Replaying...
+  Done: 386 trades, $8815.11
+  Time: 188s
+
+
+agg_correlation: agg=True corr=True exit_v2=False regime=False
+  Finding signals...
+  Signals: 399
+  Replaying...
+  Done: 385 trades, $8758.80
+  Time: 185s
+
+
+agg_exit_v2: agg=True corr=True exit_v2=True regime=False
+  Finding signals...
+  Signals: 399
+  Replaying...
+  Done: 372 trades, $5813.85
+  Time: 180s
+
+
+full_stack: agg=True corr=True exit_v2=True regime=True
+  Finding signals...
+  Signals: 399
+  Replaying...
+  Done: 372 trades, $7620.61
+  Time: 178s
+
+
+COMPARISON
+======================================================================
+Layer                Trades    WR%    Total R     PF   Sharpe     Final Eq
+----------------------------------------------------------------------
+baseline                386   61.7     +96.76  1.654    2.708 $  32,368.86
+agg_sizing              386   61.7     +96.76  1.654    2.708 $  32,475.40
+agg_correlation         385   61.6     +96.20   1.65      2.7 $  32,400.06
+agg_exit_v2             372   58.3    +125.26  1.808    2.722 $  34,762.96
+full_stack              372   58.3    +125.26  1.808    2.722 $  31,246.39
+
+Decile breakdown:
+  baseline: D1:40t/+3.7R | D2:39t/+5.6R | D3:38t/+15.6R | D4:39t/+5.6R | D5:37t/+16.1R | D6:37t/+9.4R | D7:39t/+3.9R | D8:39t/+16.4R | D9:40t/+11.5R | D10:38t/+8.9R
+  agg_sizing: D1:40t/+3.7R | D2:39t/+5.6R | D3:38t/+15.6R | D4:39t/+5.6R | D5:37t/+16.1R | D6:37t/+9.4R | D7:39t/+3.9R | D8:39t/+16.4R | D9:40t/+11.5R | D10:38t/+8.9R
+  agg_correlation: D1:40t/+3.7R | D2:39t/+5.6R | D3:38t/+15.6R | D4:39t/+5.6R | D5:37t/+16.1R | D6:37t/+9.4R | D7:39t/+3.9R | D8:39t/+16.4R | D9:39t/+10.9R | D10:38t/+8.9R
+  agg_exit_v2: D1:38t/+0.5R | D2:39t/+10.9R | D3:37t/+8.7R | D4:39t/+4.2R | D5:35t/+18.3R | D6:37t/+4.7R | D7:36t/+3.6R | D8:36t/+15.3R | D9:39t/+38.5R | D10:36t/+20.6R
+  full_stack: D1:38t/+0.5R | D2:39t/+10.9R | D3:37t/+8.7R | D4:39t/+4.2R | D5:35t/+18.3R | D6:37t/+4.7R | D7:36t/+3.6R | D8:36t/+15.3R | D9:39t/+38.5R | D10:36t/+20.6R
+
+Outputs: /root/bitana/backtest_output

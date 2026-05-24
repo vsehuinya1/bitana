@@ -1,0 +1,1034 @@
+V5 D3 Exclusion Backtest
+Period: 2026-01-01 to 2026-05-20
+ATR x2.5 | No vol skip
+
+Loading data...
+  NEARUSDT: 40043 klines
+  ZECUSDT: 40043 klines
+  ADAUSDT: 40043 klines
+  WLDUSDT: 40043 klines
+  UNIUSDT: 40043 klines
+  NMRUSDT: 40043 klines
+  PENDLEUSDT: 40043 klines
+  ARBUSDT: 40043 klines
+  RENDERUSDT: 40043 klines
+  RUNEUSDT: 40043 klines
+  FETUSDT: 40043 klines
+  DOTUSDT: 40043 klines
+  TONUSDT: 40043 klines
+  SOLUSDT: 40043 klines
+  1000LUNCUSDT: 40043 klines
+  ENAUSDT: 40043 klines
+  1000PEPEUSDT: 40043 klines
+  XRPUSDT: 40043 klines
+  FILUSDT: 40043 klines
+  BNBUSDT: 40043 klines
+  TAOUSDT: 40043 klines
+  CHZUSDT: 40043 klines
+  DASHUSDT: 40043 klines
+  QNTUSDT: 40043 klines
+  ICPUSDT: 40043 klines
+  XLMUSDT: 40043 klines
+  APTUSDT: 40043 klines
+  ETHUSDT: 40043 klines
+
+Building timeline...
+Total events: 1121204
+
+Running simulation...
+2026-05-21 08:34:05 [info     ] Cascade active                 imb=-0.27 ret_5d=11.5 strength=1.12 symbol=TAOUSDT
+2026-05-21 08:34:05 [info     ] Cascade active                 imb=-0.27 ret_5d=11.5 strength=1.12 symbol=TAOUSDT
+2026-05-21 08:34:05 [info     ] Cascade active                 imb=-0.58 ret_5d=11.3 strength=1.18 symbol=CHZUSDT
+2026-05-21 08:34:05 [info     ] Cascade active                 imb=-0.58 ret_5d=11.3 strength=1.18 symbol=CHZUSDT
+2026-05-21 08:34:05 [info     ] Cascade active                 imb=-0.67 ret_5d=8.6 strength=1.10 symbol=RENDERUSDT
+2026-05-21 08:34:05 [info     ] Cascade active                 imb=-0.67 ret_5d=8.6 strength=1.10 symbol=RENDERUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.97 ret_5d=3.8 strength=2.52 symbol=NMRUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.97 ret_5d=3.8 strength=2.52 symbol=NMRUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.99 ret_5d=7.0 strength=1.28 symbol=PENDLEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.99 ret_5d=7.0 strength=1.28 symbol=PENDLEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.97 ret_5d=6.0 strength=2.55 symbol=ARBUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.97 ret_5d=6.0 strength=2.55 symbol=ARBUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.97 ret_5d=8.3 strength=2.26 symbol=RUNEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.97 ret_5d=8.3 strength=2.26 symbol=RUNEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.82 ret_5d=8.2 strength=1.38 symbol=DOTUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.82 ret_5d=8.2 strength=1.38 symbol=DOTUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.89 ret_5d=5.2 strength=1.07 symbol=SOLUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.89 ret_5d=5.2 strength=1.07 symbol=SOLUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.60 ret_5d=20.9 strength=1.35 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.60 ret_5d=20.9 strength=1.35 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.45 ret_5d=51.8 strength=14.54 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.45 ret_5d=51.8 strength=14.54 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.37 ret_5d=14.2 strength=1.22 symbol=ICPUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.37 ret_5d=14.2 strength=1.22 symbol=ICPUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.81 ret_5d=8.6 strength=1.62 symbol=APTUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.81 ret_5d=8.6 strength=1.62 symbol=APTUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.32 ret_5d=7.1 strength=3.30 symbol=ETHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.32 ret_5d=7.1 strength=3.30 symbol=ETHUSDT
+  2026-01-13 09:39 | events: 100000 | A: 10000 | B: 10000
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.88 ret_5d=14.6 strength=1.42 symbol=RUNEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.88 ret_5d=14.6 strength=1.42 symbol=RUNEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.58 ret_5d=24.5 strength=0.98 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.58 ret_5d=24.5 strength=0.98 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.39 ret_5d=111.2 strength=4.38 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.39 ret_5d=111.2 strength=4.38 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.51 ret_5d=41.7 strength=1.78 symbol=ICPUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.51 ret_5d=41.7 strength=1.78 symbol=ICPUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.17 ret_5d=8.6 strength=0.65 symbol=ETHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.17 ret_5d=8.6 strength=0.65 symbol=ETHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.20 ret_5d=14.6 strength=1.77 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.20 ret_5d=14.6 strength=1.77 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.13 ret_5d=116.7 strength=2.33 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.13 ret_5d=116.7 strength=2.33 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.32 ret_5d=18.4 strength=0.51 symbol=RUNEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.32 ret_5d=18.4 strength=0.51 symbol=RUNEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.21 ret_5d=129.0 strength=1.00 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.21 ret_5d=129.0 strength=1.00 symbol=DASHUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.09 ret_5d=32.7 strength=1.10 symbol=ICPUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.09 ret_5d=32.7 strength=1.10 symbol=ICPUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.40 ret_5d=6.1 strength=0.16 symbol=FILUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.40 ret_5d=6.1 strength=0.16 symbol=FILUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.37 ret_5d=23.2 strength=0.87 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.37 ret_5d=23.2 strength=0.87 symbol=CHZUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.25 ret_5d=16.5 strength=1.77 symbol=QNTUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.25 ret_5d=16.5 strength=1.77 symbol=QNTUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.29 ret_5d=-3.0 strength=0.47 symbol=PENDLEUSDT
+2026-05-21 08:34:06 [info     ] Cascade active                 imb=-0.29 ret_5d=-3.0 strength=0.47 symbol=PENDLEUSDT
+  2026-01-25 19:14 | events: 200000 | A: 10000 | B: 10000
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.61 ret_5d=3.3 strength=0.31 symbol=ZECUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.61 ret_5d=3.3 strength=0.31 symbol=ZECUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.10 ret_5d=-3.8 strength=0.39 symbol=ADAUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.10 ret_5d=-3.8 strength=0.39 symbol=ADAUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.32 ret_5d=-4.0 strength=0.10 symbol=DOTUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.32 ret_5d=-4.0 strength=0.10 symbol=DOTUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.62 ret_5d=-0.5 strength=0.11 symbol=1000LUNCUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.62 ret_5d=-0.5 strength=0.11 symbol=1000LUNCUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.19 ret_5d=-1.7 strength=0.23 symbol=ETHUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.19 ret_5d=-1.7 strength=0.23 symbol=ETHUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.85 ret_5d=9.4 strength=0.99 symbol=ZECUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.85 ret_5d=9.4 strength=0.99 symbol=ZECUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.63 ret_5d=0.4 strength=0.19 symbol=ADAUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.63 ret_5d=0.4 strength=0.19 symbol=ADAUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.52 ret_5d=2.5 strength=0.39 symbol=ETHUSDT
+2026-05-21 08:34:07 [info     ] Cascade active                 imb=-0.52 ret_5d=2.5 strength=0.39 symbol=ETHUSDT
+2026-05-21 08:34:08 [info     ] Cascade active                 imb=-0.61 ret_5d=3.4 strength=0.37 symbol=NMRUSDT
+2026-05-21 08:34:08 [info     ] Cascade active                 imb=-0.61 ret_5d=3.4 strength=0.37 symbol=NMRUSDT
+2026-05-21 08:34:08 [info     ] V5 signal                      aggression=52.7 cascade_strength=0.37 confirms=4 decile=1 risk_pct=10.5% symbol=NMRUSDT vol_z=0.18
+2026-05-21 08:34:08 [info     ] V5 signal                      aggression=52.7 cascade_strength=0.37 confirms=4 decile=1 risk_pct=10.5% symbol=NMRUSDT vol_z=0.18
+2026-05-21 08:34:08 [info     ] V5 signal                      aggression=68.2 cascade_strength=0.37 confirms=5 decile=2 risk_pct=7.3% symbol=NMRUSDT vol_z=4.93
+2026-05-21 08:34:08 [info     ] V5 signal                      aggression=68.2 cascade_strength=0.37 confirms=5 decile=2 risk_pct=7.3% symbol=NMRUSDT vol_z=4.93
+2026-05-21 08:34:08 [info     ] V5 signal                      aggression=61.9 cascade_strength=0.37 confirms=4 decile=1 risk_pct=12.0% symbol=NMRUSDT vol_z=-0.55
+2026-05-21 08:34:08 [info     ] V5 signal                      aggression=61.9 cascade_strength=0.37 confirms=4 decile=1 risk_pct=12.0% symbol=NMRUSDT vol_z=-0.55
+  2026-02-07 04:54 | events: 300000 | A: 10543 | B: 10543
+2026-05-21 08:34:09 [info     ] Cascade active                 imb=-0.52 ret_5d=-2.0 strength=0.23 symbol=UNIUSDT
+2026-05-21 08:34:09 [info     ] Cascade active                 imb=-0.52 ret_5d=-2.0 strength=0.23 symbol=UNIUSDT
+2026-05-21 08:34:09 [info     ] Cascade active                 imb=-0.36 ret_5d=-3.3 strength=0.33 symbol=BNBUSDT
+2026-05-21 08:34:09 [info     ] Cascade active                 imb=-0.36 ret_5d=-3.3 strength=0.33 symbol=BNBUSDT
+2026-05-21 08:34:09 [info     ] V5 signal                      aggression=59.2 cascade_strength=0.23 confirms=4 decile=1 risk_pct=12.0% symbol=UNIUSDT vol_z=-0.31
+2026-05-21 08:34:09 [info     ] V5 signal                      aggression=59.2 cascade_strength=0.23 confirms=4 decile=1 risk_pct=12.0% symbol=UNIUSDT vol_z=-0.31
+2026-05-21 08:34:10 [info     ] V5 signal                      aggression=82.8 cascade_strength=0.23 confirms=5 decile=9 risk_pct=12.0% symbol=UNIUSDT vol_z=5.65
+2026-05-21 08:34:10 [info     ] V5 signal                      aggression=82.8 cascade_strength=0.23 confirms=5 decile=9 risk_pct=12.0% symbol=UNIUSDT vol_z=5.65
+2026-05-21 08:34:10 [info     ] V5 signal                      aggression=68.6 cascade_strength=0.33 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=3.95
+2026-05-21 08:34:10 [info     ] V5 signal                      aggression=68.6 cascade_strength=0.33 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=3.95
+2026-05-21 08:34:10 [info     ] Cascade active                 imb=-0.76 ret_5d=34.7 strength=1.72 symbol=ZECUSDT
+2026-05-21 08:34:10 [info     ] Cascade active                 imb=-0.76 ret_5d=34.7 strength=1.72 symbol=ZECUSDT
+2026-05-21 08:34:10 [info     ] V5 signal                      aggression=61.6 cascade_strength=1.72 confirms=4 decile=1 risk_pct=9.6% symbol=ZECUSDT vol_z=0.50
+2026-05-21 08:34:10 [info     ] V5 signal                      aggression=61.6 cascade_strength=1.72 confirms=4 decile=1 risk_pct=9.6% symbol=ZECUSDT vol_z=0.50
+2026-05-21 08:34:11 [info     ] Cascade active                 imb=-0.15 ret_5d=22.3 strength=0.93 symbol=ZECUSDT
+2026-05-21 08:34:11 [info     ] Cascade active                 imb=-0.15 ret_5d=22.3 strength=0.93 symbol=ZECUSDT
+2026-05-21 08:34:11 [info     ] Cascade active                 imb=-0.10 ret_5d=36.2 strength=1.50 symbol=TAOUSDT
+2026-05-21 08:34:11 [info     ] Cascade active                 imb=-0.10 ret_5d=36.2 strength=1.50 symbol=TAOUSDT
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=82.1 cascade_strength=1.50 confirms=4 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=2.01
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=82.1 cascade_strength=1.50 confirms=4 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=2.01
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=72.8 cascade_strength=0.93 confirms=4 decile=3 risk_pct=10.3% symbol=ZECUSDT vol_z=2.70
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=72.8 cascade_strength=0.93 confirms=4 decile=3 risk_pct=10.3% symbol=ZECUSDT vol_z=2.70
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=69.2 cascade_strength=0.93 confirms=4 decile=2 risk_pct=10.5% symbol=ZECUSDT vol_z=5.65
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=72.0 cascade_strength=1.50 confirms=4 decile=3 risk_pct=12.0% symbol=TAOUSDT vol_z=0.15
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=72.0 cascade_strength=1.50 confirms=4 decile=3 risk_pct=12.0% symbol=TAOUSDT vol_z=0.15
+2026-05-21 08:34:11 [info     ] V5 signal                      aggression=82.4 cascade_strength=1.50 confirms=4 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=1.79
+  2026-02-19 14:29 | events: 400000 | A: 14264 | B: 13444
+2026-05-21 08:34:12 [info     ] Cascade active                 imb=-0.23 ret_5d=3.9 strength=0.99 symbol=ARBUSDT
+2026-05-21 08:34:12 [info     ] Cascade active                 imb=-0.23 ret_5d=3.9 strength=0.99 symbol=ARBUSDT
+2026-05-21 08:34:12 [info     ] Cascade active                 imb=-0.74 ret_5d=24.0 strength=3.80 symbol=DOTUSDT
+2026-05-21 08:34:12 [info     ] Cascade active                 imb=-0.74 ret_5d=24.0 strength=3.80 symbol=DOTUSDT
+2026-05-21 08:34:12 [info     ] Cascade active                 imb=-0.46 ret_5d=13.8 strength=1.77 symbol=APTUSDT
+2026-05-21 08:34:12 [info     ] Cascade active                 imb=-0.46 ret_5d=13.8 strength=1.77 symbol=APTUSDT
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=75.8 cascade_strength=3.80 confirms=4 decile=5 risk_pct=12.0% symbol=DOTUSDT vol_z=3.58
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=75.8 cascade_strength=3.80 confirms=4 decile=5 risk_pct=12.0% symbol=DOTUSDT vol_z=3.58
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=70.4 cascade_strength=1.77 confirms=4 decile=2 risk_pct=12.0% symbol=APTUSDT vol_z=1.35
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=70.4 cascade_strength=1.77 confirms=4 decile=2 risk_pct=12.0% symbol=APTUSDT vol_z=1.35
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=84.0 cascade_strength=0.99 confirms=4 decile=9 risk_pct=12.0% symbol=ARBUSDT vol_z=4.53
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=84.0 cascade_strength=0.99 confirms=4 decile=9 risk_pct=12.0% symbol=ARBUSDT vol_z=4.53
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=66.5 cascade_strength=0.99 confirms=4 decile=1 risk_pct=12.0% symbol=ARBUSDT vol_z=-0.03
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=66.5 cascade_strength=0.99 confirms=4 decile=1 risk_pct=12.0% symbol=ARBUSDT vol_z=-0.03
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=66.2 cascade_strength=3.80 confirms=4 decile=1 risk_pct=12.0% symbol=DOTUSDT vol_z=0.08
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=66.2 cascade_strength=3.80 confirms=4 decile=1 risk_pct=12.0% symbol=DOTUSDT vol_z=0.08
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=80.3 cascade_strength=1.77 confirms=4 decile=7 risk_pct=12.0% symbol=APTUSDT vol_z=0.23
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=80.3 cascade_strength=1.77 confirms=4 decile=7 risk_pct=12.0% symbol=APTUSDT vol_z=0.23
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=71.6 cascade_strength=3.80 confirms=4 decile=3 risk_pct=5.3% symbol=DOTUSDT vol_z=2.51
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=71.6 cascade_strength=3.80 confirms=4 decile=3 risk_pct=5.3% symbol=DOTUSDT vol_z=2.51
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=54.9 cascade_strength=1.77 confirms=4 decile=1 risk_pct=12.0% symbol=APTUSDT vol_z=4.20
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=54.9 cascade_strength=1.77 confirms=4 decile=1 risk_pct=12.0% symbol=APTUSDT vol_z=4.20
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=62.8 cascade_strength=3.80 confirms=4 decile=1 risk_pct=8.0% symbol=DOTUSDT vol_z=1.18
+2026-05-21 08:34:13 [info     ] V5 signal                      aggression=83.0 cascade_strength=3.80 confirms=4 decile=9 risk_pct=7.6% symbol=DOTUSDT vol_z=1.55
+2026-05-21 08:34:13 [info     ] Cascade active                 imb=-0.17 ret_5d=21.6 strength=3.66 symbol=1000LUNCUSDT
+2026-05-21 08:34:13 [info     ] Cascade active                 imb=-0.17 ret_5d=21.6 strength=3.66 symbol=1000LUNCUSDT
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=81.0 cascade_strength=3.66 confirms=5 decile=8 risk_pct=8.8% symbol=1000LUNCUSDT vol_z=3.68
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=81.0 cascade_strength=3.66 confirms=5 decile=8 risk_pct=8.8% symbol=1000LUNCUSDT vol_z=3.68
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=76.2 cascade_strength=3.66 confirms=4 decile=5 risk_pct=5.6% symbol=1000LUNCUSDT vol_z=4.05
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=76.2 cascade_strength=3.66 confirms=4 decile=5 risk_pct=5.6% symbol=1000LUNCUSDT vol_z=4.05
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.10 ret_5d=31.3 strength=0.93 symbol=DOTUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.10 ret_5d=31.3 strength=0.93 symbol=DOTUSDT
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=67.1 cascade_strength=0.93 confirms=4 decile=2 risk_pct=11.0% symbol=DOTUSDT vol_z=0.57
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=67.1 cascade_strength=0.93 confirms=4 decile=2 risk_pct=11.0% symbol=DOTUSDT vol_z=0.57
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.82 ret_5d=5.8 strength=1.20 symbol=PENDLEUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.82 ret_5d=5.8 strength=1.20 symbol=PENDLEUSDT
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=82.1 cascade_strength=1.20 confirms=4 decile=8 risk_pct=9.2% symbol=PENDLEUSDT vol_z=4.96
+2026-05-21 08:34:14 [info     ] V5 signal                      aggression=82.1 cascade_strength=1.20 confirms=4 decile=8 risk_pct=9.2% symbol=PENDLEUSDT vol_z=4.96
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.65 ret_5d=15.7 strength=2.21 symbol=NEARUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.65 ret_5d=15.7 strength=2.21 symbol=NEARUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.63 ret_5d=1.1 strength=0.28 symbol=ARBUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.63 ret_5d=1.1 strength=0.28 symbol=ARBUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.32 ret_5d=15.3 strength=0.49 symbol=1000LUNCUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.32 ret_5d=15.3 strength=0.49 symbol=1000LUNCUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.66 ret_5d=4.1 strength=0.59 symbol=ENAUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.66 ret_5d=4.1 strength=0.59 symbol=ENAUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.17 ret_5d=-3.1 strength=0.54 symbol=XRPUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.17 ret_5d=-3.1 strength=0.54 symbol=XRPUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.33 ret_5d=-4.3 strength=0.35 symbol=XLMUSDT
+2026-05-21 08:34:14 [info     ] Cascade active                 imb=-0.33 ret_5d=-4.3 strength=0.35 symbol=XLMUSDT
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=67.2 cascade_strength=2.21 confirms=4 decile=2 risk_pct=12.0% symbol=NEARUSDT vol_z=0.19
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=67.2 cascade_strength=2.21 confirms=4 decile=2 risk_pct=12.0% symbol=NEARUSDT vol_z=0.19
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=67.0 cascade_strength=0.28 confirms=4 decile=2 risk_pct=12.0% symbol=ARBUSDT vol_z=0.88
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=67.0 cascade_strength=0.28 confirms=4 decile=2 risk_pct=12.0% symbol=ARBUSDT vol_z=0.88
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=66.8 cascade_strength=0.59 confirms=4 decile=1 risk_pct=12.0% symbol=ENAUSDT vol_z=-0.41
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=66.8 cascade_strength=0.59 confirms=4 decile=1 risk_pct=12.0% symbol=ENAUSDT vol_z=-0.41
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=71.6 cascade_strength=0.35 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=0.10
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=71.6 cascade_strength=0.35 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=0.10
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=66.8 cascade_strength=0.49 confirms=4 decile=1 risk_pct=12.0% symbol=1000LUNCUSDT vol_z=0.86
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=66.8 cascade_strength=0.49 confirms=4 decile=1 risk_pct=12.0% symbol=1000LUNCUSDT vol_z=0.86
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=63.0 cascade_strength=2.21 confirms=4 decile=1 risk_pct=12.0% symbol=NEARUSDT vol_z=0.42
+2026-05-21 08:34:15 [info     ] V5 signal                      aggression=63.0 cascade_strength=2.21 confirms=4 decile=1 risk_pct=12.0% symbol=NEARUSDT vol_z=0.42
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=79.2 cascade_strength=0.28 confirms=5 decile=7 risk_pct=11.2% symbol=ARBUSDT vol_z=6.43
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=79.2 cascade_strength=0.28 confirms=5 decile=7 risk_pct=11.2% symbol=ARBUSDT vol_z=6.43
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=79.7 cascade_strength=0.54 confirms=5 decile=7 risk_pct=12.0% symbol=XRPUSDT vol_z=3.94
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=79.7 cascade_strength=0.54 confirms=5 decile=7 risk_pct=12.0% symbol=XRPUSDT vol_z=3.94
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=72.6 cascade_strength=0.59 confirms=4 decile=3 risk_pct=10.0% symbol=ENAUSDT vol_z=2.86
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=72.6 cascade_strength=0.59 confirms=4 decile=3 risk_pct=10.0% symbol=ENAUSDT vol_z=2.86
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=69.4 cascade_strength=0.35 confirms=5 decile=2 risk_pct=12.0% symbol=XLMUSDT vol_z=4.18
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=66.8 cascade_strength=0.59 confirms=5 decile=1 risk_pct=9.8% symbol=ENAUSDT vol_z=3.49
+2026-05-21 08:34:16 [info     ] Cascade active                 imb=-0.30 ret_5d=20.4 strength=1.36 symbol=NEARUSDT
+2026-05-21 08:34:16 [info     ] Cascade active                 imb=-0.30 ret_5d=20.4 strength=1.36 symbol=NEARUSDT
+2026-05-21 08:34:16 [info     ] Cascade active                 imb=-0.52 ret_5d=1.2 strength=1.14 symbol=SOLUSDT
+2026-05-21 08:34:16 [info     ] Cascade active                 imb=-0.52 ret_5d=1.2 strength=1.14 symbol=SOLUSDT
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=60.7 cascade_strength=1.14 confirms=4 decile=1 risk_pct=12.0% symbol=SOLUSDT vol_z=1.95
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=60.7 cascade_strength=1.14 confirms=4 decile=1 risk_pct=12.0% symbol=SOLUSDT vol_z=1.95
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=69.0 cascade_strength=1.14 confirms=4 decile=2 risk_pct=12.0% symbol=SOLUSDT vol_z=0.29
+2026-05-21 08:34:16 [info     ] V5 signal                      aggression=69.0 cascade_strength=1.14 confirms=4 decile=2 risk_pct=12.0% symbol=SOLUSDT vol_z=0.29
+2026-05-21 08:34:16 [info     ] Cascade active                 imb=-0.45 ret_5d=11.0 strength=0.58 symbol=SOLUSDT
+2026-05-21 08:34:16 [info     ] Cascade active                 imb=-0.45 ret_5d=11.0 strength=0.58 symbol=SOLUSDT
+  2026-03-04 00:09 | events: 500000 | A: 34159 | B: 40207
+2026-05-21 08:34:17 [info     ] V5 signal                      aggression=66.9 cascade_strength=0.58 confirms=4 decile=2 risk_pct=12.0% symbol=SOLUSDT vol_z=1.57
+2026-05-21 08:34:17 [info     ] V5 signal                      aggression=66.9 cascade_strength=0.58 confirms=4 decile=2 risk_pct=12.0% symbol=SOLUSDT vol_z=1.57
+2026-05-21 08:34:17 [info     ] V5 signal                      aggression=72.5 cascade_strength=0.58 confirms=4 decile=3 risk_pct=8.9% symbol=SOLUSDT vol_z=2.72
+2026-05-21 08:34:17 [info     ] V5 signal                      aggression=72.5 cascade_strength=0.58 confirms=4 decile=3 risk_pct=8.9% symbol=SOLUSDT vol_z=2.72
+2026-05-21 08:34:17 [info     ] V5 signal                      aggression=76.8 cascade_strength=0.58 confirms=4 decile=5 risk_pct=12.0% symbol=SOLUSDT vol_z=0.35
+2026-05-21 08:34:18 [info     ] Cascade active                 imb=-0.46 ret_5d=32.7 strength=1.06 symbol=RENDERUSDT
+2026-05-21 08:34:18 [info     ] Cascade active                 imb=-0.46 ret_5d=32.7 strength=1.06 symbol=RENDERUSDT
+2026-05-21 08:34:18 [info     ] Cascade active                 imb=-0.13 ret_5d=26.3 strength=1.76 symbol=FETUSDT
+2026-05-21 08:34:18 [info     ] Cascade active                 imb=-0.13 ret_5d=26.3 strength=1.76 symbol=FETUSDT
+2026-05-21 08:34:18 [info     ] Cascade active                 imb=-0.63 ret_5d=29.9 strength=3.00 symbol=TAOUSDT
+2026-05-21 08:34:18 [info     ] Cascade active                 imb=-0.63 ret_5d=29.9 strength=3.00 symbol=TAOUSDT
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=80.7 cascade_strength=1.76 confirms=4 decile=7 risk_pct=8.4% symbol=FETUSDT vol_z=2.64
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=80.7 cascade_strength=1.76 confirms=4 decile=7 risk_pct=8.4% symbol=FETUSDT vol_z=2.64
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=80.3 cascade_strength=1.06 confirms=5 decile=7 risk_pct=10.0% symbol=RENDERUSDT vol_z=5.28
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=80.3 cascade_strength=1.06 confirms=5 decile=7 risk_pct=10.0% symbol=RENDERUSDT vol_z=5.28
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=81.9 cascade_strength=3.00 confirms=5 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=8.31
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=81.9 cascade_strength=3.00 confirms=5 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=8.31
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=81.7 cascade_strength=1.06 confirms=4 decile=8 risk_pct=10.9% symbol=RENDERUSDT vol_z=2.51
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=81.7 cascade_strength=1.06 confirms=4 decile=8 risk_pct=10.9% symbol=RENDERUSDT vol_z=2.51
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=76.9 cascade_strength=3.00 confirms=4 decile=5 risk_pct=11.9% symbol=TAOUSDT vol_z=1.71
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=76.9 cascade_strength=3.00 confirms=4 decile=5 risk_pct=11.9% symbol=TAOUSDT vol_z=1.71
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=55.4 cascade_strength=1.06 confirms=4 decile=1 risk_pct=6.4% symbol=RENDERUSDT vol_z=1.74
+2026-05-21 08:34:18 [info     ] V5 signal                      aggression=55.4 cascade_strength=1.06 confirms=4 decile=1 risk_pct=6.4% symbol=RENDERUSDT vol_z=1.74
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=75.5 cascade_strength=3.00 confirms=4 decile=5 risk_pct=12.0% symbol=TAOUSDT vol_z=0.20
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=75.5 cascade_strength=3.00 confirms=4 decile=5 risk_pct=12.0% symbol=TAOUSDT vol_z=0.20
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.07 ret_5d=28.3 strength=0.42 symbol=TAOUSDT
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.07 ret_5d=28.3 strength=0.42 symbol=TAOUSDT
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=69.9 cascade_strength=0.42 confirms=4 decile=2 risk_pct=12.0% symbol=TAOUSDT vol_z=3.00
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=69.9 cascade_strength=0.42 confirms=4 decile=2 risk_pct=12.0% symbol=TAOUSDT vol_z=3.00
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.39 ret_5d=28.8 strength=0.27 symbol=RENDERUSDT
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.39 ret_5d=28.8 strength=0.27 symbol=RENDERUSDT
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.43 ret_5d=27.3 strength=0.77 symbol=FETUSDT
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.43 ret_5d=27.3 strength=0.77 symbol=FETUSDT
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.49 ret_5d=41.7 strength=2.13 symbol=TAOUSDT
+2026-05-21 08:34:19 [info     ] Cascade active                 imb=-0.49 ret_5d=41.7 strength=2.13 symbol=TAOUSDT
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=73.1 cascade_strength=2.13 confirms=4 decile=3 risk_pct=10.8% symbol=TAOUSDT vol_z=2.47
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=73.1 cascade_strength=2.13 confirms=4 decile=3 risk_pct=10.8% symbol=TAOUSDT vol_z=2.47
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=72.8 cascade_strength=0.77 confirms=5 decile=3 risk_pct=12.0% symbol=FETUSDT vol_z=3.43
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=72.8 cascade_strength=0.77 confirms=5 decile=3 risk_pct=12.0% symbol=FETUSDT vol_z=3.43
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=70.1 cascade_strength=2.13 confirms=4 decile=2 risk_pct=7.8% symbol=TAOUSDT vol_z=4.09
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=65.8 cascade_strength=0.27 confirms=4 decile=1 risk_pct=11.6% symbol=RENDERUSDT vol_z=2.42
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=65.8 cascade_strength=0.27 confirms=4 decile=1 risk_pct=11.6% symbol=RENDERUSDT vol_z=2.42
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=70.7 cascade_strength=0.77 confirms=4 decile=3 risk_pct=12.0% symbol=FETUSDT vol_z=2.00
+2026-05-21 08:34:19 [info     ] V5 signal                      aggression=81.9 cascade_strength=0.77 confirms=5 decile=8 risk_pct=12.0% symbol=FETUSDT vol_z=6.77
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=72.1 cascade_strength=0.77 confirms=4 decile=3 risk_pct=12.0% symbol=FETUSDT vol_z=2.35
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=72.1 cascade_strength=0.77 confirms=4 decile=3 risk_pct=12.0% symbol=FETUSDT vol_z=2.35
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=81.5 cascade_strength=0.77 confirms=4 decile=8 risk_pct=12.0% symbol=FETUSDT vol_z=2.13
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=82.2 cascade_strength=2.13 confirms=4 decile=8 risk_pct=10.0% symbol=TAOUSDT vol_z=4.98
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=80.4 cascade_strength=0.27 confirms=4 decile=7 risk_pct=12.0% symbol=RENDERUSDT vol_z=2.18
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=80.4 cascade_strength=0.27 confirms=4 decile=7 risk_pct=12.0% symbol=RENDERUSDT vol_z=2.18
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.25 ret_5d=14.8 strength=1.11 symbol=NEARUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.25 ret_5d=14.8 strength=1.11 symbol=NEARUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.67 ret_5d=30.2 strength=1.59 symbol=ZECUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.67 ret_5d=30.2 strength=1.59 symbol=ZECUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.48 ret_5d=48.3 strength=2.16 symbol=FETUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.48 ret_5d=48.3 strength=2.16 symbol=FETUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.31 ret_5d=38.0 strength=0.98 symbol=TAOUSDT
+2026-05-21 08:34:20 [info     ] Cascade active                 imb=-0.31 ret_5d=38.0 strength=0.98 symbol=TAOUSDT
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=64.8 cascade_strength=1.11 confirms=4 decile=1 risk_pct=12.0% symbol=NEARUSDT vol_z=0.13
+2026-05-21 08:34:20 [info     ] V5 signal                      aggression=64.8 cascade_strength=1.11 confirms=4 decile=1 risk_pct=12.0% symbol=NEARUSDT vol_z=0.13
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=61.0 cascade_strength=1.59 confirms=4 decile=1 risk_pct=12.0% symbol=ZECUSDT vol_z=0.23
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=61.0 cascade_strength=1.59 confirms=4 decile=1 risk_pct=12.0% symbol=ZECUSDT vol_z=0.23
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=68.4 cascade_strength=2.16 confirms=4 decile=2 risk_pct=12.0% symbol=FETUSDT vol_z=1.54
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=68.4 cascade_strength=2.16 confirms=4 decile=2 risk_pct=12.0% symbol=FETUSDT vol_z=1.54
+  2026-03-16 09:44 | events: 600000 | A: 50474 | B: 58338
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=67.8 cascade_strength=0.98 confirms=4 decile=2 risk_pct=9.6% symbol=TAOUSDT vol_z=1.33
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=77.6 cascade_strength=2.16 confirms=5 decile=6 risk_pct=7.1% symbol=FETUSDT vol_z=4.53
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=77.6 cascade_strength=2.16 confirms=5 decile=6 risk_pct=7.1% symbol=FETUSDT vol_z=4.53
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=68.5 cascade_strength=2.16 confirms=4 decile=2 risk_pct=5.8% symbol=FETUSDT vol_z=5.17
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=68.5 cascade_strength=2.16 confirms=4 decile=2 risk_pct=5.8% symbol=FETUSDT vol_z=5.17
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.25 ret_5d=30.8 strength=1.04 symbol=ZECUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.25 ret_5d=30.8 strength=1.04 symbol=ZECUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.33 ret_5d=14.9 strength=1.09 symbol=FETUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.33 ret_5d=14.9 strength=1.09 symbol=FETUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.15 ret_5d=-4.7 strength=2.16 symbol=TAOUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.15 ret_5d=-4.7 strength=2.16 symbol=TAOUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.51 ret_5d=18.8 strength=1.30 symbol=QNTUSDT
+2026-05-21 08:34:21 [info     ] Cascade active                 imb=-0.51 ret_5d=18.8 strength=1.30 symbol=QNTUSDT
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=64.1 cascade_strength=1.09 confirms=4 decile=1 risk_pct=11.5% symbol=FETUSDT vol_z=0.70
+2026-05-21 08:34:21 [info     ] V5 signal                      aggression=64.1 cascade_strength=1.09 confirms=4 decile=1 risk_pct=11.5% symbol=FETUSDT vol_z=0.70
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=68.1 cascade_strength=1.30 confirms=4 decile=2 risk_pct=12.0% symbol=QNTUSDT vol_z=0.80
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=68.1 cascade_strength=1.30 confirms=4 decile=2 risk_pct=12.0% symbol=QNTUSDT vol_z=0.80
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=70.6 cascade_strength=2.16 confirms=4 decile=3 risk_pct=7.4% symbol=TAOUSDT vol_z=2.31
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=70.6 cascade_strength=2.16 confirms=4 decile=3 risk_pct=7.4% symbol=TAOUSDT vol_z=2.31
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=65.8 cascade_strength=2.16 confirms=4 decile=1 risk_pct=5.9% symbol=TAOUSDT vol_z=2.12
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=81.0 cascade_strength=1.30 confirms=5 decile=8 risk_pct=12.0% symbol=QNTUSDT vol_z=4.78
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=81.0 cascade_strength=1.30 confirms=5 decile=8 risk_pct=12.0% symbol=QNTUSDT vol_z=4.78
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=61.4 cascade_strength=1.30 confirms=4 decile=1 risk_pct=12.0% symbol=QNTUSDT vol_z=-0.54
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=61.4 cascade_strength=1.30 confirms=4 decile=1 risk_pct=12.0% symbol=QNTUSDT vol_z=-0.54
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=76.3 cascade_strength=1.09 confirms=4 decile=5 risk_pct=12.0% symbol=FETUSDT vol_z=1.99
+2026-05-21 08:34:22 [info     ] V5 signal                      aggression=76.3 cascade_strength=1.09 confirms=4 decile=5 risk_pct=12.0% symbol=FETUSDT vol_z=1.99
+2026-05-21 08:34:23 [info     ] Cascade active                 imb=-0.29 ret_5d=19.0 strength=1.25 symbol=TAOUSDT
+2026-05-21 08:34:23 [info     ] Cascade active                 imb=-0.29 ret_5d=19.0 strength=1.25 symbol=TAOUSDT
+2026-05-21 08:34:23 [info     ] Cascade active                 imb=-0.94 ret_5d=2.8 strength=0.34 symbol=QNTUSDT
+2026-05-21 08:34:23 [info     ] Cascade active                 imb=-0.94 ret_5d=2.8 strength=0.34 symbol=QNTUSDT
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=76.0 cascade_strength=1.25 confirms=4 decile=5 risk_pct=7.8% symbol=TAOUSDT vol_z=4.32
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=76.0 cascade_strength=1.25 confirms=4 decile=5 risk_pct=7.8% symbol=TAOUSDT vol_z=4.32
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=65.0 cascade_strength=0.34 confirms=4 decile=1 risk_pct=12.0% symbol=QNTUSDT vol_z=0.99
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=65.0 cascade_strength=0.34 confirms=4 decile=1 risk_pct=12.0% symbol=QNTUSDT vol_z=0.99
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=66.8 cascade_strength=1.25 confirms=4 decile=1 risk_pct=11.0% symbol=TAOUSDT vol_z=2.18
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=66.8 cascade_strength=1.25 confirms=4 decile=1 risk_pct=11.0% symbol=TAOUSDT vol_z=2.18
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=67.8 cascade_strength=0.34 confirms=4 decile=2 risk_pct=12.0% symbol=QNTUSDT vol_z=0.28
+2026-05-21 08:34:23 [info     ] V5 signal                      aggression=67.8 cascade_strength=0.34 confirms=4 decile=2 risk_pct=12.0% symbol=QNTUSDT vol_z=0.28
+2026-05-21 08:34:23 [info     ] Cascade active                 imb=-0.26 ret_5d=28.6 strength=1.45 symbol=TAOUSDT
+2026-05-21 08:34:23 [info     ] Cascade active                 imb=-0.26 ret_5d=28.6 strength=1.45 symbol=TAOUSDT
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=82.3 cascade_strength=1.45 confirms=4 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=5.46
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=82.3 cascade_strength=1.45 confirms=4 decile=8 risk_pct=12.0% symbol=TAOUSDT vol_z=5.46
+2026-05-21 08:34:24 [info     ] Cascade active                 imb=-0.33 ret_5d=12.3 strength=1.06 symbol=CHZUSDT
+2026-05-21 08:34:24 [info     ] Cascade active                 imb=-0.33 ret_5d=12.3 strength=1.06 symbol=CHZUSDT
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=71.9 cascade_strength=1.06 confirms=4 decile=3 risk_pct=12.0% symbol=CHZUSDT vol_z=2.07
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=71.9 cascade_strength=1.06 confirms=4 decile=3 risk_pct=12.0% symbol=CHZUSDT vol_z=2.07
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=66.1 cascade_strength=1.06 confirms=4 decile=1 risk_pct=12.0% symbol=CHZUSDT vol_z=3.46
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=63.1 cascade_strength=1.06 confirms=4 decile=1 risk_pct=12.0% symbol=CHZUSDT vol_z=0.89
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=67.2 cascade_strength=1.06 confirms=4 decile=2 risk_pct=12.0% symbol=CHZUSDT vol_z=2.69
+2026-05-21 08:34:24 [info     ] V5 signal                      aggression=54.2 cascade_strength=1.06 confirms=4 decile=1 risk_pct=8.4% symbol=CHZUSDT vol_z=0.87
+  2026-03-28 19:19 | events: 700000 | A: 76515 | B: 87628
+2026-05-21 08:34:24 [info     ] Cascade active                 imb=-0.26 ret_5d=18.6 strength=0.89 symbol=CHZUSDT
+2026-05-21 08:34:24 [info     ] Cascade active                 imb=-0.26 ret_5d=18.6 strength=0.89 symbol=CHZUSDT
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=60.8 cascade_strength=0.89 confirms=4 decile=1 risk_pct=12.0% symbol=CHZUSDT vol_z=1.83
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=60.8 cascade_strength=0.89 confirms=4 decile=1 risk_pct=12.0% symbol=CHZUSDT vol_z=1.83
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=78.7 cascade_strength=0.89 confirms=4 decile=6 risk_pct=12.0% symbol=CHZUSDT vol_z=1.45
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=78.7 cascade_strength=0.89 confirms=4 decile=6 risk_pct=12.0% symbol=CHZUSDT vol_z=1.45
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=70.3 cascade_strength=0.89 confirms=4 decile=2 risk_pct=8.4% symbol=CHZUSDT vol_z=3.52
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=70.3 cascade_strength=0.89 confirms=4 decile=2 risk_pct=8.4% symbol=CHZUSDT vol_z=3.52
+2026-05-21 08:34:25 [info     ] Cascade active                 imb=-0.05 ret_5d=-1.8 strength=0.04 symbol=DOTUSDT
+2026-05-21 08:34:25 [info     ] Cascade active                 imb=-0.05 ret_5d=-1.8 strength=0.04 symbol=DOTUSDT
+2026-05-21 08:34:25 [info     ] Cascade active                 imb=-0.04 ret_5d=-2.9 strength=0.06 symbol=BNBUSDT
+2026-05-21 08:34:25 [info     ] Cascade active                 imb=-0.04 ret_5d=-2.9 strength=0.06 symbol=BNBUSDT
+2026-05-21 08:34:25 [info     ] Cascade active                 imb=-0.24 ret_5d=-2.6 strength=0.12 symbol=BNBUSDT
+2026-05-21 08:34:25 [info     ] Cascade active                 imb=-0.24 ret_5d=-2.6 strength=0.12 symbol=BNBUSDT
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=80.4 cascade_strength=0.12 confirms=4 decile=7 risk_pct=12.0% symbol=BNBUSDT vol_z=4.47
+2026-05-21 08:34:25 [info     ] V5 signal                      aggression=80.4 cascade_strength=0.12 confirms=4 decile=7 risk_pct=12.0% symbol=BNBUSDT vol_z=4.47
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.58 ret_5d=11.9 strength=0.21 symbol=NMRUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.58 ret_5d=11.9 strength=0.21 symbol=NMRUSDT
+2026-05-21 08:34:26 [info     ] V5 signal                      aggression=60.3 cascade_strength=0.21 confirms=4 decile=1 risk_pct=12.0% symbol=NMRUSDT vol_z=-0.05
+2026-05-21 08:34:26 [info     ] V5 signal                      aggression=60.3 cascade_strength=0.21 confirms=4 decile=1 risk_pct=12.0% symbol=NMRUSDT vol_z=-0.05
+2026-05-21 08:34:26 [info     ] V5 signal                      aggression=65.2 cascade_strength=0.21 confirms=4 decile=1 risk_pct=12.0% symbol=NMRUSDT vol_z=1.60
+2026-05-21 08:34:26 [info     ] V5 signal                      aggression=65.2 cascade_strength=0.21 confirms=4 decile=1 risk_pct=12.0% symbol=NMRUSDT vol_z=1.60
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.73 ret_5d=33.1 strength=1.50 symbol=ZECUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.73 ret_5d=33.1 strength=1.50 symbol=ZECUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.22 ret_5d=0.9 strength=0.32 symbol=WLDUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.22 ret_5d=0.9 strength=0.32 symbol=WLDUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.35 ret_5d=7.3 strength=0.43 symbol=NMRUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.35 ret_5d=7.3 strength=0.43 symbol=NMRUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.42 ret_5d=6.3 strength=1.66 symbol=DOTUSDT
+2026-05-21 08:34:26 [info     ] Cascade active                 imb=-0.42 ret_5d=6.3 strength=1.66 symbol=DOTUSDT
+2026-05-21 08:34:26 [info     ] V5 signal                      aggression=69.4 cascade_strength=1.50 confirms=4 decile=2 risk_pct=12.0% symbol=ZECUSDT vol_z=0.93
+2026-05-21 08:34:26 [info     ] V5 signal                      aggression=69.4 cascade_strength=1.50 confirms=4 decile=2 risk_pct=12.0% symbol=ZECUSDT vol_z=0.93
+2026-05-21 08:34:27 [info     ] V5 signal                      aggression=79.1 cascade_strength=0.32 confirms=4 decile=7 risk_pct=12.0% symbol=WLDUSDT vol_z=3.05
+2026-05-21 08:34:27 [info     ] V5 signal                      aggression=79.1 cascade_strength=0.32 confirms=4 decile=7 risk_pct=12.0% symbol=WLDUSDT vol_z=3.05
+2026-05-21 08:34:27 [info     ] V5 signal                      aggression=76.5 cascade_strength=1.66 confirms=4 decile=5 risk_pct=12.0% symbol=DOTUSDT vol_z=1.47
+2026-05-21 08:34:27 [info     ] V5 signal                      aggression=76.5 cascade_strength=1.66 confirms=4 decile=5 risk_pct=12.0% symbol=DOTUSDT vol_z=1.47
+2026-05-21 08:34:27 [info     ] Cascade active                 imb=-0.24 ret_5d=38.0 strength=1.06 symbol=ZECUSDT
+2026-05-21 08:34:27 [info     ] Cascade active                 imb=-0.24 ret_5d=38.0 strength=1.06 symbol=ZECUSDT
+2026-05-21 08:34:27 [info     ] Cascade active                 imb=-0.07 ret_5d=46.0 strength=0.99 symbol=ZECUSDT
+2026-05-21 08:34:27 [info     ] Cascade active                 imb=-0.07 ret_5d=46.0 strength=0.99 symbol=ZECUSDT
+2026-05-21 08:34:27 [info     ] Cascade active                 imb=-0.63 ret_5d=3.7 strength=1.82 symbol=DOTUSDT
+2026-05-21 08:34:27 [info     ] Cascade active                 imb=-0.63 ret_5d=3.7 strength=1.82 symbol=DOTUSDT
+2026-05-21 08:34:27 [info     ] V5 signal                      aggression=79.4 cascade_strength=1.82 confirms=4 decile=7 risk_pct=12.0% symbol=DOTUSDT vol_z=1.51
+2026-05-21 08:34:27 [info     ] V5 signal                      aggression=79.4 cascade_strength=1.82 confirms=4 decile=7 risk_pct=12.0% symbol=DOTUSDT vol_z=1.51
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=66.0 cascade_strength=1.82 confirms=4 decile=1 risk_pct=12.0% symbol=DOTUSDT vol_z=1.02
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=66.0 cascade_strength=1.82 confirms=4 decile=1 risk_pct=12.0% symbol=DOTUSDT vol_z=1.02
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.29 ret_5d=53.2 strength=0.68 symbol=ZECUSDT
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.29 ret_5d=53.2 strength=0.68 symbol=ZECUSDT
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.31 ret_5d=50.2 strength=1.42 symbol=DASHUSDT
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.31 ret_5d=50.2 strength=1.42 symbol=DASHUSDT
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=72.0 cascade_strength=1.42 confirms=4 decile=3 risk_pct=9.2% symbol=DASHUSDT vol_z=1.11
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=72.0 cascade_strength=1.42 confirms=4 decile=3 risk_pct=9.2% symbol=DASHUSDT vol_z=1.11
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.42 confirms=4 decile=8 risk_pct=8.3% symbol=DASHUSDT vol_z=1.63
+  2026-04-10 04:59 | events: 800000 | A: 81397 | B: 89940
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=79.8 cascade_strength=1.42 confirms=5 decile=7 risk_pct=5.7% symbol=DASHUSDT vol_z=4.99
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=79.8 cascade_strength=1.42 confirms=5 decile=7 risk_pct=5.7% symbol=DASHUSDT vol_z=4.99
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=77.3 cascade_strength=1.42 confirms=4 decile=6 risk_pct=8.6% symbol=DASHUSDT vol_z=0.66
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=77.3 cascade_strength=1.42 confirms=4 decile=6 risk_pct=8.6% symbol=DASHUSDT vol_z=0.66
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.08 ret_5d=17.8 strength=1.65 symbol=TONUSDT
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.08 ret_5d=17.8 strength=1.65 symbol=TONUSDT
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.26 ret_5d=54.0 strength=0.52 symbol=DASHUSDT
+2026-05-21 08:34:28 [info     ] Cascade active                 imb=-0.26 ret_5d=54.0 strength=0.52 symbol=DASHUSDT
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=76.6 cascade_strength=1.65 confirms=4 decile=5 risk_pct=12.0% symbol=TONUSDT vol_z=3.07
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=76.6 cascade_strength=1.65 confirms=4 decile=5 risk_pct=12.0% symbol=TONUSDT vol_z=3.07
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=72.6 cascade_strength=0.52 confirms=4 decile=3 risk_pct=8.4% symbol=DASHUSDT vol_z=1.49
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=72.6 cascade_strength=0.52 confirms=4 decile=3 risk_pct=8.4% symbol=DASHUSDT vol_z=1.49
+2026-05-21 08:34:28 [info     ] V5 signal                      aggression=59.6 cascade_strength=0.52 confirms=4 decile=1 risk_pct=6.5% symbol=DASHUSDT vol_z=0.50
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=60.0 cascade_strength=1.65 confirms=4 decile=1 risk_pct=12.0% symbol=TONUSDT vol_z=0.53
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=60.0 cascade_strength=1.65 confirms=4 decile=1 risk_pct=12.0% symbol=TONUSDT vol_z=0.53
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=62.0 cascade_strength=1.65 confirms=4 decile=1 risk_pct=12.0% symbol=TONUSDT vol_z=0.52
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=62.0 cascade_strength=1.65 confirms=4 decile=1 risk_pct=12.0% symbol=TONUSDT vol_z=0.52
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=75.5 cascade_strength=0.52 confirms=4 decile=5 risk_pct=12.0% symbol=DASHUSDT vol_z=1.23
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.24 ret_5d=21.4 strength=1.00 symbol=WLDUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.24 ret_5d=21.4 strength=1.00 symbol=WLDUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.00 ret_5d=16.3 strength=1.19 symbol=TONUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.00 ret_5d=16.3 strength=1.19 symbol=TONUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.34 ret_5d=14.6 strength=1.07 symbol=ENAUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.34 ret_5d=14.6 strength=1.07 symbol=ENAUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.39 ret_5d=5.1 strength=0.37 symbol=APTUSDT
+2026-05-21 08:34:29 [info     ] Cascade active                 imb=-0.39 ret_5d=5.1 strength=0.37 symbol=APTUSDT
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=84.7 cascade_strength=1.00 confirms=5 decile=9 risk_pct=12.0% symbol=WLDUSDT vol_z=4.68
+2026-05-21 08:34:29 [info     ] V5 signal                      aggression=84.7 cascade_strength=1.00 confirms=5 decile=9 risk_pct=12.0% symbol=WLDUSDT vol_z=4.68
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=69.1 cascade_strength=1.00 confirms=4 decile=2 risk_pct=12.0% symbol=WLDUSDT vol_z=0.21
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=69.1 cascade_strength=1.00 confirms=4 decile=2 risk_pct=12.0% symbol=WLDUSDT vol_z=0.21
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=79.6 cascade_strength=0.37 confirms=5 decile=7 risk_pct=12.0% symbol=APTUSDT vol_z=3.47
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=79.6 cascade_strength=0.37 confirms=5 decile=7 risk_pct=12.0% symbol=APTUSDT vol_z=3.47
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=84.9 cascade_strength=1.07 confirms=4 decile=9 risk_pct=10.1% symbol=ENAUSDT vol_z=3.52
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=84.9 cascade_strength=1.07 confirms=4 decile=9 risk_pct=10.1% symbol=ENAUSDT vol_z=3.52
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=69.6 cascade_strength=1.19 confirms=4 decile=2 risk_pct=12.0% symbol=TONUSDT vol_z=2.90
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=69.6 cascade_strength=1.19 confirms=4 decile=2 risk_pct=12.0% symbol=TONUSDT vol_z=2.90
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.07 confirms=4 decile=8 risk_pct=12.0% symbol=ENAUSDT vol_z=3.07
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.07 confirms=4 decile=8 risk_pct=12.0% symbol=ENAUSDT vol_z=3.07
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=58.9 cascade_strength=1.00 confirms=4 decile=1 risk_pct=12.0% symbol=WLDUSDT vol_z=-0.65
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=58.9 cascade_strength=1.00 confirms=4 decile=1 risk_pct=12.0% symbol=WLDUSDT vol_z=-0.65
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=84.5 cascade_strength=1.07 confirms=5 decile=9 risk_pct=12.0% symbol=ENAUSDT vol_z=3.03
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=84.5 cascade_strength=1.07 confirms=5 decile=9 risk_pct=12.0% symbol=ENAUSDT vol_z=3.03
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=82.7 cascade_strength=0.37 confirms=4 decile=9 risk_pct=12.0% symbol=APTUSDT vol_z=2.12
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=82.7 cascade_strength=0.37 confirms=4 decile=9 risk_pct=12.0% symbol=APTUSDT vol_z=2.12
+2026-05-21 08:34:30 [info     ] Cascade active                 imb=-0.17 ret_5d=11.0 strength=0.69 symbol=WLDUSDT
+2026-05-21 08:34:30 [info     ] Cascade active                 imb=-0.17 ret_5d=11.0 strength=0.69 symbol=WLDUSDT
+2026-05-21 08:34:30 [info     ] Cascade active                 imb=-0.34 ret_5d=6.0 strength=1.34 symbol=ETHUSDT
+2026-05-21 08:34:30 [info     ] Cascade active                 imb=-0.34 ret_5d=6.0 strength=1.34 symbol=ETHUSDT
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=72.2 cascade_strength=0.69 confirms=4 decile=3 risk_pct=12.0% symbol=WLDUSDT vol_z=0.70
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=72.2 cascade_strength=0.69 confirms=4 decile=3 risk_pct=12.0% symbol=WLDUSDT vol_z=0.70
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=77.1 cascade_strength=0.69 confirms=4 decile=5 risk_pct=12.0% symbol=WLDUSDT vol_z=1.32
+2026-05-21 08:34:30 [info     ] V5 signal                      aggression=69.8 cascade_strength=0.69 confirms=4 decile=2 risk_pct=12.0% symbol=WLDUSDT vol_z=2.06
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=78.4 cascade_strength=1.34 confirms=5 decile=6 risk_pct=12.0% symbol=ETHUSDT vol_z=6.66
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=78.4 cascade_strength=1.34 confirms=5 decile=6 risk_pct=12.0% symbol=ETHUSDT vol_z=6.66
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.57 ret_5d=9.4 strength=0.56 symbol=WLDUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.57 ret_5d=9.4 strength=0.56 symbol=WLDUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.60 ret_5d=5.1 strength=0.71 symbol=ETHUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.60 ret_5d=5.1 strength=0.71 symbol=ETHUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.63 ret_5d=3.8 strength=1.13 symbol=ADAUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.63 ret_5d=3.8 strength=1.13 symbol=ADAUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.50 ret_5d=13.3 strength=1.26 symbol=PENDLEUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.50 ret_5d=13.3 strength=1.26 symbol=PENDLEUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.94 ret_5d=11.5 strength=1.41 symbol=ARBUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.94 ret_5d=11.5 strength=1.41 symbol=ARBUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.64 ret_5d=3.3 strength=1.13 symbol=DOTUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.64 ret_5d=3.3 strength=1.13 symbol=DOTUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.64 ret_5d=4.9 strength=1.80 symbol=SOLUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.64 ret_5d=4.9 strength=1.80 symbol=SOLUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.89 ret_5d=18.2 strength=1.62 symbol=ENAUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.89 ret_5d=18.2 strength=1.62 symbol=ENAUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.59 ret_5d=9.3 strength=2.06 symbol=1000PEPEUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.59 ret_5d=9.3 strength=2.06 symbol=1000PEPEUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.54 ret_5d=7.3 strength=1.20 symbol=XRPUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.54 ret_5d=7.3 strength=1.20 symbol=XRPUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.81 ret_5d=4.7 strength=1.30 symbol=BNBUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.81 ret_5d=4.7 strength=1.30 symbol=BNBUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.95 ret_5d=10.2 strength=1.26 symbol=XLMUSDT
+2026-05-21 08:34:31 [info     ] Cascade active                 imb=-0.95 ret_5d=10.2 strength=1.26 symbol=XLMUSDT
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=68.6 cascade_strength=2.06 confirms=4 decile=2 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=1.65
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=68.6 cascade_strength=2.06 confirms=4 decile=2 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=1.65
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=79.6 cascade_strength=1.26 confirms=4 decile=7 risk_pct=12.0% symbol=XLMUSDT vol_z=1.09
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=79.6 cascade_strength=1.26 confirms=4 decile=7 risk_pct=12.0% symbol=XLMUSDT vol_z=1.09
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=66.4 cascade_strength=1.26 confirms=4 decile=1 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.80
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=66.4 cascade_strength=1.26 confirms=4 decile=1 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.80
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=63.8 cascade_strength=1.62 confirms=4 decile=1 risk_pct=12.0% symbol=ENAUSDT vol_z=0.03
+2026-05-21 08:34:31 [info     ] V5 signal                      aggression=63.8 cascade_strength=1.62 confirms=4 decile=1 risk_pct=12.0% symbol=ENAUSDT vol_z=0.03
+2026-05-21 08:34:32 [info     ] V5 signal                      aggression=66.1 cascade_strength=1.13 confirms=4 decile=1 risk_pct=12.0% symbol=DOTUSDT vol_z=2.48
+2026-05-21 08:34:32 [info     ] V5 signal                      aggression=66.1 cascade_strength=1.13 confirms=4 decile=1 risk_pct=12.0% symbol=DOTUSDT vol_z=2.48
+2026-05-21 08:34:32 [info     ] V5 signal                      aggression=65.8 cascade_strength=1.41 confirms=4 decile=1 risk_pct=12.0% symbol=ARBUSDT vol_z=0.43
+2026-05-21 08:34:32 [info     ] V5 signal                      aggression=65.8 cascade_strength=1.41 confirms=4 decile=1 risk_pct=12.0% symbol=ARBUSDT vol_z=0.43
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=80.9 cascade_strength=1.13 confirms=4 decile=8 risk_pct=12.0% symbol=ADAUSDT vol_z=3.02
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=80.9 cascade_strength=1.13 confirms=4 decile=8 risk_pct=12.0% symbol=ADAUSDT vol_z=3.02
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=81.8 cascade_strength=1.41 confirms=4 decile=8 risk_pct=12.0% symbol=ARBUSDT vol_z=2.32
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=81.8 cascade_strength=1.41 confirms=4 decile=8 risk_pct=12.0% symbol=ARBUSDT vol_z=2.32
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=68.2 cascade_strength=1.26 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=0.86
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=68.2 cascade_strength=1.26 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=0.86
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=75.8 cascade_strength=1.80 confirms=4 decile=5 risk_pct=12.0% symbol=SOLUSDT vol_z=1.80
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=75.8 cascade_strength=1.80 confirms=4 decile=5 risk_pct=12.0% symbol=SOLUSDT vol_z=1.80
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=71.3 cascade_strength=2.06 confirms=4 decile=3 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=0.71
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=71.3 cascade_strength=2.06 confirms=4 decile=3 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=0.71
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=81.1 cascade_strength=1.13 confirms=4 decile=8 risk_pct=12.0% symbol=DOTUSDT vol_z=1.23
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=81.1 cascade_strength=1.13 confirms=4 decile=8 risk_pct=12.0% symbol=DOTUSDT vol_z=1.23
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=78.7 cascade_strength=1.62 confirms=5 decile=6 risk_pct=12.0% symbol=ENAUSDT vol_z=3.61
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=78.7 cascade_strength=1.62 confirms=5 decile=6 risk_pct=12.0% symbol=ENAUSDT vol_z=3.61
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=80.5 cascade_strength=1.20 confirms=5 decile=7 risk_pct=12.0% symbol=XRPUSDT vol_z=3.41
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=80.5 cascade_strength=1.20 confirms=5 decile=7 risk_pct=12.0% symbol=XRPUSDT vol_z=3.41
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=70.7 cascade_strength=1.26 confirms=5 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=3.53
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=70.7 cascade_strength=1.26 confirms=5 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=3.53
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=69.4 cascade_strength=1.30 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=1.40
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=69.4 cascade_strength=1.30 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=1.40
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=53.8 cascade_strength=1.26 confirms=4 decile=1 risk_pct=11.8% symbol=PENDLEUSDT vol_z=-0.29
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=53.8 cascade_strength=1.26 confirms=4 decile=1 risk_pct=11.8% symbol=PENDLEUSDT vol_z=-0.29
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=85.0 cascade_strength=1.80 confirms=5 decile=9 risk_pct=12.0% symbol=SOLUSDT vol_z=4.29
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=85.0 cascade_strength=1.80 confirms=5 decile=9 risk_pct=12.0% symbol=SOLUSDT vol_z=4.29
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=71.5 cascade_strength=2.06 confirms=4 decile=3 risk_pct=11.7% symbol=1000PEPEUSDT vol_z=2.33
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=82.8 cascade_strength=1.41 confirms=4 decile=9 risk_pct=11.8% symbol=ARBUSDT vol_z=0.71
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=82.8 cascade_strength=1.41 confirms=4 decile=9 risk_pct=11.8% symbol=ARBUSDT vol_z=0.71
+2026-05-21 08:34:33 [info     ] V5 signal                      aggression=76.5 cascade_strength=1.26 confirms=4 decile=5 risk_pct=12.0% symbol=XLMUSDT vol_z=2.01
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.20 ret_5d=9.6 strength=1.08 symbol=ADAUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.20 ret_5d=9.6 strength=1.08 symbol=ADAUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.49 ret_5d=37.7 strength=1.73 symbol=PENDLEUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.49 ret_5d=37.7 strength=1.73 symbol=PENDLEUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.33 ret_5d=18.4 strength=0.86 symbol=ARBUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.33 ret_5d=18.4 strength=0.86 symbol=ARBUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.55 ret_5d=8.9 strength=1.10 symbol=SOLUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.55 ret_5d=8.9 strength=1.10 symbol=SOLUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.68 ret_5d=37.1 strength=2.29 symbol=ENAUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.68 ret_5d=37.1 strength=2.29 symbol=ENAUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.21 ret_5d=14.3 strength=0.93 symbol=1000PEPEUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.21 ret_5d=14.3 strength=0.93 symbol=1000PEPEUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.61 ret_5d=11.4 strength=1.18 symbol=XRPUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.61 ret_5d=11.4 strength=1.18 symbol=XRPUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.83 ret_5d=8.6 strength=0.69 symbol=BNBUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.83 ret_5d=8.6 strength=0.69 symbol=BNBUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.06 ret_5d=15.9 strength=0.73 symbol=XLMUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.06 ret_5d=15.9 strength=0.73 symbol=XLMUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.73 ret_5d=10.4 strength=1.93 symbol=ETHUSDT
+2026-05-21 08:34:34 [info     ] Cascade active                 imb=-0.73 ret_5d=10.4 strength=1.93 symbol=ETHUSDT
+2026-05-21 08:34:34 [info     ] V5 signal                      aggression=83.3 cascade_strength=0.86 confirms=5 decile=9 risk_pct=12.0% symbol=ARBUSDT vol_z=4.10
+2026-05-21 08:34:34 [info     ] V5 signal                      aggression=83.3 cascade_strength=0.86 confirms=5 decile=9 risk_pct=12.0% symbol=ARBUSDT vol_z=4.10
+2026-05-21 08:34:34 [info     ] V5 signal                      aggression=68.2 cascade_strength=1.73 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=0.32
+2026-05-21 08:34:34 [info     ] V5 signal                      aggression=68.2 cascade_strength=1.73 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=0.32
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=69.0 cascade_strength=0.73 confirms=4 decile=2 risk_pct=12.0% symbol=XLMUSDT vol_z=1.22
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=69.0 cascade_strength=0.73 confirms=4 decile=2 risk_pct=12.0% symbol=XLMUSDT vol_z=1.22
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=59.9 cascade_strength=0.93 confirms=4 decile=1 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=-0.21
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=72.2 cascade_strength=1.93 confirms=4 decile=3 risk_pct=12.0% symbol=ETHUSDT vol_z=4.81
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=72.2 cascade_strength=1.93 confirms=4 decile=3 risk_pct=12.0% symbol=ETHUSDT vol_z=4.81
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=64.8 cascade_strength=0.86 confirms=4 decile=1 risk_pct=12.0% symbol=ARBUSDT vol_z=0.99
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=64.8 cascade_strength=0.86 confirms=4 decile=1 risk_pct=12.0% symbol=ARBUSDT vol_z=0.99
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=72.5 cascade_strength=1.73 confirms=4 decile=3 risk_pct=10.5% symbol=PENDLEUSDT vol_z=1.41
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=72.5 cascade_strength=1.73 confirms=4 decile=3 risk_pct=10.5% symbol=PENDLEUSDT vol_z=1.41
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=79.0 cascade_strength=1.10 confirms=4 decile=7 risk_pct=12.0% symbol=SOLUSDT vol_z=2.95
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=79.0 cascade_strength=1.10 confirms=4 decile=7 risk_pct=12.0% symbol=SOLUSDT vol_z=2.95
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=84.3 cascade_strength=1.93 confirms=5 decile=9 risk_pct=12.0% symbol=ETHUSDT vol_z=5.18
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=65.0 cascade_strength=1.73 confirms=4 decile=1 risk_pct=5.2% symbol=PENDLEUSDT vol_z=4.30
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=61.1 cascade_strength=0.73 confirms=4 decile=1 risk_pct=12.0% symbol=XLMUSDT vol_z=1.74
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=61.1 cascade_strength=0.73 confirms=4 decile=1 risk_pct=12.0% symbol=XLMUSDT vol_z=1.74
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=70.4 cascade_strength=1.73 confirms=4 decile=2 risk_pct=10.2% symbol=PENDLEUSDT vol_z=0.50
+2026-05-21 08:34:35 [info     ] Cascade active                 imb=-0.05 ret_5d=9.0 strength=0.49 symbol=XLMUSDT
+2026-05-21 08:34:35 [info     ] Cascade active                 imb=-0.05 ret_5d=9.0 strength=0.49 symbol=XLMUSDT
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=83.4 cascade_strength=0.49 confirms=5 decile=9 risk_pct=12.0% symbol=XLMUSDT vol_z=3.43
+2026-05-21 08:34:35 [info     ] V5 signal                      aggression=83.4 cascade_strength=0.49 confirms=5 decile=9 risk_pct=12.0% symbol=XLMUSDT vol_z=3.43
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.59 ret_5d=0.7 strength=0.12 symbol=ADAUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.59 ret_5d=0.7 strength=0.12 symbol=ADAUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.33 ret_5d=-4.2 strength=0.29 symbol=TONUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.33 ret_5d=-4.2 strength=0.29 symbol=TONUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.31 ret_5d=0.9 strength=0.27 symbol=1000PEPEUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.31 ret_5d=0.9 strength=0.27 symbol=1000PEPEUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.29 ret_5d=0.5 strength=0.24 symbol=FILUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.29 ret_5d=0.5 strength=0.24 symbol=FILUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.33 ret_5d=10.4 strength=1.01 symbol=CHZUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.33 ret_5d=10.4 strength=1.01 symbol=CHZUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.49 ret_5d=-2.0 strength=1.18 symbol=ETHUSDT
+2026-05-21 08:34:36 [info     ] Cascade active                 imb=-0.49 ret_5d=-2.0 strength=1.18 symbol=ETHUSDT
+2026-05-21 08:34:36 [info     ] V5 signal                      aggression=78.4 cascade_strength=1.01 confirms=4 decile=6 risk_pct=12.0% symbol=CHZUSDT vol_z=4.81
+2026-05-21 08:34:36 [info     ] V5 signal                      aggression=78.4 cascade_strength=1.01 confirms=4 decile=6 risk_pct=12.0% symbol=CHZUSDT vol_z=4.81
+2026-05-21 08:34:36 [info     ] V5 signal                      aggression=65.4 cascade_strength=0.27 confirms=4 decile=1 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=-0.36
+2026-05-21 08:34:36 [info     ] V5 signal                      aggression=65.4 cascade_strength=0.27 confirms=4 decile=1 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=-0.36
+2026-05-21 08:34:37 [info     ] V5 signal                      aggression=72.7 cascade_strength=0.29 confirms=4 decile=3 risk_pct=12.0% symbol=TONUSDT vol_z=2.23
+2026-05-21 08:34:37 [info     ] V5 signal                      aggression=72.7 cascade_strength=0.29 confirms=4 decile=3 risk_pct=12.0% symbol=TONUSDT vol_z=2.23
+2026-05-21 08:34:37 [info     ] V5 signal                      aggression=71.4 cascade_strength=0.12 confirms=4 decile=3 risk_pct=12.0% symbol=ADAUSDT vol_z=2.11
+2026-05-21 08:34:37 [info     ] V5 signal                      aggression=71.4 cascade_strength=0.12 confirms=4 decile=3 risk_pct=12.0% symbol=ADAUSDT vol_z=2.11
+2026-05-21 08:34:37 [info     ] V5 signal                      aggression=72.4 cascade_strength=1.01 confirms=4 decile=3 risk_pct=10.3% symbol=CHZUSDT vol_z=0.41
+2026-05-21 08:34:37 [info     ] V5 signal                      aggression=72.4 cascade_strength=1.01 confirms=4 decile=3 risk_pct=10.3% symbol=CHZUSDT vol_z=0.41
+2026-05-21 08:34:38 [info     ] V5 signal                      aggression=71.7 cascade_strength=0.24 confirms=4 decile=3 risk_pct=12.0% symbol=FILUSDT vol_z=1.10
+2026-05-21 08:34:38 [info     ] V5 signal                      aggression=71.7 cascade_strength=0.24 confirms=4 decile=3 risk_pct=12.0% symbol=FILUSDT vol_z=1.10
+2026-05-21 08:34:38 [info     ] V5 signal                      aggression=67.6 cascade_strength=1.01 confirms=4 decile=2 risk_pct=9.7% symbol=CHZUSDT vol_z=1.41
+2026-05-21 08:34:38 [info     ] V5 signal                      aggression=79.0 cascade_strength=0.29 confirms=4 decile=7 risk_pct=12.0% symbol=TONUSDT vol_z=1.69
+2026-05-21 08:34:38 [info     ] V5 signal                      aggression=79.0 cascade_strength=0.29 confirms=4 decile=7 risk_pct=12.0% symbol=TONUSDT vol_z=1.69
+2026-05-21 08:34:38 [info     ] V5 signal                      aggression=70.8 cascade_strength=0.12 confirms=4 decile=3 risk_pct=12.0% symbol=ADAUSDT vol_z=2.53
+2026-05-21 08:34:38 [info     ] Cascade active                 imb=-0.17 ret_5d=-0.9 strength=0.48 symbol=ETHUSDT
+2026-05-21 08:34:38 [info     ] Cascade active                 imb=-0.17 ret_5d=-0.9 strength=0.48 symbol=ETHUSDT
+2026-05-21 08:34:39 [info     ] Cascade active                 imb=-0.45 ret_5d=13.1 strength=3.02 symbol=RUNEUSDT
+2026-05-21 08:34:39 [info     ] Cascade active                 imb=-0.45 ret_5d=13.1 strength=3.02 symbol=RUNEUSDT
+2026-05-21 08:34:39 [info     ] Cascade active                 imb=-0.65 ret_5d=-1.8 strength=1.20 symbol=ETHUSDT
+2026-05-21 08:34:39 [info     ] Cascade active                 imb=-0.65 ret_5d=-1.8 strength=1.20 symbol=ETHUSDT
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=68.9 cascade_strength=3.02 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=1.93
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=68.9 cascade_strength=3.02 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=1.93
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=82.0 cascade_strength=1.20 confirms=4 decile=8 risk_pct=12.0% symbol=ETHUSDT vol_z=1.53
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=82.0 cascade_strength=1.20 confirms=4 decile=8 risk_pct=12.0% symbol=ETHUSDT vol_z=1.53
+  2026-04-22 14:34 | events: 900000 | A: 147293 | B: 170560
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=73.0 cascade_strength=1.20 confirms=4 decile=3 risk_pct=12.0% symbol=ETHUSDT vol_z=4.63
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=73.0 cascade_strength=1.20 confirms=4 decile=3 risk_pct=12.0% symbol=ETHUSDT vol_z=4.63
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=69.6 cascade_strength=3.02 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=-0.19
+2026-05-21 08:34:39 [info     ] V5 signal                      aggression=69.6 cascade_strength=3.02 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=-0.19
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.19 ret_5d=15.1 strength=0.50 symbol=RUNEUSDT
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.19 ret_5d=15.1 strength=0.50 symbol=RUNEUSDT
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.10 ret_5d=2.3 strength=0.11 symbol=ETHUSDT
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.10 ret_5d=2.3 strength=0.11 symbol=ETHUSDT
+2026-05-21 08:34:40 [info     ] V5 signal                      aggression=68.3 cascade_strength=0.50 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=0.30
+2026-05-21 08:34:40 [info     ] V5 signal                      aggression=68.3 cascade_strength=0.50 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=0.30
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.07 ret_5d=11.4 strength=1.10 symbol=RUNEUSDT
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.07 ret_5d=11.4 strength=1.10 symbol=RUNEUSDT
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.76 ret_5d=37.8 strength=1.50 symbol=1000LUNCUSDT
+2026-05-21 08:34:40 [info     ] Cascade active                 imb=-0.76 ret_5d=37.8 strength=1.50 symbol=1000LUNCUSDT
+2026-05-21 08:34:41 [info     ] V5 signal                      aggression=81.3 cascade_strength=1.10 confirms=5 decile=8 risk_pct=12.0% symbol=RUNEUSDT vol_z=7.26
+2026-05-21 08:34:41 [info     ] V5 signal                      aggression=81.3 cascade_strength=1.10 confirms=5 decile=8 risk_pct=12.0% symbol=RUNEUSDT vol_z=7.26
+2026-05-21 08:34:41 [info     ] V5 signal                      aggression=63.9 cascade_strength=1.50 confirms=4 decile=1 risk_pct=8.4% symbol=1000LUNCUSDT vol_z=1.93
+2026-05-21 08:34:41 [info     ] V5 signal                      aggression=63.9 cascade_strength=1.50 confirms=4 decile=1 risk_pct=8.4% symbol=1000LUNCUSDT vol_z=1.93
+2026-05-21 08:34:41 [info     ] Cascade active                 imb=-0.19 ret_5d=48.7 strength=4.63 symbol=1000LUNCUSDT
+2026-05-21 08:34:41 [info     ] Cascade active                 imb=-0.19 ret_5d=48.7 strength=4.63 symbol=1000LUNCUSDT
+2026-05-21 08:34:41 [info     ] V5 signal                      aggression=66.2 cascade_strength=4.63 confirms=4 decile=1 risk_pct=5.8% symbol=1000LUNCUSDT vol_z=1.32
+2026-05-21 08:34:41 [info     ] V5 signal                      aggression=66.2 cascade_strength=4.63 confirms=4 decile=1 risk_pct=5.8% symbol=1000LUNCUSDT vol_z=1.32
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.06 ret_5d=23.8 strength=4.21 symbol=1000LUNCUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.06 ret_5d=23.8 strength=4.21 symbol=1000LUNCUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.23 ret_5d=4.4 strength=2.07 symbol=RUNEUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.23 ret_5d=4.4 strength=2.07 symbol=RUNEUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.28 ret_5d=38.3 strength=2.20 symbol=1000LUNCUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.28 ret_5d=38.3 strength=2.20 symbol=1000LUNCUSDT
+2026-05-21 08:34:42 [info     ] V5 signal                      aggression=78.7 cascade_strength=2.07 confirms=4 decile=6 risk_pct=12.0% symbol=RUNEUSDT vol_z=1.80
+2026-05-21 08:34:42 [info     ] V5 signal                      aggression=78.7 cascade_strength=2.07 confirms=4 decile=6 risk_pct=12.0% symbol=RUNEUSDT vol_z=1.80
+2026-05-21 08:34:42 [info     ] V5 signal                      aggression=70.8 cascade_strength=2.07 confirms=4 decile=3 risk_pct=12.0% symbol=RUNEUSDT vol_z=-0.17
+2026-05-21 08:34:42 [info     ] V5 signal                      aggression=70.8 cascade_strength=2.07 confirms=4 decile=3 risk_pct=12.0% symbol=RUNEUSDT vol_z=-0.17
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.71 ret_5d=-2.3 strength=0.62 symbol=ZECUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.71 ret_5d=-2.3 strength=0.62 symbol=ZECUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.18 ret_5d=43.7 strength=1.78 symbol=1000LUNCUSDT
+2026-05-21 08:34:42 [info     ] Cascade active                 imb=-0.18 ret_5d=43.7 strength=1.78 symbol=1000LUNCUSDT
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=65.1 cascade_strength=0.62 confirms=4 decile=1 risk_pct=12.0% symbol=ZECUSDT vol_z=2.76
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=65.1 cascade_strength=0.62 confirms=4 decile=1 risk_pct=12.0% symbol=ZECUSDT vol_z=2.76
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=60.3 cascade_strength=0.62 confirms=4 decile=1 risk_pct=12.0% symbol=ZECUSDT vol_z=0.03
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=60.3 cascade_strength=0.62 confirms=4 decile=1 risk_pct=12.0% symbol=ZECUSDT vol_z=0.03
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.78 ret_5d=8.4 strength=1.72 symbol=ZECUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.78 ret_5d=8.4 strength=1.72 symbol=ZECUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.35 ret_5d=17.8 strength=4.58 symbol=PENDLEUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.35 ret_5d=17.8 strength=4.58 symbol=PENDLEUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.99 ret_5d=-0.5 strength=0.24 symbol=RUNEUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.99 ret_5d=-0.5 strength=0.24 symbol=RUNEUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.44 ret_5d=-3.6 strength=0.25 symbol=SOLUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.44 ret_5d=-3.6 strength=0.25 symbol=SOLUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.37 ret_5d=1.1 strength=0.14 symbol=1000PEPEUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.37 ret_5d=1.1 strength=0.14 symbol=1000PEPEUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.80 ret_5d=-3.2 strength=0.20 symbol=XRPUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.80 ret_5d=-3.2 strength=0.20 symbol=XRPUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.90 ret_5d=7.8 strength=1.14 symbol=TAOUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.90 ret_5d=7.8 strength=1.14 symbol=TAOUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.28 ret_5d=-3.1 strength=0.56 symbol=ETHUSDT
+2026-05-21 08:34:43 [info     ] Cascade active                 imb=-0.28 ret_5d=-3.1 strength=0.56 symbol=ETHUSDT
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=69.1 cascade_strength=4.58 confirms=4 decile=2 risk_pct=9.8% symbol=PENDLEUSDT vol_z=0.74
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=69.1 cascade_strength=4.58 confirms=4 decile=2 risk_pct=9.8% symbol=PENDLEUSDT vol_z=0.74
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=78.7 cascade_strength=0.25 confirms=4 decile=6 risk_pct=12.0% symbol=SOLUSDT vol_z=4.43
+2026-05-21 08:34:43 [info     ] V5 signal                      aggression=78.7 cascade_strength=0.25 confirms=4 decile=6 risk_pct=12.0% symbol=SOLUSDT vol_z=4.43
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=77.1 cascade_strength=1.14 confirms=4 decile=5 risk_pct=12.0% symbol=TAOUSDT vol_z=2.50
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=77.1 cascade_strength=1.14 confirms=4 decile=5 risk_pct=12.0% symbol=TAOUSDT vol_z=2.50
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=80.1 cascade_strength=0.25 confirms=4 decile=7 risk_pct=12.0% symbol=SOLUSDT vol_z=3.94
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=80.1 cascade_strength=0.25 confirms=4 decile=7 risk_pct=12.0% symbol=SOLUSDT vol_z=3.94
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=77.6 cascade_strength=0.56 confirms=4 decile=6 risk_pct=12.0% symbol=ETHUSDT vol_z=4.60
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=77.6 cascade_strength=0.56 confirms=4 decile=6 risk_pct=12.0% symbol=ETHUSDT vol_z=4.60
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=69.9 cascade_strength=0.24 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=0.29
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=69.9 cascade_strength=0.24 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=0.29
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=72.8 cascade_strength=0.14 confirms=4 decile=3 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=2.26
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=72.8 cascade_strength=0.14 confirms=4 decile=3 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=2.26
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=81.7 cascade_strength=0.20 confirms=5 decile=8 risk_pct=12.0% symbol=XRPUSDT vol_z=5.94
+2026-05-21 08:34:44 [info     ] V5 signal                      aggression=81.7 cascade_strength=0.20 confirms=5 decile=8 risk_pct=12.0% symbol=XRPUSDT vol_z=5.94
+2026-05-21 08:34:45 [info     ] V5 signal                      aggression=68.3 cascade_strength=1.14 confirms=4 decile=2 risk_pct=12.0% symbol=TAOUSDT vol_z=3.21
+2026-05-21 08:34:45 [info     ] V5 signal                      aggression=68.3 cascade_strength=1.14 confirms=4 decile=2 risk_pct=12.0% symbol=TAOUSDT vol_z=3.21
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.51 ret_5d=9.2 strength=0.51 symbol=ZECUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.51 ret_5d=9.2 strength=0.51 symbol=ZECUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.44 ret_5d=21.2 strength=0.87 symbol=PENDLEUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.44 ret_5d=21.2 strength=0.87 symbol=PENDLEUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.81 ret_5d=34.9 strength=2.68 symbol=1000LUNCUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.81 ret_5d=34.9 strength=2.68 symbol=1000LUNCUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.97 ret_5d=15.7 strength=0.99 symbol=TAOUSDT
+2026-05-21 08:34:45 [info     ] Cascade active                 imb=-0.97 ret_5d=15.7 strength=0.99 symbol=TAOUSDT
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=65.4 cascade_strength=2.68 confirms=4 decile=1 risk_pct=12.0% symbol=1000LUNCUSDT vol_z=-0.21
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=65.4 cascade_strength=2.68 confirms=4 decile=1 risk_pct=12.0% symbol=1000LUNCUSDT vol_z=-0.21
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=84.5 cascade_strength=0.99 confirms=5 decile=9 risk_pct=12.0% symbol=TAOUSDT vol_z=5.33
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=84.5 cascade_strength=0.99 confirms=5 decile=9 risk_pct=12.0% symbol=TAOUSDT vol_z=5.33
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=64.3 cascade_strength=0.99 confirms=4 decile=1 risk_pct=12.0% symbol=TAOUSDT vol_z=1.82
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=64.3 cascade_strength=0.99 confirms=4 decile=1 risk_pct=12.0% symbol=TAOUSDT vol_z=1.82
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.76 ret_5d=22.9 strength=1.40 symbol=ZECUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.76 ret_5d=22.9 strength=1.40 symbol=ZECUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.46 ret_5d=18.2 strength=0.54 symbol=PENDLEUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.46 ret_5d=18.2 strength=0.54 symbol=PENDLEUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.02 ret_5d=30.4 strength=2.99 symbol=1000LUNCUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.02 ret_5d=30.4 strength=2.99 symbol=1000LUNCUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.52 ret_5d=12.0 strength=0.43 symbol=TAOUSDT
+2026-05-21 08:34:46 [info     ] Cascade active                 imb=-0.52 ret_5d=12.0 strength=0.43 symbol=TAOUSDT
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=71.4 cascade_strength=0.43 confirms=4 decile=3 risk_pct=12.0% symbol=TAOUSDT vol_z=0.13
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=71.4 cascade_strength=0.43 confirms=4 decile=3 risk_pct=12.0% symbol=TAOUSDT vol_z=0.13
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=78.7 cascade_strength=0.43 confirms=4 decile=6 risk_pct=12.0% symbol=TAOUSDT vol_z=2.39
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=76.9 cascade_strength=0.43 confirms=4 decile=5 risk_pct=12.0% symbol=TAOUSDT vol_z=2.58
+2026-05-21 08:34:46 [info     ] V5 signal                      aggression=76.9 cascade_strength=0.43 confirms=4 decile=5 risk_pct=12.0% symbol=TAOUSDT vol_z=2.58
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.53 ret_5d=29.0 strength=1.17 symbol=ZECUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.53 ret_5d=29.0 strength=1.17 symbol=ZECUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.83 ret_5d=43.1 strength=6.90 symbol=PENDLEUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.83 ret_5d=43.1 strength=6.90 symbol=PENDLEUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.48 ret_5d=25.1 strength=3.79 symbol=TONUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.48 ret_5d=25.1 strength=3.79 symbol=TONUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.40 ret_5d=46.3 strength=1.49 symbol=1000LUNCUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.40 ret_5d=46.3 strength=1.49 symbol=1000LUNCUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.10 ret_5d=0.9 strength=1.07 symbol=BNBUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.10 ret_5d=0.9 strength=1.07 symbol=BNBUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.32 ret_5d=37.5 strength=2.90 symbol=DASHUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.32 ret_5d=37.5 strength=2.90 symbol=DASHUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.38 ret_5d=4.2 strength=1.32 symbol=ETHUSDT
+2026-05-21 08:34:47 [info     ] Cascade active                 imb=-0.38 ret_5d=4.2 strength=1.32 symbol=ETHUSDT
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=67.1 cascade_strength=2.90 confirms=4 decile=2 risk_pct=11.9% symbol=DASHUSDT vol_z=1.56
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=67.1 cascade_strength=2.90 confirms=4 decile=2 risk_pct=11.9% symbol=DASHUSDT vol_z=1.56
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=77.8 cascade_strength=1.32 confirms=4 decile=6 risk_pct=12.0% symbol=ETHUSDT vol_z=4.02
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=77.8 cascade_strength=1.32 confirms=4 decile=6 risk_pct=12.0% symbol=ETHUSDT vol_z=4.02
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=67.4 cascade_strength=3.79 confirms=4 decile=2 risk_pct=12.0% symbol=TONUSDT vol_z=0.47
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=67.4 cascade_strength=3.79 confirms=4 decile=2 risk_pct=12.0% symbol=TONUSDT vol_z=0.47
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=67.7 cascade_strength=1.07 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=4.53
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=67.7 cascade_strength=1.07 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=4.53
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=58.1 cascade_strength=2.90 confirms=4 decile=1 risk_pct=5.1% symbol=DASHUSDT vol_z=0.57
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=58.1 cascade_strength=2.90 confirms=4 decile=1 risk_pct=5.1% symbol=DASHUSDT vol_z=0.57
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=79.2 cascade_strength=1.32 confirms=4 decile=7 risk_pct=12.0% symbol=ETHUSDT vol_z=2.24
+2026-05-21 08:34:47 [info     ] V5 signal                      aggression=79.2 cascade_strength=1.32 confirms=4 decile=7 risk_pct=12.0% symbol=ETHUSDT vol_z=2.24
+2026-05-21 08:34:48 [info     ] V5 signal                      aggression=63.0 cascade_strength=2.90 confirms=4 decile=1 risk_pct=8.1% symbol=DASHUSDT vol_z=0.78
+2026-05-21 08:34:48 [info     ] V5 signal                      aggression=63.0 cascade_strength=2.90 confirms=4 decile=1 risk_pct=8.1% symbol=DASHUSDT vol_z=0.78
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.90 ret_5d=47.4 strength=4.97 symbol=ZECUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.90 ret_5d=47.4 strength=4.97 symbol=ZECUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.41 ret_5d=38.0 strength=1.17 symbol=PENDLEUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.41 ret_5d=38.0 strength=1.17 symbol=PENDLEUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.43 ret_5d=46.2 strength=15.56 symbol=TONUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.43 ret_5d=46.2 strength=15.56 symbol=TONUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.21 ret_5d=55.3 strength=1.65 symbol=1000LUNCUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.21 ret_5d=55.3 strength=1.65 symbol=1000LUNCUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.33 ret_5d=4.6 strength=0.49 symbol=ETHUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.33 ret_5d=4.6 strength=0.49 symbol=ETHUSDT
+  2026-05-05 00:14 | events: 1000000 | A: 178967 | B: 209101
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.71 ret_5d=15.5 strength=1.93 symbol=NEARUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.71 ret_5d=15.5 strength=1.93 symbol=NEARUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.43 ret_5d=44.0 strength=2.43 symbol=ZECUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.43 ret_5d=44.0 strength=2.43 symbol=ZECUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.47 ret_5d=7.6 strength=1.51 symbol=ADAUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.47 ret_5d=7.6 strength=1.51 symbol=ADAUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.31 ret_5d=9.9 strength=0.76 symbol=WLDUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.31 ret_5d=9.9 strength=0.76 symbol=WLDUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.21 ret_5d=23.5 strength=1.44 symbol=PENDLEUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.21 ret_5d=23.5 strength=1.44 symbol=PENDLEUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.28 ret_5d=85.7 strength=24.27 symbol=TONUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.28 ret_5d=85.7 strength=24.27 symbol=TONUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.56 ret_5d=6.5 strength=1.01 symbol=SOLUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.56 ret_5d=6.5 strength=1.01 symbol=SOLUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.88 ret_5d=5.3 strength=2.35 symbol=BNBUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.88 ret_5d=5.3 strength=2.35 symbol=BNBUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.28 ret_5d=36.6 strength=2.22 symbol=DASHUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.28 ret_5d=36.6 strength=2.22 symbol=DASHUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.29 ret_5d=36.1 strength=2.12 symbol=ICPUSDT
+2026-05-21 08:34:48 [info     ] Cascade active                 imb=-0.29 ret_5d=36.1 strength=2.12 symbol=ICPUSDT
+2026-05-21 08:34:48 [info     ] V5 signal                      aggression=64.4 cascade_strength=0.76 confirms=4 decile=1 risk_pct=12.0% symbol=WLDUSDT vol_z=-0.13
+2026-05-21 08:34:48 [info     ] V5 signal                      aggression=64.4 cascade_strength=0.76 confirms=4 decile=1 risk_pct=12.0% symbol=WLDUSDT vol_z=-0.13
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=63.6 cascade_strength=1.93 confirms=4 decile=1 risk_pct=12.0% symbol=NEARUSDT vol_z=1.94
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=63.6 cascade_strength=1.93 confirms=4 decile=1 risk_pct=12.0% symbol=NEARUSDT vol_z=1.94
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=83.6 cascade_strength=2.22 confirms=5 decile=9 risk_pct=4.9% symbol=DASHUSDT vol_z=5.61
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=83.6 cascade_strength=2.22 confirms=5 decile=9 risk_pct=4.9% symbol=DASHUSDT vol_z=5.61
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=79.4 cascade_strength=2.35 confirms=4 decile=7 risk_pct=12.0% symbol=BNBUSDT vol_z=4.23
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=79.4 cascade_strength=2.35 confirms=4 decile=7 risk_pct=12.0% symbol=BNBUSDT vol_z=4.23
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=59.9 cascade_strength=0.76 confirms=4 decile=1 risk_pct=12.0% symbol=WLDUSDT vol_z=-0.38
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=59.9 cascade_strength=0.76 confirms=4 decile=1 risk_pct=12.0% symbol=WLDUSDT vol_z=-0.38
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=72.6 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=ADAUSDT vol_z=4.25
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=72.6 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=ADAUSDT vol_z=4.25
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=68.2 cascade_strength=2.12 confirms=4 decile=2 risk_pct=9.2% symbol=ICPUSDT vol_z=3.96
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=68.2 cascade_strength=2.12 confirms=4 decile=2 risk_pct=9.2% symbol=ICPUSDT vol_z=3.96
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=59.6 cascade_strength=1.51 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=1.52
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=72.5 cascade_strength=1.01 confirms=4 decile=3 risk_pct=12.0% symbol=SOLUSDT vol_z=1.61
+2026-05-21 08:34:49 [info     ] V5 signal                      aggression=72.5 cascade_strength=1.01 confirms=4 decile=3 risk_pct=12.0% symbol=SOLUSDT vol_z=1.61
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=76.8 cascade_strength=2.12 confirms=5 decile=5 risk_pct=8.5% symbol=ICPUSDT vol_z=3.08
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=76.8 cascade_strength=2.12 confirms=5 decile=5 risk_pct=8.5% symbol=ICPUSDT vol_z=3.08
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=58.7 cascade_strength=1.93 confirms=4 decile=1 risk_pct=9.6% symbol=NEARUSDT vol_z=0.90
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=58.7 cascade_strength=1.93 confirms=4 decile=1 risk_pct=9.6% symbol=NEARUSDT vol_z=0.90
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=83.6 cascade_strength=2.12 confirms=4 decile=9 risk_pct=9.4% symbol=ICPUSDT vol_z=0.59
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=83.6 cascade_strength=2.12 confirms=4 decile=9 risk_pct=9.4% symbol=ICPUSDT vol_z=0.59
+2026-05-21 08:34:50 [info     ] V5 signal                      aggression=69.7 cascade_strength=1.51 confirms=4 decile=2 risk_pct=12.0% symbol=ADAUSDT vol_z=0.03
+2026-05-21 08:34:50 [info     ] Cascade active                 imb=-0.18 ret_5d=48.2 strength=0.93 symbol=ZECUSDT
+2026-05-21 08:34:50 [info     ] Cascade active                 imb=-0.18 ret_5d=48.2 strength=0.93 symbol=ZECUSDT
+2026-05-21 08:34:50 [info     ] Cascade active                 imb=-0.09 ret_5d=102.1 strength=29.20 symbol=TONUSDT
+2026-05-21 08:34:50 [info     ] Cascade active                 imb=-0.09 ret_5d=102.1 strength=29.20 symbol=TONUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.51 ret_5d=25.2 strength=1.07 symbol=NEARUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.51 ret_5d=25.2 strength=1.07 symbol=NEARUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.69 ret_5d=48.5 strength=1.03 symbol=ZECUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.69 ret_5d=48.5 strength=1.03 symbol=ZECUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.91 ret_5d=9.6 strength=0.58 symbol=ADAUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.91 ret_5d=9.6 strength=0.58 symbol=ADAUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.44 ret_5d=30.5 strength=0.66 symbol=PENDLEUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.44 ret_5d=30.5 strength=0.66 symbol=PENDLEUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.94 ret_5d=21.6 strength=1.37 symbol=ARBUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.94 ret_5d=21.6 strength=1.37 symbol=ARBUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.69 ret_5d=15.8 strength=1.48 symbol=RUNEUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.69 ret_5d=15.8 strength=1.48 symbol=RUNEUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.85 ret_5d=9.7 strength=0.91 symbol=SOLUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.85 ret_5d=9.7 strength=0.91 symbol=SOLUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.05 ret_5d=9.3 strength=0.32 symbol=1000LUNCUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.05 ret_5d=9.3 strength=0.32 symbol=1000LUNCUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.61 ret_5d=31.1 strength=0.61 symbol=ENAUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.61 ret_5d=31.1 strength=0.61 symbol=ENAUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.57 ret_5d=39.4 strength=4.23 symbol=FILUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.57 ret_5d=39.4 strength=4.23 symbol=FILUSDT
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=79.4 cascade_strength=4.23 confirms=4 decile=7 risk_pct=12.0% symbol=FILUSDT vol_z=5.05
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=79.4 cascade_strength=4.23 confirms=4 decile=7 risk_pct=12.0% symbol=FILUSDT vol_z=5.05
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.62 ret_5d=5.2 strength=0.11 symbol=BNBUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.62 ret_5d=5.2 strength=0.11 symbol=BNBUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.44 ret_5d=54.5 strength=1.99 symbol=ICPUSDT
+2026-05-21 08:34:51 [info     ] Cascade active                 imb=-0.44 ret_5d=54.5 strength=1.99 symbol=ICPUSDT
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=84.2 cascade_strength=0.32 confirms=4 decile=9 risk_pct=12.0% symbol=1000LUNCUSDT vol_z=0.56
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=84.2 cascade_strength=0.32 confirms=4 decile=9 risk_pct=12.0% symbol=1000LUNCUSDT vol_z=0.56
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=66.7 cascade_strength=1.99 confirms=4 decile=1 risk_pct=12.0% symbol=ICPUSDT vol_z=0.41
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=66.7 cascade_strength=1.99 confirms=4 decile=1 risk_pct=12.0% symbol=ICPUSDT vol_z=0.41
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=69.8 cascade_strength=1.37 confirms=4 decile=2 risk_pct=12.0% symbol=ARBUSDT vol_z=0.64
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=69.8 cascade_strength=1.37 confirms=4 decile=2 risk_pct=12.0% symbol=ARBUSDT vol_z=0.64
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=67.5 cascade_strength=0.66 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.29
+2026-05-21 08:34:51 [info     ] V5 signal                      aggression=67.5 cascade_strength=0.66 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.29
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=77.2 cascade_strength=0.61 confirms=4 decile=5 risk_pct=12.0% symbol=ENAUSDT vol_z=3.12
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=77.2 cascade_strength=0.61 confirms=4 decile=5 risk_pct=12.0% symbol=ENAUSDT vol_z=3.12
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=71.9 cascade_strength=1.07 confirms=4 decile=3 risk_pct=12.0% symbol=NEARUSDT vol_z=0.98
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=71.9 cascade_strength=1.07 confirms=4 decile=3 risk_pct=12.0% symbol=NEARUSDT vol_z=0.98
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=80.1 cascade_strength=1.37 confirms=5 decile=7 risk_pct=12.0% symbol=ARBUSDT vol_z=4.30
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=80.1 cascade_strength=1.37 confirms=5 decile=7 risk_pct=12.0% symbol=ARBUSDT vol_z=4.30
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=70.4 cascade_strength=1.48 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=-0.33
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=70.4 cascade_strength=1.48 confirms=4 decile=2 risk_pct=12.0% symbol=RUNEUSDT vol_z=-0.33
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=79.3 cascade_strength=1.07 confirms=4 decile=7 risk_pct=11.1% symbol=NEARUSDT vol_z=4.50
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=76.8 cascade_strength=0.66 confirms=5 decile=5 risk_pct=12.0% symbol=PENDLEUSDT vol_z=5.08
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=76.8 cascade_strength=0.66 confirms=5 decile=5 risk_pct=12.0% symbol=PENDLEUSDT vol_z=5.08
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=83.2 cascade_strength=4.23 confirms=5 decile=9 risk_pct=11.4% symbol=FILUSDT vol_z=4.73
+2026-05-21 08:34:52 [info     ] V5 signal                      aggression=83.2 cascade_strength=4.23 confirms=5 decile=9 risk_pct=11.4% symbol=FILUSDT vol_z=4.73
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=67.6 cascade_strength=1.07 confirms=4 decile=2 risk_pct=12.0% symbol=NEARUSDT vol_z=0.90
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=61.8 cascade_strength=0.58 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=3.73
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=61.8 cascade_strength=0.58 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=3.73
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=59.2 cascade_strength=1.37 confirms=4 decile=1 risk_pct=11.3% symbol=ARBUSDT vol_z=0.85
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=59.2 cascade_strength=1.37 confirms=4 decile=1 risk_pct=11.3% symbol=ARBUSDT vol_z=0.85
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=72.7 cascade_strength=0.66 confirms=4 decile=3 risk_pct=9.4% symbol=PENDLEUSDT vol_z=1.65
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=72.7 cascade_strength=0.66 confirms=4 decile=3 risk_pct=9.4% symbol=PENDLEUSDT vol_z=1.65
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=81.1 cascade_strength=0.91 confirms=5 decile=8 risk_pct=12.0% symbol=SOLUSDT vol_z=4.02
+2026-05-21 08:34:53 [info     ] V5 signal                      aggression=81.1 cascade_strength=0.91 confirms=5 decile=8 risk_pct=12.0% symbol=SOLUSDT vol_z=4.02
+2026-05-21 08:34:53 [info     ] Cascade active                 imb=-0.65 ret_5d=24.1 strength=0.97 symbol=NEARUSDT
+2026-05-21 08:34:53 [info     ] Cascade active                 imb=-0.65 ret_5d=24.1 strength=0.97 symbol=NEARUSDT
+2026-05-21 08:34:53 [info     ] Cascade active                 imb=-0.54 ret_5d=13.6 strength=0.30 symbol=RUNEUSDT
+2026-05-21 08:34:53 [info     ] Cascade active                 imb=-0.54 ret_5d=13.6 strength=0.30 symbol=RUNEUSDT
+2026-05-21 08:34:53 [info     ] Cascade active                 imb=-0.51 ret_5d=-0.9 strength=0.24 symbol=ETHUSDT
+2026-05-21 08:34:53 [info     ] Cascade active                 imb=-0.51 ret_5d=-0.9 strength=0.24 symbol=ETHUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.61 ret_5d=7.8 strength=1.60 symbol=ADAUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.61 ret_5d=7.8 strength=1.60 symbol=ADAUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.06 ret_5d=20.2 strength=0.42 symbol=ARBUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.06 ret_5d=20.2 strength=0.42 symbol=ARBUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.58 ret_5d=11.5 strength=0.61 symbol=RUNEUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.58 ret_5d=11.5 strength=0.61 symbol=RUNEUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.51 ret_5d=11.8 strength=1.98 symbol=SOLUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.51 ret_5d=11.8 strength=1.98 symbol=SOLUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.01 ret_5d=20.6 strength=1.42 symbol=ENAUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.01 ret_5d=20.6 strength=1.42 symbol=ENAUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.21 ret_5d=7.2 strength=1.50 symbol=1000PEPEUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.21 ret_5d=7.2 strength=1.50 symbol=1000PEPEUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.38 ret_5d=4.3 strength=1.93 symbol=XRPUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.38 ret_5d=4.3 strength=1.93 symbol=XRPUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.22 ret_5d=6.2 strength=1.51 symbol=XLMUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.22 ret_5d=6.2 strength=1.51 symbol=XLMUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.08 ret_5d=16.4 strength=1.89 symbol=APTUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.08 ret_5d=16.4 strength=1.89 symbol=APTUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.46 ret_5d=0.5 strength=1.05 symbol=ETHUSDT
+2026-05-21 08:34:55 [info     ] Cascade active                 imb=-0.46 ret_5d=0.5 strength=1.05 symbol=ETHUSDT
+2026-05-21 08:34:55 [info     ] V5 signal                      aggression=80.1 cascade_strength=1.93 confirms=4 decile=7 risk_pct=12.0% symbol=XRPUSDT vol_z=9.17
+2026-05-21 08:34:55 [info     ] V5 signal                      aggression=80.1 cascade_strength=1.93 confirms=4 decile=7 risk_pct=12.0% symbol=XRPUSDT vol_z=9.17
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=76.9 cascade_strength=0.42 confirms=4 decile=5 risk_pct=12.0% symbol=ARBUSDT vol_z=-0.20
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=76.9 cascade_strength=0.42 confirms=4 decile=5 risk_pct=12.0% symbol=ARBUSDT vol_z=-0.20
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=69.5 cascade_strength=1.42 confirms=4 decile=2 risk_pct=12.0% symbol=ENAUSDT vol_z=-0.07
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=69.5 cascade_strength=1.42 confirms=4 decile=2 risk_pct=12.0% symbol=ENAUSDT vol_z=-0.07
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=80.8 cascade_strength=1.50 confirms=4 decile=7 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=0.34
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=80.8 cascade_strength=1.50 confirms=4 decile=7 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=0.34
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=72.9 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=0.32
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=72.9 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=0.32
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=69.7 cascade_strength=1.89 confirms=4 decile=2 risk_pct=12.0% symbol=APTUSDT vol_z=-0.40
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=69.7 cascade_strength=1.89 confirms=4 decile=2 risk_pct=12.0% symbol=APTUSDT vol_z=-0.40
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.05 confirms=4 decile=8 risk_pct=12.0% symbol=ETHUSDT vol_z=3.50
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.05 confirms=4 decile=8 risk_pct=12.0% symbol=ETHUSDT vol_z=3.50
+2026-05-21 08:34:56 [info     ] V5 signal                      aggression=73.1 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=4.92
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=82.2 cascade_strength=1.93 confirms=4 decile=8 risk_pct=12.0% symbol=XRPUSDT vol_z=3.12
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=82.2 cascade_strength=1.93 confirms=4 decile=8 risk_pct=12.0% symbol=XRPUSDT vol_z=3.12
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=71.8 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=1.68
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=79.4 cascade_strength=1.50 confirms=5 decile=7 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=4.33
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=79.4 cascade_strength=1.50 confirms=5 decile=7 risk_pct=12.0% symbol=1000PEPEUSDT vol_z=4.33
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=72.2 cascade_strength=1.51 confirms=4 decile=3 risk_pct=12.0% symbol=XLMUSDT vol_z=2.45
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=67.3 cascade_strength=1.89 confirms=4 decile=2 risk_pct=12.0% symbol=APTUSDT vol_z=1.41
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=67.3 cascade_strength=1.89 confirms=4 decile=2 risk_pct=12.0% symbol=APTUSDT vol_z=1.41
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=62.5 cascade_strength=1.51 confirms=4 decile=1 risk_pct=12.0% symbol=XLMUSDT vol_z=3.52
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=71.0 cascade_strength=0.61 confirms=4 decile=3 risk_pct=12.0% symbol=RUNEUSDT vol_z=4.26
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=71.0 cascade_strength=0.61 confirms=4 decile=3 risk_pct=12.0% symbol=RUNEUSDT vol_z=4.26
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=64.4 cascade_strength=1.60 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=0.49
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=64.4 cascade_strength=1.60 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=0.49
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=76.4 cascade_strength=1.98 confirms=4 decile=5 risk_pct=12.0% symbol=SOLUSDT vol_z=2.10
+2026-05-21 08:34:57 [info     ] V5 signal                      aggression=76.4 cascade_strength=1.98 confirms=4 decile=5 risk_pct=12.0% symbol=SOLUSDT vol_z=2.10
+2026-05-21 08:34:58 [info     ] Cascade active                 imb=-0.22 ret_5d=10.3 strength=0.87 symbol=PENDLEUSDT
+2026-05-21 08:34:58 [info     ] Cascade active                 imb=-0.22 ret_5d=10.3 strength=0.87 symbol=PENDLEUSDT
+2026-05-21 08:34:58 [info     ] Cascade active                 imb=-0.67 ret_5d=9.2 strength=1.00 symbol=SOLUSDT
+2026-05-21 08:34:58 [info     ] Cascade active                 imb=-0.67 ret_5d=9.2 strength=1.00 symbol=SOLUSDT
+2026-05-21 08:34:58 [info     ] V5 signal                      aggression=82.0 cascade_strength=0.87 confirms=4 decile=8 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.57
+2026-05-21 08:34:58 [info     ] V5 signal                      aggression=82.0 cascade_strength=0.87 confirms=4 decile=8 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.57
+2026-05-21 08:34:58 [info     ] V5 signal                      aggression=81.6 cascade_strength=1.00 confirms=4 decile=8 risk_pct=12.0% symbol=SOLUSDT vol_z=6.60
+2026-05-21 08:34:58 [info     ] V5 signal                      aggression=81.6 cascade_strength=1.00 confirms=4 decile=8 risk_pct=12.0% symbol=SOLUSDT vol_z=6.60
+2026-05-21 08:34:58 [info     ] Cascade active                 imb=-0.13 ret_5d=3.4 strength=1.32 symbol=BNBUSDT
+2026-05-21 08:34:58 [info     ] Cascade active                 imb=-0.13 ret_5d=3.4 strength=1.32 symbol=BNBUSDT
+2026-05-21 08:34:58 [info     ] V5 signal                      aggression=68.2 cascade_strength=1.32 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=1.46
+2026-05-21 08:34:58 [info     ] V5 signal                      aggression=68.2 cascade_strength=1.32 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=1.46
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.33 ret_5d=-0.1 strength=0.52 symbol=ADAUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.33 ret_5d=-0.1 strength=0.52 symbol=ADAUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.66 ret_5d=0.4 strength=0.23 symbol=PENDLEUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.66 ret_5d=0.4 strength=0.23 symbol=PENDLEUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.61 ret_5d=4.6 strength=1.35 symbol=XRPUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.61 ret_5d=4.6 strength=1.35 symbol=XRPUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.41 ret_5d=4.4 strength=0.52 symbol=BNBUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.41 ret_5d=4.4 strength=0.52 symbol=BNBUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.38 ret_5d=6.8 strength=1.00 symbol=QNTUSDT
+2026-05-21 08:34:59 [info     ] Cascade active                 imb=-0.38 ret_5d=6.8 strength=1.00 symbol=QNTUSDT
+2026-05-21 08:34:59 [info     ] V5 signal                      aggression=68.7 cascade_strength=0.52 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=3.18
+2026-05-21 08:34:59 [info     ] V5 signal                      aggression=68.7 cascade_strength=0.52 confirms=4 decile=2 risk_pct=12.0% symbol=BNBUSDT vol_z=3.18
+2026-05-21 08:34:59 [info     ] V5 signal                      aggression=64.0 cascade_strength=0.23 confirms=4 decile=1 risk_pct=12.0% symbol=PENDLEUSDT vol_z=0.79
+2026-05-21 08:34:59 [info     ] V5 signal                      aggression=64.0 cascade_strength=0.23 confirms=4 decile=1 risk_pct=12.0% symbol=PENDLEUSDT vol_z=0.79
+2026-05-21 08:34:59 [info     ] V5 signal                      aggression=63.2 cascade_strength=1.00 confirms=4 decile=1 risk_pct=12.0% symbol=QNTUSDT vol_z=0.30
+2026-05-21 08:34:59 [info     ] V5 signal                      aggression=63.2 cascade_strength=1.00 confirms=4 decile=1 risk_pct=12.0% symbol=QNTUSDT vol_z=0.30
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=75.8 cascade_strength=0.52 confirms=4 decile=5 risk_pct=12.0% symbol=ADAUSDT vol_z=1.51
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=75.8 cascade_strength=0.52 confirms=4 decile=5 risk_pct=12.0% symbol=ADAUSDT vol_z=1.51
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.35 confirms=5 decile=8 risk_pct=12.0% symbol=XRPUSDT vol_z=4.63
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=81.9 cascade_strength=1.35 confirms=5 decile=8 risk_pct=12.0% symbol=XRPUSDT vol_z=4.63
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=72.5 cascade_strength=0.23 confirms=4 decile=3 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.64
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=72.5 cascade_strength=0.23 confirms=4 decile=3 risk_pct=12.0% symbol=PENDLEUSDT vol_z=1.64
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=71.7 cascade_strength=1.00 confirms=4 decile=3 risk_pct=12.0% symbol=QNTUSDT vol_z=0.26
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=71.7 cascade_strength=1.00 confirms=4 decile=3 risk_pct=12.0% symbol=QNTUSDT vol_z=0.26
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=69.4 cascade_strength=0.23 confirms=4 decile=2 risk_pct=12.0% symbol=PENDLEUSDT vol_z=2.92
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=66.1 cascade_strength=0.52 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=1.37
+2026-05-21 08:35:00 [info     ] V5 signal                      aggression=66.1 cascade_strength=0.52 confirms=4 decile=1 risk_pct=12.0% symbol=ADAUSDT vol_z=1.37
+2026-05-21 08:35:01 [info     ] Cascade active                 imb=-0.42 ret_5d=8.3 strength=6.05 symbol=NMRUSDT
+2026-05-21 08:35:01 [info     ] Cascade active                 imb=-0.42 ret_5d=8.3 strength=6.05 symbol=NMRUSDT
+2026-05-21 08:35:01 [info     ] Cascade active                 imb=-0.08 ret_5d=10.9 strength=5.89 symbol=QNTUSDT
+2026-05-21 08:35:01 [info     ] Cascade active                 imb=-0.08 ret_5d=10.9 strength=5.89 symbol=QNTUSDT
+2026-05-21 08:35:01 [info     ] V5 signal                      aggression=83.0 cascade_strength=5.89 confirms=4 decile=9 risk_pct=12.0% symbol=QNTUSDT vol_z=5.11
+2026-05-21 08:35:01 [info     ] V5 signal                      aggression=83.0 cascade_strength=5.89 confirms=4 decile=9 risk_pct=12.0% symbol=QNTUSDT vol_z=5.11
+2026-05-21 08:35:01 [info     ] V5 signal                      aggression=55.8 cascade_strength=6.05 confirms=4 decile=1 risk_pct=9.1% symbol=NMRUSDT vol_z=1.30
+2026-05-21 08:35:01 [info     ] V5 signal                      aggression=55.8 cascade_strength=6.05 confirms=4 decile=1 risk_pct=9.1% symbol=NMRUSDT vol_z=1.30
+  2026-05-17 09:49 | events: 1100000 | A: 381598 | B: 585191
+2026-05-21 08:35:02 [info     ] Cascade active                 imb=-0.03 ret_5d=9.9 strength=0.45 symbol=CHZUSDT
+2026-05-21 08:35:02 [info     ] Cascade active                 imb=-0.03 ret_5d=9.9 strength=0.45 symbol=CHZUSDT
+2026-05-21 08:35:02 [info     ] Cascade active                 imb=-0.35 ret_5d=2.9 strength=0.23 symbol=QNTUSDT
+2026-05-21 08:35:02 [info     ] Cascade active                 imb=-0.35 ret_5d=2.9 strength=0.23 symbol=QNTUSDT
+2026-05-21 08:35:03 [info     ] V5 signal                      aggression=73.2 cascade_strength=0.45 confirms=5 decile=3 risk_pct=12.0% symbol=CHZUSDT vol_z=3.14
+2026-05-21 08:35:03 [info     ] V5 signal                      aggression=73.2 cascade_strength=0.45 confirms=5 decile=3 risk_pct=12.0% symbol=CHZUSDT vol_z=3.14
+2026-05-21 08:35:03 [info     ] V5 signal                      aggression=66.8 cascade_strength=0.45 confirms=4 decile=1 risk_pct=12.0% symbol=CHZUSDT vol_z=1.81
+
+====================================================================================================
+V5 D3 EXCLUSION BACKTEST RESULTS
+====================================================================================================
+
+Config                         Trades  Skips     WR      Net R    Avg R     PF      Net $   MaxDD   Eq Final
+----------------------------------------------------------------------------------------------------
+A: baseline (all deciles)         223      0    65%  +120.4893  +0.5403   2.70    +421283   24.1%     364984
+B: no D3                          208     41    68%  +133.7414  +0.6430   3.28    +650267   22.0%     585812
+
+Delta (B - A):                    -15         +3.2%   +13.2521  +0.1027  +0.57    +228984   -2.1%
+
+
+=== BY DECILE ===
+
+  A: baseline (all deciles):
+    D1:   56 trades  WR=   70%  net=+61.3021R
+    D2:   45 trades  WR=   64%  net=+32.4844R
+    D3:   35 trades  WR=   49%  net= -0.5933R
+    D5:   17 trades  WR=   82%  net= +9.4735R
+    D6:   10 trades  WR=   70%  net= +4.6983R
+    D7:   23 trades  WR=   57%  net= +0.8951R
+    D8:   20 trades  WR=   65%  net=+10.6747R
+    D9:   17 trades  WR=   71%  net= +1.5545R
+
+  B: no D3:
+    D1:   64 trades  WR=   66%  net=+67.5358R
+    D2:   46 trades  WR=   74%  net=+38.5707R
+    D5:   21 trades  WR=   71%  net= +7.9949R
+    D6:   11 trades  WR=   73%  net= +5.0485R
+    D7:   24 trades  WR=   54%  net= -0.1513R
+    D8:   25 trades  WR=   68%  net=+13.2279R
+    D9:   17 trades  WR=   71%  net= +1.5149R
+
+
+=== BY EXIT REASON ===
+
+  A: baseline (all deciles):
+    stop_loss          64 trades  WR=    0%  net=-69.9226R
+    vol_trail         159 trades  WR=   91%  net=+190.4119R
+
+  B: no D3:
+    stop_loss          53 trades  WR=    0%  net=-57.9424R
+    vol_trail         155 trades  WR=   91%  net=+191.6838R
+
+
+=== EQUITY CURVE SNAPSHOTS ===
+
+ Trade #    Baseline Eq       No D3 Eq      Delta
+--------------------------------------------------
+       0          10000          10000         +0
+      10          14264          13444       -821
+      20          32919          32233       -686
+      30          30702          36208      +5506
+      40          45080          56127     +11047
+      50          50796          58711      +7915
+      60          64448          76806     +12358
+      70          77427          91473     +14045
+      80          78576          92983     +14408
+      90         106918         119631     +12713
+     100         104249         132085     +27836
+     110         144314         142122      -2192
+     120         154042         172744     +18702
+     130         140229         148657      +8428
+     140         127717         189365     +61647
+     150         167002         207846     +40845
+     160         179989         208188     +28199
+     170         180386         281125    +100738
+     180         237643         413295    +175652
+     190         343150         448152    +105002
+     200         321987         531275    +209288
+   FINAL         364984         585812    +220828
+
+Wrote 223 trades to d3_exclusion_A_baseline_all_deciles_trades.csv
+
+Wrote 208 trades to d3_exclusion_B_no_D3_trades.csv
+
+====================================================================================================
+DONE

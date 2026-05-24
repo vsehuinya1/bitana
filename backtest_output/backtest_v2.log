@@ -1,0 +1,142 @@
+======================================================================
+V3 LIQ-CLUSTER COMPREHENSIVE BACKTEST (Optimized)
+Jan 1 – Apr 30, 2026 | All approved pairs
+======================================================================
+
+[1/4] Loading candle data...
+  BTCUSDT: 34560 candles
+  NEARUSDT: 34560 candles
+  ZECUSDT: 34560 candles
+  ADAUSDT: 34560 candles
+  WLDUSDT: 34560 candles
+  UNIUSDT: 34560 candles
+  NMRUSDT: 34560 candles
+  PENDLEUSDT: 34560 candles
+  ARBUSDT: 34560 candles
+  RENDERUSDT: 34560 candles
+  RUNEUSDT: 34560 candles
+  FETUSDT: 34560 candles
+  DOTUSDT: 34560 candles
+  TONUSDT: 34560 candles
+  SOLUSDT: 34560 candles
+  1000LUNCUSDT: 34560 candles
+  ENAUSDT: 34560 candles
+  1000PEPEUSDT: 34560 candles
+  XRPUSDT: 34560 candles
+  FILUSDT: 34560 candles
+  BNBUSDT: 34560 candles
+  TAOUSDT: 34560 candles
+  CHZUSDT: 34560 candles
+  DASHUSDT: 34560 candles
+  QNTUSDT: 34560 candles
+  ICPUSDT: 34560 candles
+  XLMUSDT: 34560 candles
+  APTUSDT: 34560 candles
+  ETHUSDT: 34560 candles
+
+[2/4] Pre-computing signals for all symbols...
+  NEARUSDT (baseline): 14 signals
+  ZECUSDT (baseline): 12 signals
+  ADAUSDT (baseline): 12 signals
+  WLDUSDT (baseline): 9 signals
+  UNIUSDT (baseline): 8 signals
+/root/bitana/research/scripts/v3_comprehensive_backtest_v2.py:338: RuntimeWarning: invalid value encountered in divide
+  body_strength = np.where(candle_range > 0, candle_body / candle_range, 0)
+  NMRUSDT (baseline): 40 signals
+  PENDLEUSDT (baseline): 13 signals
+  ARBUSDT (baseline): 7 signals
+  RENDERUSDT (baseline): 14 signals
+  RUNEUSDT (baseline): 18 signals
+  FETUSDT (baseline): 24 signals
+  DOTUSDT (baseline): 26 signals
+  TONUSDT (baseline): 19 signals
+  SOLUSDT (baseline): 7 signals
+  1000LUNCUSDT (baseline): 31 signals
+  ENAUSDT (baseline): 24 signals
+  1000PEPEUSDT (baseline): 10 signals
+  XRPUSDT (baseline): 3 signals
+  FILUSDT (baseline): 14 signals
+  BNBUSDT (baseline): 8 signals
+  TAOUSDT (baseline): 47 signals
+  CHZUSDT (baseline): 17 signals
+  DASHUSDT (baseline): 10 signals
+  QNTUSDT (baseline): 15 signals
+  ICPUSDT (baseline): 14 signals
+  XLMUSDT (baseline): 0 signals
+  APTUSDT (baseline): 34 signals
+  ETHUSDT (baseline): 7 signals
+  Total signals (baseline): 457
+  NEARUSDT (relax_ret5d): 22 signals
+  ZECUSDT (relax_ret5d): 15 signals
+  ADAUSDT (relax_ret5d): 15 signals
+  WLDUSDT (relax_ret5d): 13 signals
+  UNIUSDT (relax_ret5d): 21 signals
+  NMRUSDT (relax_ret5d): 40 signals
+  PENDLEUSDT (relax_ret5d): 17 signals
+  ARBUSDT (relax_ret5d): 9 signals
+  RENDERUSDT (relax_ret5d): 14 signals
+  RUNEUSDT (relax_ret5d): 24 signals
+  FETUSDT (relax_ret5d): 29 signals
+  DOTUSDT (relax_ret5d): 37 signals
+  TONUSDT (relax_ret5d): 23 signals
+  SOLUSDT (relax_ret5d): 7 signals
+  1000LUNCUSDT (relax_ret5d): 31 signals
+  ENAUSDT (relax_ret5d): 30 signals
+  1000PEPEUSDT (relax_ret5d): 14 signals
+  XRPUSDT (relax_ret5d): 8 signals
+  FILUSDT (relax_ret5d): 17 signals
+  BNBUSDT (relax_ret5d): 11 signals
+  TAOUSDT (relax_ret5d): 53 signals
+  CHZUSDT (relax_ret5d): 21 signals
+  DASHUSDT (relax_ret5d): 10 signals
+  QNTUSDT (relax_ret5d): 18 signals
+  ICPUSDT (relax_ret5d): 14 signals
+  XLMUSDT (relax_ret5d): 5 signals
+  APTUSDT (relax_ret5d): 39 signals
+  ETHUSDT (relax_ret5d): 13 signals
+  Total signals (relax_ret5d): 570
+
+[3/4] Running backtest layers...
+
+--- baseline ---
+  444 trades, WR=50.2%, Total R=-36.0074, PF=0.837, elapsed=525s
+
+--- relax_ret5d ---
+  548 trades, WR=51.6%, Total R=-28.1028, PF=0.894, elapsed=530s
+
+--- restore_imbalance ---
+  548 trades, WR=51.6%, Total R=-28.1028, PF=0.894, elapsed=536s
+
+--- quality_scoring ---
+  548 trades, WR=51.6%, Total R=-28.1028, PF=0.894, elapsed=542s
+
+--- vol_targeting ---
+  548 trades, WR=51.6%, Total R=-28.1028, PF=0.894, elapsed=547s
+
+--- regime_sizing ---
+  548 trades, WR=51.6%, Total R=-28.1028, PF=0.894, elapsed=553s
+
+--- pyramiding ---
+  548 trades, WR=51.6%, Total R=-28.1028, PF=0.894, elapsed=558s
+
+--- correlation_control ---
+  543 trades, WR=51.4%, Total R=-31.0951, PF=0.882, elapsed=563s
+
+[4/4] Saving comparison report...
+
+======================================================================
+COMPARISON SUMMARY
+======================================================================
+Layer                     Trades    WR%    Total R     PF   Sharpe
+----------------------------------------------------------------------
+baseline                     444   50.2   -36.0074  0.837  -21.297
+relax_ret5d                  548   51.6   -28.1028  0.894  -13.548
+restore_imbalance            548   51.6   -28.1028  0.894  -13.548
+quality_scoring              548   51.6   -28.1028  0.894  -13.548
+vol_targeting                548   51.6   -28.1028  0.894  -13.548
+regime_sizing                548   51.6   -28.1028  0.894  -13.548
+pyramiding                   548   51.6   -28.1028  0.894  -13.548
+correlation_control          543   51.4   -31.0951  0.882  -15.132
+
+Total time: 563s
+Outputs in: /root/bitana/backtest_output

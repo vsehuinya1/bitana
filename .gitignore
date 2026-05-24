@@ -1,0 +1,41 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual env
+venv/
+.venv/
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Research data (large parquet files)
+research/output/data/
+research/output/reports/*.parquet
+research/venv/
+
+# Replay output
+replay_output/

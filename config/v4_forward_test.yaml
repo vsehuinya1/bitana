@@ -1,0 +1,56 @@
+# V4 Liq-Cluster Forward Test Config
+# V4 changes: aggression-decile-specific exit parameters
+# V3 config is completely untouched in config/v3_forward_test.yaml
+
+symbols:
+  tier_a:
+    - NEARUSDT
+    - ZECUSDT
+    - ADAUSDT
+    - WLDUSDT
+    - UNIUSDT
+    - NMRUSDT
+    - PENDLEUSDT
+    - ARBUSDT
+    - RENDERUSDT
+    - RUNEUSDT
+    - FETUSDT
+    - DOTUSDT
+
+  tier_b:
+    - TONUSDT
+    - SOLUSDT
+    - 1000LUNCUSDT
+    - ENAUSDT
+    - 1000PEPEUSDT
+    - XRPUSDT
+    - FILUSDT
+    - BNBUSDT
+    - TAOUSDT
+    - CHZUSDT
+    - DASHUSDT
+    - QNTUSDT
+    - ICPUSDT
+    - XLMUSDT
+    - APTUSDT
+    - ETHUSDT
+
+risk:
+  base_pct: 2.0
+  btc_aligned_pct: 4.0
+  max_leverage: 10
+  max_positions: 10
+  max_per_symbol: 1
+
+initial_equity: 10000.0
+
+coinalyze:
+  api_key: "be291954-992e-489d-8ab5-5d34a0dfcf41"
+
+telegram:
+  daily_report_hour_utc: 8
+  daily_report_minute_utc: 5
+
+fees:
+  taker_bps: 4.5
+  slippage_bps: 2.0

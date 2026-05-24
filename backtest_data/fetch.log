@@ -1,0 +1,97 @@
+Fetching 5m klines for all symbols...
+Period: 2026-01-01 to 2026-04-30
+Symbols: 29
+
+  BTCUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [1/29] elapsed=0s total_candles=35,000
+  NEARUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [2/29] elapsed=0s total_candles=70,000
+  ZECUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [3/29] elapsed=0s total_candles=105,000
+  ADAUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [4/29] elapsed=0s total_candles=140,000
+  WLDUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [5/29] elapsed=0s total_candles=175,000
+  UNIUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [6/29] elapsed=0s total_candles=210,000
+  NMRUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [7/29] elapsed=0s total_candles=245,000
+  PENDLEUSDT: already have 35000 candles (2026-01-01 → 2026-05-02), skipping
+  [8/29] elapsed=0s total_candles=280,000
+  ARBUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [9/29] elapsed=16s total_candles=315,000
+  RENDERUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [10/29] elapsed=30s total_candles=350,000
+  RUNEUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [11/29] elapsed=45s total_candles=385,000
+  FETUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [12/29] elapsed=61s total_candles=420,000
+  DOTUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [13/29] elapsed=77s total_candles=455,000
+  TONUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [14/29] elapsed=92s total_candles=490,000
+  SOLUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [15/29] elapsed=107s total_candles=525,000
+  1000LUNCUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [16/29] elapsed=126s total_candles=560,000
+  ENAUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [17/29] elapsed=147s total_candles=595,000
+  1000PEPEUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [18/29] elapsed=162s total_candles=630,000
+  XRPUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [19/29] elapsed=179s total_candles=665,000
+  FILUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [20/29] elapsed=193s total_candles=700,000
+  BNBUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [21/29] elapsed=208s total_candles=735,000
+  TAOUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [22/29] elapsed=222s total_candles=770,000
+  CHZUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [23/29] elapsed=236s total_candles=805,000
+  DASHUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [24/29] elapsed=250s total_candles=840,000
+  QNTUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [25/29] elapsed=265s total_candles=875,000
+  ICPUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [26/29] elapsed=279s total_candles=910,000
+  XLMUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [27/29] elapsed=296s total_candles=945,000
+  APTUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [28/29] elapsed=310s total_candles=980,000
+  ETHUSDT: saved 35000 candles (2026-01-01 → 2026-05-02)
+  [29/29] elapsed=327s total_candles=1,015,000
+
+============================================================
+DATA FETCH COMPLETE
+============================================================
+  BTCUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  NEARUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  ZECUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  ADAUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  WLDUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  UNIUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  NMRUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  PENDLEUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  ARBUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  RENDERUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  RUNEUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  FETUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  DOTUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  TONUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  SOLUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  1000LUNCUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  ENAUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  1000PEPEUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  XRPUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  FILUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  BNBUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  TAOUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  CHZUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  DASHUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  QNTUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  ICPUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  XLMUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  APTUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+  ETHUSDT: 35,000 candles (2026-01-01 → 2026-05-02)
+
+Total: 1,015,000 candles

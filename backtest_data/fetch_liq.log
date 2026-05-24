@@ -1,0 +1,94 @@
+Fetching Coinalyze liquidation data for all symbols...
+Period: 2026-01-01 to 2026-04-30
+Symbols: 28
+
+  NEARUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [1/28] elapsed=0s total_rows=120
+  ZECUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [2/28] elapsed=2s total_rows=240
+  ADAUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [3/28] elapsed=3s total_rows=360
+  WLDUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [4/28] elapsed=5s total_rows=480
+  UNIUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [5/28] elapsed=6s total_rows=600
+  NMRUSDT: 118 rows (2026-01-01 → 2026-04-30)
+    [6/28] elapsed=8s total_rows=718
+  PENDLEUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [7/28] elapsed=10s total_rows=838
+  ARBUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [8/28] elapsed=11s total_rows=958
+  RENDERUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [9/28] elapsed=13s total_rows=1,078
+  RUNEUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [10/28] elapsed=14s total_rows=1,198
+  FETUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [11/28] elapsed=16s total_rows=1,318
+  DOTUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [12/28] elapsed=17s total_rows=1,438
+  TONUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [13/28] elapsed=19s total_rows=1,558
+  SOLUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [14/28] elapsed=21s total_rows=1,678
+  1000LUNCUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [15/28] elapsed=22s total_rows=1,798
+  ENAUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [16/28] elapsed=24s total_rows=1,918
+  1000PEPEUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [17/28] elapsed=25s total_rows=2,038
+  XRPUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [18/28] elapsed=27s total_rows=2,158
+  FILUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [19/28] elapsed=28s total_rows=2,278
+  BNBUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [20/28] elapsed=30s total_rows=2,398
+  TAOUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [21/28] elapsed=32s total_rows=2,518
+  CHZUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [22/28] elapsed=33s total_rows=2,638
+  DASHUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [23/28] elapsed=35s total_rows=2,758
+  QNTUSDT: 118 rows (2026-01-01 → 2026-04-30)
+    [24/28] elapsed=36s total_rows=2,876
+  ICPUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [25/28] elapsed=38s total_rows=2,996
+  XLMUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [26/28] elapsed=39s total_rows=3,116
+  APTUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [27/28] elapsed=41s total_rows=3,236
+  ETHUSDT: 120 rows (2026-01-01 → 2026-04-30)
+    [28/28] elapsed=43s total_rows=3,356
+
+============================================================
+FETCH COMPLETE
+============================================================
+  NEARUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  ZECUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  ADAUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  WLDUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  UNIUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  NMRUSDT: 118 rows (2026-01-01 → 2026-04-30)
+  PENDLEUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  ARBUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  RENDERUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  RUNEUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  FETUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  DOTUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  TONUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  SOLUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  1000LUNCUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  ENAUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  1000PEPEUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  XRPUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  FILUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  BNBUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  TAOUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  CHZUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  DASHUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  QNTUSDT: 118 rows (2026-01-01 → 2026-04-30)
+  ICPUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  XLMUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  APTUSDT: 120 rows (2026-01-01 → 2026-04-30)
+  ETHUSDT: 120 rows (2026-01-01 → 2026-04-30)
+
+Total: 3,356 rows

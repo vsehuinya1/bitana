@@ -1,0 +1,188 @@
+======================================================================
+V3 LIQ-CLUSTER COMPREHENSIVE BACKTEST
+Jan 1 – Apr 30, 2026 | All approved pairs
+======================================================================
+
+[1/3] Fetching data...
+  [1/29] BTCUSDT: already have 35000 candles, skipping
+  [2/29] NEARUSDT: already have 35000 candles, skipping
+  [3/29] ZECUSDT: already have 35000 candles, skipping
+  [4/29] ADAUSDT: already have 35000 candles, skipping
+  [5/29] WLDUSDT: already have 35000 candles, skipping
+  [6/29] UNIUSDT: already have 35000 candles, skipping
+  [7/29] NMRUSDT: already have 35000 candles, skipping
+  [8/29] PENDLEUSDT: already have 35000 candles, skipping
+  [9/29] ARBUSDT: already have 35000 candles, skipping
+  [10/29] RENDERUSDT: already have 35000 candles, skipping
+  [11/29] RUNEUSDT: already have 35000 candles, skipping
+  [12/29] FETUSDT: already have 35000 candles, skipping
+  [13/29] DOTUSDT: already have 35000 candles, skipping
+  [14/29] TONUSDT: already have 35000 candles, skipping
+  [15/29] SOLUSDT: already have 35000 candles, skipping
+  [16/29] 1000LUNCUSDT: already have 35000 candles, skipping
+  [17/29] ENAUSDT: already have 35000 candles, skipping
+  [18/29] 1000PEPEUSDT: already have 35000 candles, skipping
+  [19/29] XRPUSDT: already have 35000 candles, skipping
+  [20/29] FILUSDT: already have 35000 candles, skipping
+  [21/29] BNBUSDT: already have 35000 candles, skipping
+  [22/29] TAOUSDT: already have 35000 candles, skipping
+  [23/29] CHZUSDT: already have 35000 candles, skipping
+  [24/29] DASHUSDT: already have 35000 candles, skipping
+  [25/29] QNTUSDT: already have 35000 candles, skipping
+  [26/29] ICPUSDT: already have 35000 candles, skipping
+  [27/29] XLMUSDT: already have 35000 candles, skipping
+  [28/29] APTUSDT: already have 35000 candles, skipping
+  [29/29] ETHUSDT: already have 35000 candles, skipping
+  BTCUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  NEARUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  ZECUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  ADAUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  WLDUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  UNIUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  NMRUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  PENDLEUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  ARBUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  RENDERUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  RUNEUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  FETUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  DOTUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  TONUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  SOLUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  1000LUNCUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  ENAUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  1000PEPEUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  XRPUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  FILUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  BNBUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  TAOUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  CHZUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  DASHUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  QNTUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  ICPUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  XLMUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  APTUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+  ETHUSDT: 35000 candles (2026-01-01 → 2026-05-02)
+
+[2/3] Running backtest layers...
+
+--- Layer 0: BASELINE ---
+
+======================================================================
+BACKTEST: baseline
+======================================================================
+Loading candle data...
+  BTCUSDT: 34560 candles
+  NEARUSDT: 34560 candles
+  ZECUSDT: 34560 candles
+  ADAUSDT: 34560 candles
+  WLDUSDT: 34560 candles
+  UNIUSDT: 34560 candles
+  NMRUSDT: 34560 candles
+  PENDLEUSDT: 34560 candles
+  ARBUSDT: 34560 candles
+  RENDERUSDT: 34560 candles
+  RUNEUSDT: 34560 candles
+  FETUSDT: 34560 candles
+  DOTUSDT: 34560 candles
+  TONUSDT: 34560 candles
+  SOLUSDT: 34560 candles
+  1000LUNCUSDT: 34560 candles
+  ENAUSDT: 34560 candles
+  1000PEPEUSDT: 34560 candles
+  XRPUSDT: 34560 candles
+  FILUSDT: 34560 candles
+  BNBUSDT: 34560 candles
+  TAOUSDT: 34560 candles
+  CHZUSDT: 34560 candles
+  DASHUSDT: 34560 candles
+  QNTUSDT: 34560 candles
+  ICPUSDT: 34560 candles
+  XLMUSDT: 34560 candles
+  APTUSDT: 34560 candles
+  ETHUSDT: 34560 candles
+
+Building liquidation context...
+
+Total unique 5m bars in timeline: 34560
+
+Running backtest...
+  Progress: 0/34560 (0%) equity=$10000.00 trades=0
+  Progress: 1728/34560 (5%) equity=$9207.60 trades=3
+  Progress: 3456/34560 (10%) equity=$9207.60 trades=3
+  Progress: 5184/34560 (15%) equity=$9207.60 trades=3
+  Progress: 6912/34560 (20%) equity=$9207.60 trades=3
+  Progress: 8640/34560 (25%) equity=$9207.60 trades=3
+  Progress: 10368/34560 (30%) equity=$9207.60 trades=3
+  Progress: 12096/34560 (35%) equity=$9207.60 trades=3
+  Progress: 13824/34560 (40%) equity=$9207.60 trades=3
+  Progress: 15552/34560 (45%) equity=$9207.60 trades=3
+  Progress: 17280/34560 (50%) equity=$9207.60 trades=3
+  Progress: 19008/34560 (55%) equity=$9207.60 trades=3
+  Progress: 20736/34560 (60%) equity=$9207.60 trades=3
+  Progress: 22464/34560 (65%) equity=$9207.60 trades=3
+  Progress: 24192/34560 (70%) equity=$9207.60 trades=3
+  Progress: 25920/34560 (75%) equity=$9207.60 trades=3
+  Progress: 27648/34560 (80%) equity=$9207.60 trades=3
+  Progress: 29376/34560 (85%) equity=$9207.60 trades=3
+  Progress: 31104/34560 (90%) equity=$9207.60 trades=3
+  Progress: 32832/34560 (95%) equity=$9207.60 trades=3
+
+  Completed: 3 trades, final equity: $9207.60
+
+--- Layer 1: RELAX ret5d_min ---
+
+======================================================================
+BACKTEST: relax_ret5d
+======================================================================
+Loading candle data...
+  BTCUSDT: 34560 candles
+  NEARUSDT: 34560 candles
+  ZECUSDT: 34560 candles
+  ADAUSDT: 34560 candles
+  WLDUSDT: 34560 candles
+  UNIUSDT: 34560 candles
+  NMRUSDT: 34560 candles
+  PENDLEUSDT: 34560 candles
+  ARBUSDT: 34560 candles
+  RENDERUSDT: 34560 candles
+  RUNEUSDT: 34560 candles
+  FETUSDT: 34560 candles
+  DOTUSDT: 34560 candles
+  TONUSDT: 34560 candles
+  SOLUSDT: 34560 candles
+  1000LUNCUSDT: 34560 candles
+  ENAUSDT: 34560 candles
+  1000PEPEUSDT: 34560 candles
+  XRPUSDT: 34560 candles
+  FILUSDT: 34560 candles
+  BNBUSDT: 34560 candles
+  TAOUSDT: 34560 candles
+  CHZUSDT: 34560 candles
+  DASHUSDT: 34560 candles
+  QNTUSDT: 34560 candles
+  ICPUSDT: 34560 candles
+  XLMUSDT: 34560 candles
+  APTUSDT: 34560 candles
+  ETHUSDT: 34560 candles
+
+Building liquidation context...
+
+Total unique 5m bars in timeline: 34560
+
+Running backtest...
+  Progress: 0/34560 (0%) equity=$10000.00 trades=0
+  Progress: 1728/34560 (5%) equity=$9207.60 trades=3
+  Progress: 3456/34560 (10%) equity=$9207.60 trades=3
+  Progress: 5184/34560 (15%) equity=$9207.60 trades=3
+  Progress: 6912/34560 (20%) equity=$9207.60 trades=3
+  Progress: 8640/34560 (25%) equity=$9207.60 trades=3
+  Progress: 10368/34560 (30%) equity=$9207.60 trades=3
+  Progress: 12096/34560 (35%) equity=$9207.60 trades=3
+  Progress: 13824/34560 (40%) equity=$9207.60 trades=3
+  Progress: 15552/34560 (45%) equity=$9207.60 trades=3
+  Progress: 17280/34560 (50%) equity=$9207.60 trades=3
+  Progress: 19008/34560 (55%) equity=$9207.60 trades=3
+  Progress: 20736/34560 (60%) equity=$9207.60 trades=3
+  Progress: 22464/34560 (65%) equity=$9207.60 trades=3
+  Progress: 24192/34560 (70%) equity=$9207.60 trades=3
+  Progress: 25920/34560 (75%) equity=$9207.60 trades=3

@@ -1,0 +1,183 @@
+======================================================================
+AGGRESSION SCORE V1 — Analysis
+======================================================================
+
+[1] Loading baseline trades...
+  385 trades loaded
+
+[2] Loading candle data...
+  NEARUSDT: 34560 candles, 120 rows
+  ZECUSDT: 34560 candles, 120 rows
+  ADAUSDT: 34560 candles, 120 rows
+  WLDUSDT: 34560 candles, 120 rows
+  UNIUSDT: 34560 candles, 120 rows
+  NMRUSDT: 34560 candles, 118 rows
+  PENDLEUSDT: 34560 candles, 120 rows
+  ARBUSDT: 34560 candles, 120 rows
+  RENDERUSDT: 34560 candles, 120 rows
+  RUNEUSDT: 34560 candles, 120 rows
+  FETUSDT: 34560 candles, 120 rows
+  DOTUSDT: 34560 candles, 120 rows
+  TONUSDT: 34560 candles, 120 rows
+  SOLUSDT: 34560 candles, 120 rows
+  1000LUNCUSDT: 34560 candles, 120 rows
+  ENAUSDT: 34560 candles, 120 rows
+  1000PEPEUSDT: 34560 candles, 120 rows
+  XRPUSDT: 34560 candles, 120 rows
+  FILUSDT: 34560 candles, 120 rows
+  BNBUSDT: 34560 candles, 120 rows
+  TAOUSDT: 34560 candles, 120 rows
+  CHZUSDT: 34560 candles, 120 rows
+  DASHUSDT: 34560 candles, 120 rows
+  QNTUSDT: 34560 candles, 118 rows
+  ICPUSDT: 34560 candles, 120 rows
+  XLMUSDT: 34560 candles, 120 rows
+  APTUSDT: 34560 candles, 120 rows
+  ETHUSDT: 34560 candles, 120 rows
+
+[3] Computing aggression scores...
+  Computed aggression for 385/385 trades (0 errors)
+
+[4] Saving enriched trades...
+  Saved to baseline_trades_aggression.csv
+
+[5] Analyzing by aggression decile...
+
+======================================================================
+EXPECTANCY BY AGGRESSION DECILE
+======================================================================
+
+Decile   Score Range        Trades    WR%    Total R    Avg R     PF   Sharpe
+----------------------------------------------------------------------
+D1       0.619 - 0.682          39   66.7      +4.71  +0.1207  1.362     6.21
+D2       0.682 - 0.714          38   55.3      +5.11  +0.1344  1.300     3.64
+D3       0.715 - 0.736          39   61.5     +16.11  +0.4130  2.074    11.94
+D4       0.737 - 0.752          38   63.2      +6.62  +0.1742  1.473     7.18
+D5       0.752 - 0.772          39   59.0     +12.36  +0.3169  1.772     8.95
+D6       0.773 - 0.788          38   57.9     +10.00  +0.2631  1.625     7.99
+D7       0.789 - 0.808          38   55.3      +3.34  +0.0879  1.196     3.56
+D8       0.808 - 0.825          39   69.2     +19.26  +0.4938  2.605    17.14
+D9       0.825 - 0.841          38   63.2      +9.35  +0.2462  1.668     9.86
+D10      0.843 - 0.903          39   64.1      +9.21  +0.2361  1.658    10.03
+
+======================================================================
+CUMULATIVE ANALYSIS (Top N deciles)
+======================================================================
+D10-D10:   39 trades ( 10%)  WR=64.1%  R=  +9.21 ( +10%)  PF=1.658
+D9-D10:   77 trades ( 20%)  WR=63.6%  R= +18.56 ( +19%)  PF=1.663
+D8-D10:  116 trades ( 30%)  WR=65.5%  R= +37.82 ( +39%)  PF=1.946
+D7-D10:  154 trades ( 40%)  WR=63.0%  R= +41.16 ( +43%)  PF=1.722
+D6-D10:  192 trades ( 50%)  WR=62.0%  R= +51.16 ( +53%)  PF=1.701
+D5-D10:  231 trades ( 60%)  WR=61.5%  R= +63.52 ( +66%)  PF=1.714
+
+======================================================================
+BOTTOM 50% vs TOP 50%
+======================================================================
+Bottom 50% (D1-D5): 193 trades, WR=61.1%, Total R=+44.90, PF=1.599, Avg R=+0.2326
+Top 50% (D6-D10): 192 trades, WR=62.0%, Total R=+51.16, PF=1.701, Avg R=+0.2665
+
+======================================================================
+TOP 20% (D9-D10) DEEP DIVE
+======================================================================
+
+Exit reasons:
+  expansion_decay: 34 (44%) avg R=+0.941
+  stop_loss: 28 (36%) avg R=-1.000
+  vol_trail: 15 (19%) avg R=+0.971
+
+By symbol:
+  PENDLEUSDT: 5 trades, WR=100%, R=+4.62
+  APTUSDT: 2 trades, WR=100%, R=+4.19
+  TONUSDT: 2 trades, WR=100%, R=+3.30
+  FETUSDT: 6 trades, WR=83%, R=+2.75
+  ENAUSDT: 4 trades, WR=75%, R=+2.46
+  NEARUSDT: 4 trades, WR=75%, R=+2.38
+  SOLUSDT: 2 trades, WR=100%, R=+2.15
+  RUNEUSDT: 3 trades, WR=67%, R=+1.85
+  ARBUSDT: 2 trades, WR=100%, R=+1.79
+  ZECUSDT: 3 trades, WR=67%, R=+1.62
+  QNTUSDT: 1 trades, WR=100%, R=+0.77
+  XLMUSDT: 1 trades, WR=100%, R=+0.68
+  DOTUSDT: 5 trades, WR=60%, R=-0.08
+  CHZUSDT: 5 trades, WR=60%, R=-0.19
+  1000PEPEUSDT: 2 trades, WR=50%, R=-0.20
+  RENDERUSDT: 2 trades, WR=50%, R=-0.47
+  1000LUNCUSDT: 8 trades, WR=50%, R=-0.58
+  DASHUSDT: 3 trades, WR=33%, R=-0.94
+  XRPUSDT: 1 trades, WR=0%, R=-1.00
+  BNBUSDT: 1 trades, WR=0%, R=-1.00
+  ETHUSDT: 5 trades, WR=40%, R=-2.41
+  TAOUSDT: 10 trades, WR=40%, R=-3.12
+
+Top 10 trades by R:
+  APTUSDT         R=+3.349  score=0.831  reason=expansion_decay
+  TONUSDT         R=+2.176  score=0.831  reason=vol_trail
+  RUNEUSDT        R=+2.175  score=0.877  reason=vol_trail
+  ZECUSDT         R=+2.062  score=0.849  reason=vol_trail
+  ENAUSDT         R=+1.982  score=0.833  reason=vol_trail
+  PENDLEUSDT      R=+1.671  score=0.872  reason=expansion_decay
+  1000LUNCUSDT    R=+1.568  score=0.860  reason=expansion_decay
+  NEARUSDT        R=+1.418  score=0.858  reason=expansion_decay
+  SOLUSDT         R=+1.355  score=0.830  reason=expansion_decay
+  FETUSDT         R=+1.198  score=0.847  reason=expansion_decay
+
+======================================================================
+AGGRESSION COMPONENT ANALYSIS
+======================================================================
+
+Component                   Top 50 Avg  Bottom 50 Avg       Diff
+-----------------------------------------------------------------
+taker_imb_z                     1.2286         1.3925    -0.1639
+delta_persistence               2.4000         2.4800    -0.0800
+range_expansion_pctile         90.4667        85.0667    +5.4000
+volume_concentration           60.4966        58.9426    +1.5539
+clv                             0.8607         0.8411    +0.0196
+wick_rejection                  0.0664         0.0751    -0.0088
+velocity                        1.0753         1.5493    -0.4740
+cascade_intensity               3.2478         2.1353    +1.1125
+oi_acceleration                 6.7815        25.3084   -18.5269
+spread_expansion                0.1235         0.1462    -0.0227
+
+======================================================================
+APRIL REGIME DEGRADATION ANALYSIS
+======================================================================
+
+2026-02: 52 trades, WR=75.0%, R=+36.49, Avg Score=0.756, Top20%=27%
+  expansion_decay: 25 (48%) avg R=+0.909
+  vol_trail: 13 (25%) avg R=+1.576
+  stop_loss: 13 (25%) avg R=-1.000
+  struct_trail: 1 (2%) avg R=+6.289
+
+2026-03: 134 trades, WR=61.9%, R=+40.99, Avg Score=0.771, Top20%=29%
+  expansion_decay: 52 (39%) avg R=+0.821
+  stop_loss: 51 (38%) avg R=-1.000
+  vol_trail: 28 (21%) avg R=+1.649
+  struct_trail: 3 (2%) avg R=+1.046
+
+2026-04: 199 trades, WR=57.8%, R=+18.58, Avg Score=0.770, Top20%=32%
+  expansion_decay: 85 (43%) avg R=+0.915
+  stop_loss: 84 (42%) avg R=-1.000
+  vol_trail: 30 (15%) avg R=+0.827
+
+======================================================================
+SUMMARY & RECOMMENDATIONS
+======================================================================
+
+1. Aggression Score V1 built with 10 micro-structure variables
+2. Trucks are bucketed by aggression decile
+3. Expectancy by tier reveals which trades to keep/filter
+
+Key questions answered:
+- Do top aggression deciles produce most PnL?
+- Is the bottom 50% noise?
+- Which aggression components matter most?
+- What changed in April?
+
+Next steps based on findings:
+- Filter out low-aggression trades (likely bottom 30-40%)
+- Size proportionally to aggression score
+- Focus exit optimization on high-aggression trades
+- Investigate April regime change
+
+
+All outputs saved to /root/bitana/backtest_output

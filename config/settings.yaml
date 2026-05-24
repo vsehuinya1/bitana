@@ -1,0 +1,213 @@
+# =============================================================================
+# Bitana Configuration — v1.0.0
+# All parameters are configurable. Per-symbol overrides in symbols section.
+# =============================================================================
+
+config_version: "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Mode: paper | live
+# ---------------------------------------------------------------------------
+mode: paper
+
+# ---------------------------------------------------------------------------
+# Symbols
+# ---------------------------------------------------------------------------
+symbols:
+  active:
+    - BTCUSDT
+    - SOLUSDT
+
+  defaults:
+    # Compression Breakout Engine
+    compression:
+      atr_period: 14
+      atr_percentile_threshold: 25       # ATR must be below this percentile
+      atr_lookback: 100                   # candles for percentile calculation
+      bb_period: 20
+      bb_std: 2.0
+      bb_width_percentile_threshold: 25   # BB width below this percentile
+      volume_avg_period: 20
+      min_compression_candles: 6
+      breakout_volume_multiplier: 1.5     # breakout candle vol >= 1.5x avg
+      max_wick_body_ratio: 3.0            # reject wick-only breaks
+      confirmation_timeout_1m_candles: 3  # max 1m candles to wait for confirm
+
+    # Risk per trade (% of equity)
+    risk_pct: 1.5
+
+  # Per-symbol overrides (deep-merged onto defaults)
+  BTCUSDT:
+    compression:
+      min_compression_candles: 8
+    risk_pct: 1.2
+
+  SOLUSDT: {}
+
+# ---------------------------------------------------------------------------
+# Timeframes
+# ---------------------------------------------------------------------------
+timeframes:
+  regime: 15m
+  primary: 5m
+  confirmation: 1m
+
+# ---------------------------------------------------------------------------
+# Risk Management
+# ---------------------------------------------------------------------------
+risk:
+  default_risk_pct: 1.5
+  reduced_risk_pct: 0.75
+  drawdown_reduce_threshold: 0.15      # reduce risk when DD exceeds 15%
+  drawdown_restore_threshold: 0.10     # restore when DD recovers above -10%
+  max_leverage: 10
+  liquidation_buffer_pct: 0.05         # 5% buffer from liquidation price
+
+# ---------------------------------------------------------------------------
+# Hard Brakes
+# ---------------------------------------------------------------------------
+brakes:
+  daily_loss_limit_pct: 0.04           # 4% daily realized loss -> pause
+  weekly_loss_limit_pct: 0.08          # 8% weekly realized loss -> 48h cooldown
+  weekly_cooldown_hours: 48
+  consecutive_loss_threshold: 3        # 3 consecutive losses
+  consecutive_loss_reduced_trades: 5   # reduced risk for next 5 trades
+  equity_pause_drawdown: 0.25          # 25% DD -> manual review required
+  equity_shutdown_drawdown: 0.40       # 40% DD -> full shutdown
+
+# ---------------------------------------------------------------------------
+# Stops & Profit Taking
+# ---------------------------------------------------------------------------
+stops:
+  compression:
+    method: structure_or_atr            # max(structure invalidation, 1.5x ATR)
+    atr_multiplier: 1.5
+  squeeze:
+    method: trigger_extreme             # trigger candle extreme + buffer
+    buffer_pct: 0.002                   # 0.2% buffer
+
+profit_taking:
+  partial_close_pct: 0.50              # close 50% at target
+  partial_close_r: 1.5                 # target = 1.5R
+  trail_atr_multiplier: 1.0            # trail with 1x ATR(14) on 5m
+  time_stop_r_threshold: 1.0           # must reach 1R
+  time_stop_candles: 8                 # within 8 x 5m candles
+
+# ---------------------------------------------------------------------------
+# Portfolio
+# ---------------------------------------------------------------------------
+portfolio:
+  max_concurrent_positions: 2
+  max_per_symbol: 1
+  btc_priority: true
+  correlation_require_independent: true
+  correlation_sizing_reduction: 0.0    # 0 = no reduction, 0.5 = half size
+
+# ---------------------------------------------------------------------------
+# Execution
+# ---------------------------------------------------------------------------
+execution:
+  max_spread_bps: 15                   # max 15 bps spread to enter
+  max_slippage_bps: 10                 # max 10 bps slippage allowed
+  partial_fill_timeout_s: 30           # cancel remainder after 30s
+  client_order_id_prefix: "BITANA"
+
+# ---------------------------------------------------------------------------
+# Reconciliation
+# ---------------------------------------------------------------------------
+reconciliation:
+  interval_s: 30                       # reconcile every 30 seconds
+  external_position_stop_atr_mult: 2.0 # stop for externally detected positions
+
+# ---------------------------------------------------------------------------
+# Regime Filters
+# ---------------------------------------------------------------------------
+regime_filters:
+  enabled: true
+  min_atr_15m: 0.001                   # minimum 15m ATR (as price fraction)
+  avoid_low_vol_drift: true
+  session_filter:
+    enabled: false
+    allowed_utc_hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  blackout_windows: []
+  # Example blackout:
+  # - start: "2025-01-20T12:00:00Z"
+  #   end: "2025-01-20T14:00:00Z"
+  #   reason: "FOMC"
+
+# ---------------------------------------------------------------------------
+# Fees (for paper mode and metrics)
+# ---------------------------------------------------------------------------
+fees:
+  taker_bps: 4.0                       # 0.04%
+  maker_bps: 2.0                       # 0.02%
+  default_slippage_bps: 2.0            # simulated slippage in paper mode
+
+# ---------------------------------------------------------------------------
+# Telegram
+# ---------------------------------------------------------------------------
+telegram:
+  enabled: true
+  flatten_confirm_timeout_s: 30
+  max_log_lines: 50
+
+# ---------------------------------------------------------------------------
+# Health Server
+# ---------------------------------------------------------------------------
+health:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8080
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging:
+  level: INFO
+  file: logs/bitana.log
+  trade_file: logs/trades.jsonl
+  max_bytes: 52428800                  # 50 MB
+  backup_count: 10
+  retention_days: 30
+
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+data:
+  candle_history_limit: 500            # max candles to keep in memory per tf
+  rest_candle_check_interval_s: 60     # REST truth check frequency
+  ws_reconnect_max_retries: 10
+  ws_reconnect_base_delay_s: 1.0
+  server_time_sync_interval_s: 300
+
+# ---------------------------------------------------------------------------
+# Rate Limiter
+# ---------------------------------------------------------------------------
+rate_limiter:
+  order_weight_per_minute: 1200
+  data_weight_per_minute: 2400
+  warn_threshold_pct: 0.80             # warn at 80% capacity
+
+# ---------------------------------------------------------------------------
+# Watchdog
+# ---------------------------------------------------------------------------
+watchdog:
+  heartbeat_interval_s: 30
+  max_restart_attempts: 5
+  restart_backoff_base_s: 2.0
+
+# ---------------------------------------------------------------------------
+# Squeeze Engine (phase 2 — not active in v0.1)
+# ---------------------------------------------------------------------------
+squeeze:
+  enabled: false
+  oi_poll_interval_s: 15
+  oi_drop_threshold_pct: 0.02         # 2% OI drop
+  velocity_threshold: 0.005            # price velocity threshold
+  impulse_lookback_candles: 5
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+database:
+  path: data/bitana.db

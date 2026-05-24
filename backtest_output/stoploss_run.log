@@ -1,0 +1,49 @@
+V5 Stop Loss Backtest
+Period: 2026-01-01 to 2026-05-20
+ATR multipliers: [2.5, 3.0, 3.5, 4.0]
+Vol-z skips: [0.0, 0.5, 1.0, 1.5]
+Combinations: 16
+
+Loading data...
+  NEARUSDT: 40043 klines
+  ZECUSDT: 40043 klines
+  ADAUSDT: 40043 klines
+  WLDUSDT: 40043 klines
+  UNIUSDT: 40043 klines
+  NMRUSDT: 40043 klines
+  PENDLEUSDT: 40043 klines
+  ARBUSDT: 40043 klines
+  RENDERUSDT: 40043 klines
+  RUNEUSDT: 40043 klines
+  FETUSDT: 40043 klines
+  DOTUSDT: 40043 klines
+  TONUSDT: 40043 klines
+  SOLUSDT: 40043 klines
+  1000LUNCUSDT: 40043 klines
+  ENAUSDT: 40043 klines
+  1000PEPEUSDT: 40043 klines
+  XRPUSDT: 40043 klines
+  FILUSDT: 40043 klines
+  BNBUSDT: 40043 klines
+  TAOUSDT: 40043 klines
+  CHZUSDT: 40043 klines
+  DASHUSDT: 40043 klines
+  QNTUSDT: 40043 klines
+  ICPUSDT: 40043 klines
+  XLMUSDT: 40043 klines
+  APTUSDT: 40043 klines
+  ETHUSDT: 40043 klines
+
+Building timeline...
+Total events: 1121204
+Traceback (most recent call last):
+  File "/root/bitana/backtest_output/stop_loss_backtest.py", line 463, in <module>
+    run()
+  File "/root/bitana/backtest_output/stop_loss_backtest.py", line 276, in run
+    portfolios[name] = Portfolio(name, atr, vz)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/bitana/backtest_output/stop_loss_backtest.py", line 119, in __init__
+    v5mod.CFG.initial_stop_atr = atr_mult
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 4, in __setattr__
+dataclasses.FrozenInstanceError: cannot assign to field 'initial_stop_atr'
