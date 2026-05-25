@@ -1006,7 +1006,7 @@ class V5ForwardTest:
             "quantity": round(p["orig_quantity"], 6),
             "leverage": p["leverage"],
             "stop_dist": round(sd, 6),
-                    "is_experimental": p["symbol"] in self.experimental_symbols,
+                    "is_experimental": 1 if p["symbol"] in self.experimental_symbols else 0,
             "pnl_usd": round(net_pnl, 4),
             "pnl_r": round(float(pnl_r), 4),
             "fees": round(float(p["fees"]), 4),
@@ -1216,7 +1216,7 @@ class V5ForwardTest:
                     equity=float(self.executor.equity),
                     open_count=active_count,
                     btc_price=btc_price,
-                    is_experimental=symbol in self.experimental_symbols,
+                    is_experimental=1 if symbol in self.experimental_symbols else 0,
                 )
             except Exception as e:
                 logger.debug("Telemetry entry logging error (non-fatal)", error=str(e))
@@ -1304,6 +1304,30 @@ class V5ForwardTest:
             for sym, st in sorted_syms:
                 report += f"  {sym}: {st['n']}t {st['r']:+.2f}R\n"
 
+        # Inline safe filtering for separated reporting
+        core_today = [t for t in trades if not t.get("is_experimental")]
+        exp_today = [t for t in trades if t.get("is_experimental") == 1]
+        core_all = [t for t in all_trades if not t.get("is_experimental")]
+        exp_all = [t for t in all_trades if t.get("is_experimental") == 1]
+
+        n_core, n_exp = len(core_today), len(exp_today)
+        r_core = sum(t["pnl_r"] for t in core_today)
+        r_exp = sum(t["pnl_r"] for t in exp_today)
+
+        all_n_core, all_n_exp = len(core_all), len(exp_all)
+        all_r_core = sum(t["pnl_r"] for t in core_all)
+        all_r_exp = sum(t["pnl_r"] for t in exp_all)
+
+        unrealized_core, unrealized_exp = self._calc_unrealized_r_by_group()
+
+        # Append clean, isolated stats at the end of the existing report
+        report += (
+            f"\n🔍 ACCOUNTING ISOLATION (A/B vs C):\n"
+            f"  • Today Proven: {n_core}t ({r_core:+.2f}R) | Experimental: {n_exp}t ({r_exp:+.2f}R)\n"
+            f"  • All-Time Proven: {all_n_core}t ({all_r_core:+.2f}R) | Experimental: {all_n_exp}t ({all_r_exp:+.2f}R)\n"
+            f"  • Unrealized Proven: {unrealized_core:+.2f}R | Experimental: {unrealized_exp:+.2f}R\n"
+        )
+
         await self.alerts.send(report, AlertTier.INFO)
 
     def _calc_unrealized_r(self):
@@ -1323,6 +1347,27 @@ class V5ForwardTest:
                 else:
                     total += (p["entry_price"] - price) / sd
         return total
+
+    def _calc_unrealized_r_by_group(self):
+        unrealized_core = 0.0
+        unrealized_exp = 0.0
+        for p in self.open_positions:
+            if p.get("_closed"):
+                continue
+            sym = p["symbol"]
+            price = self.last_prices.get(sym, 0)
+            if price <= 0:
+                continue
+            sd = abs(p["entry_price"] - p["init_stop"])
+            if sd > 0:
+                side = Side(p["side"])
+                diff = (price - p["entry_price"]) if side == Side.LONG else (p["entry_price"] - price)
+                r_val = diff / sd
+                if sym in self.experimental_symbols:
+                    unrealized_exp += r_val
+                else:
+                    unrealized_core += r_val
+        return unrealized_core, unrealized_exp
 
 
 # ═══════════════════════════════════════════════════
