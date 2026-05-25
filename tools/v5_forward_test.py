@@ -999,12 +999,17 @@ class V5ForwardTest:
         pnl_r = p["rpnl"] / (sd * p["orig_quantity"]) if sd > 0 and p["orig_quantity"] > 0 else 0
         net_pnl = p["rpnl"] - p["fees"]
 
+        # Use the actual candle that triggered the exit, not the loop candle
+        candles_5m = list(self.candle_buffers.get(p["symbol"], []))
+        exit_time = candles_5m[-1].close_time if candles_5m else ct
+        exit_time_str = exit_time.isoformat() if isinstance(exit_time, datetime) else str(exit_time)
+
         trade = {
             "trade_uuid": p["trade_uuid"],
             "symbol": p["symbol"],
             "side": p["side"],
             "entry_time": p["entry_time"],
-            "exit_time": ct.isoformat() if isinstance(ct, datetime) else str(ct),
+            "exit_time": exit_time_str,
             "entry_price": round(p["entry_price"], 6),
             "exit_price": round(fill, 6),
             "quantity": round(p["orig_quantity"], 6),
