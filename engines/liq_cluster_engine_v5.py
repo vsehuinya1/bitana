@@ -138,15 +138,15 @@ class V5Config:
     # V5: NO aggression gate — all deciles accepted
     # Sizing is handled by per-decile half-Kelly
 
-    # Entry confirmation (5m) — 4/6 (back to V3 baseline)
+    # Entry confirmation (5m) — 3/6 (loosened for choppy regime)
     range_lookback: int = 60
-    imb_z_threshold: float = 2.0
-    vol_z_threshold: float = 3.0
-    body_strength_min: float = 0.60
-    impulse_min_pct: float = 0.30
+    imb_z_threshold: float = 1.0   # V6.4: 2.0→1.0 (just needs positive taker pressure)
+    vol_z_threshold: float = 2.0   # V6.4: 3.0→2.0 (above-avg volume, not extreme)
+    body_strength_min: float = 0.50  # V6.4: 0.60→0.50 (slightly more lenient)
+    impulse_min_pct: float = 0.20  # V6.4: 0.30→0.20 (lower min move)
     ema_period: int = 20
     z_lookback: int = 100
-    min_confirmations: int = 4  # V5: 4/6 (back to baseline)
+    min_confirmations: int = 3  # V6.4: 4/6→3/6 (more entries, noisier)
 
     # Selectivity
     cooldown_bars: int = 36
