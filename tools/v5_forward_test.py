@@ -182,6 +182,14 @@ class V5Database:
         """)
         self.conn.commit()
 
+        # Surgical schema upgrade safety check: Ensure the is_experimental column exists in trades
+        try:
+            self.conn.execute("ALTER TABLE trades ADD COLUMN is_experimental INTEGER DEFAULT 0")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Ignored if column is already present or table doesn't exist yet
+
+
     def get_state(self, key, default=""):
         row = self.conn.execute("SELECT value FROM state WHERE key=?", (key,)).fetchone()
         return row["value"] if row else default
@@ -317,6 +325,9 @@ class V5ForwardTest:
 
         # Symbols — NO BTC
         self.symbols = self.v5_cfg["symbols"]["tier_a"] + self.v5_cfg["symbols"]["tier_b"]
+        tier_c = self.v5_cfg["symbols"].get("tier_c_experimental", [])
+        self.experimental_symbols = set(tier_c)
+        self.symbols += tier_c
         self.all_symbols = list(self.symbols)  # no BTC
 
         # Risk config — per-decile half-Kelly
@@ -440,7 +451,9 @@ class V5ForwardTest:
             msg = "Self-test FAILED:\n" + "\n".join(f"  - {c}" for c in checks)
             logger.critical(msg)
             raise RuntimeError(msg)
+        n_exp = len(self.experimental_symbols)
         logger.info("Self-test passed", symbols=len(self.symbols),
+                    proven=len(self.symbols) - n_exp, experimental=n_exp,
                      total_candles=sum(len(v) for v in self.candle_buffers.values()))
 
     async def _cleanup(self):
@@ -993,6 +1006,7 @@ class V5ForwardTest:
             "quantity": round(p["orig_quantity"], 6),
             "leverage": p["leverage"],
             "stop_dist": round(sd, 6),
+                    "is_experimental": p["symbol"] in self.experimental_symbols,
             "pnl_usd": round(net_pnl, 4),
             "pnl_r": round(float(pnl_r), 4),
             "fees": round(float(p["fees"]), 4),
@@ -1202,6 +1216,7 @@ class V5ForwardTest:
                     equity=float(self.executor.equity),
                     open_count=active_count,
                     btc_price=btc_price,
+                    is_experimental=symbol in self.experimental_symbols,
                 )
             except Exception as e:
                 logger.debug("Telemetry entry logging error (non-fatal)", error=str(e))
