@@ -120,7 +120,7 @@ DECILE_EXITS = {
 @dataclass(frozen=True)
 class V5Config:
     # Context (daily)
-    liq_lookback: int = 90
+    liq_lookback: int = 30
     liq_percentile: float = 0.90
     liq_min_lookback: int = 30
     liq_window: int = 2

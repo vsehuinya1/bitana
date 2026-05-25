@@ -923,6 +923,16 @@ class V5ForwardTest:
             # Sync bars_held to engine state so time_stop check works
             self.engine._get_state(symbol).bars_held = p["candles_held"]
 
+            # Skip stop check if candle is older than entry (recovery from restart)
+            if candles_5m:
+                try:
+                    entry_dt = datetime.fromisoformat(p["entry_time"])
+                    if candles_5m[-1].close_time < entry_dt:
+                        self.db.save_position(p)
+                        continue
+                except (ValueError, KeyError):
+                    pass
+
             # ── Telemetry: log R-path point + evaluate shadow exits ──
             if self._telemetry and candles_5m:
                 try:
@@ -999,10 +1009,8 @@ class V5ForwardTest:
         pnl_r = p["rpnl"] / (sd * p["orig_quantity"]) if sd > 0 and p["orig_quantity"] > 0 else 0
         net_pnl = p["rpnl"] - p["fees"]
 
-        # Use the actual candle that triggered the exit, not the loop candle
-        candles_5m = list(self.candle_buffers.get(p["symbol"], []))
-        exit_time = candles_5m[-1].close_time if candles_5m else ct
-        exit_time_str = exit_time.isoformat() if isinstance(exit_time, datetime) else str(exit_time)
+        # ct is the triggering candle's close_time, already correct from caller
+        exit_time_str = ct.isoformat() if isinstance(ct, datetime) else str(ct)
 
         trade = {
             "trade_uuid": p["trade_uuid"],
