@@ -789,11 +789,16 @@ class V5ForwardTest:
     # ── Main Candle Loop ─────────────────────────────────────────
 
     async def _candle_loop(self):
-        last_processed: dict[str, str] = {}
+        last_processed: dict[str, datetime] = {}
         for sym in self.all_symbols:
             lp = self.db.get_state(f"last_5m_{sym}", "")
             if lp:
-                last_processed[sym] = lp
+                try:
+                    last_processed[sym] = datetime.fromisoformat(lp)
+                except Exception:
+                    last_processed[sym] = datetime.min.replace(tzinfo=timezone.utc)
+            else:
+                last_processed[sym] = datetime.min.replace(tzinfo=timezone.utc)
 
         logger.info("Candle loop started", symbols=len(self.all_symbols))
 
@@ -810,8 +815,7 @@ class V5ForwardTest:
                         if close_time > now:
                             continue
 
-                        close_key = close_time.isoformat()
-                        if close_key == last_processed.get(sym):
+                        if close_time <= last_processed[sym]:
                             continue
 
                         candle = Candle(
@@ -832,7 +836,7 @@ class V5ForwardTest:
                             async with self._engine_lock:
                                 await self._on_5m_close(sym, candle)
 
-                        last_processed[sym] = close_key
+                        last_processed[sym] = close_time
 
                     await asyncio.sleep(0.02)
 
@@ -842,7 +846,7 @@ class V5ForwardTest:
                     if lp:
                         self.db.conn.execute(
                             "INSERT OR REPLACE INTO state(key,value) VALUES(?,?)",
-                            (f"last_5m_{sym}", lp),
+                            (f"last_5m_{sym}", lp.isoformat()),
                         )
                 self.db.conn.commit()
 
