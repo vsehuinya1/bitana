@@ -133,7 +133,7 @@ class V5Config:
 
     # V5 minimum cascade strength gate
     min_cascade_strength: float = 0.10
-    min_cascade_imb: float = 0.30  # Min directional imb (long_liq - short_liq)/total
+    min_cascade_imb: float = 0.00  # Min directional imb (long_liq - short_liq)/total; 0=disabled
 
     # V5: NO aggression gate — all deciles accepted
     # Sizing is handled by per-decile half-Kelly
@@ -476,9 +476,9 @@ class LiqClusterEngineV5:
         if CFG.min_cascade_strength > 0 and st.cascade_strength < CFG.min_cascade_strength:
             return None
 
-        # V6.1: Filter neutral cascades — require directional imb
-        if CFG.min_cascade_imb > 0 and st.liq_direction_imb < CFG.min_cascade_imb:
-            return None
+        # V6.1: Filter neutral cascades — require directional imb (DISABLED: p90 check is sufficient)
+        # if CFG.min_cascade_imb > 0 and st.liq_direction_imb < CFG.min_cascade_imb:
+        #     return None
 
         # V6: time-based stop_cooldown fallback (288 bars = 24h)
         if st.stop_cooldown > 0:
