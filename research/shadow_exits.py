@@ -89,8 +89,8 @@ def evaluate_shadows(
         triggers.append(("breakeven_after_1R", entry_price, 0.0))
 
     # ── Shadow 6: Early Dead Trade Cut ────────────────────────────
-    # At bar 15, if unrealized < -0.3R and MFE < 0.3R, trade is dead
-    if bars_held >= 15 and current_r < -0.3 and mfe < 0.3:
+    # At bar 15, if unrealized < -0.5R and MFE < 0.1R, trade is dead
+    if bars_held >= 15 and current_r < -0.5 and mfe < 0.1:
         triggers.append(("early_dead_cut", price, current_r))
 
     return triggers

@@ -700,7 +700,7 @@ class LiqClusterEngineV5:
                         "decile": st.decile, "aggression": st.aggression_score}
 
         # V6.2: Cut dead trades at decay bar — never showed life, stop the bleed
-        if st.bars_held >= exits.decay_start_bar and current_r < -0.3 and st.mfe < 0.3:
+        if st.bars_held >= exits.decay_start_bar and current_r < -0.5 and st.mfe < 0.1:
             st.in_trade = False
             st.cooldown = CFG.cooldown_bars
             st.consecutive_stops += 1
