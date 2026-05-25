@@ -72,6 +72,13 @@ symbols:
     - FARTCOINUSDT  # 7M/day
     - VIRTUALUSDT   # 6M/day
     - TIAUSDT       # 5M/day
+    - ETHUSDT
+    - FILUSDT
+    - LDOUSDT
+    - PYTHUSDT
+    - SEIUSDT
+    - 1000BONKUSDT
+    - ENAUSDT
 
 risk:
   max_leverage: 10
