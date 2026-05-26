@@ -532,11 +532,11 @@ class LiqClusterEngineV5:
         else:
             imb_z = 0.0
             _imb_fallback_triggered = True
-        logger.debug("imb_gate", symbol=symbol,
-                     raw_taker_total=float(np.sum(taker_buys[-CFG.z_lookback:])),
-                     imb_z=round(imb_z, 4),
-                     fallback_triggered=_imb_fallback_triggered,
-                     passed=bool(imb_z > CFG.imb_z_threshold))
+        logger.info("imb_gate", symbol=symbol,
+                    raw_taker_total=float(np.sum(taker_buys[-CFG.z_lookback:])),
+                    imb_z=round(imb_z, 4),
+                    fallback_triggered=_imb_fallback_triggered,
+                    passed=bool(imb_z > CFG.imb_z_threshold))
 
         # 6 confirmation checks — need 4/6
         confirmations = {}
@@ -553,13 +553,13 @@ class LiqClusterEngineV5:
         # V6.4.1: Breakout distance logging for regime diagnostics (observational only)
         _breakout_distance_abs = closes[-1] - range_high
         _breakout_distance_pct = (_breakout_distance_abs / range_high * 100) if range_high > 0 else 0.0
-        logger.debug("breakout_gate", symbol=symbol,
-                     close=round(closes[-1], 6),
-                     range_high=round(range_high, 6),
-                     distance_abs=round(_breakout_distance_abs, 6),
-                     distance_pct=round(_breakout_distance_pct, 4),
-                     bars_in_range=CFG.range_lookback,
-                     passed=bool(confirmations['breakout']))
+        logger.info("breakout_gate", symbol=symbol,
+                    close=round(closes[-1], 6),
+                    range_high=round(range_high, 6),
+                    distance_abs=round(_breakout_distance_abs, 6),
+                    distance_pct=round(_breakout_distance_pct, 4),
+                    bars_in_range=CFG.range_lookback,
+                    passed=bool(confirmations['breakout']))
 
         n_confirms = sum(1 for v in confirmations.values() if bool(v))
         if n_confirms < CFG.min_confirmations:
