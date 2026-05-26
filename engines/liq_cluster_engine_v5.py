@@ -57,6 +57,18 @@ FLAT_RISK_PCT = 0.04
 # Deciles to trade (D4 and D10 dropped — negative expectancy)
 TRADE_DECILES = {1, 2, 5, 6, 7, 8, 9}
 
+def _is_decile_tradable(decile: int, confirmations: dict) -> bool:
+    """Return True if decile is tradable.
+
+    D1/D2 require imb or vol confirmation (directional filter from V6.2).
+    D4 and D10 are never traded (negative expectancy).
+    """
+    if decile not in TRADE_DECILES:
+        return False
+    if decile in (1, 2):
+        return bool(confirmations.get('imb') or confirmations.get('vol'))
+    return True
+
 
 # ═══════════════════════════════════════════════════
 # V5 Per-Decile Exit Parameters
@@ -508,16 +520,23 @@ class LiqClusterEngineV5:
 
         vol_z = _z_score(volumes, CFG.z_lookback)
 
-        # V6: Fixed imb_z — compute real taker buy imbalance z-score
+        # V6.4.1: Fixed imb_z — compute real taker buy imbalance z-score only.
+        # When taker_buy_volume is unavailable/zero/invalid, imb_z = 0.0 (gate fails).
+        # NO synthetic fallback — confirmation stack requires actual order-flow evidence.
         taker_buys = np.array([c.taker_buy_volume for c in candles_5m])
+        _imb_fallback_triggered = False
         if len(taker_buys) >= CFG.z_lookback and np.any(taker_buys[-CFG.z_lookback:] > 0):
             # Taker buy ratio per bar: taker_buy_volume / total_volume
             taker_ratios = taker_buys / np.maximum(volumes, 1e-10)
             imb_z = _z_score(taker_ratios, CFG.z_lookback)
         else:
-            # Fallback: price-position relative to bar midpoint, normalized by ATR
-            mid = (highs[-1] + lows[-1]) / 2
-            imb_z = (closes[-1] - mid) / (atr + 1e-10)
+            imb_z = 0.0
+            _imb_fallback_triggered = True
+        logger.debug("imb_gate", symbol=symbol,
+                     raw_taker_total=float(np.sum(taker_buys[-CFG.z_lookback:])),
+                     imb_z=round(imb_z, 4),
+                     fallback_triggered=_imb_fallback_triggered,
+                     passed=bool(imb_z > CFG.imb_z_threshold))
 
         # 6 confirmation checks — need 4/6
         confirmations = {}
@@ -531,6 +550,17 @@ class LiqClusterEngineV5:
         confirmations['impulse'] = impulse >= CFG.impulse_min_pct
         confirmations['momentum'] = closes[-1] > ema
 
+        # V6.4.1: Breakout distance logging for regime diagnostics (observational only)
+        _breakout_distance_abs = closes[-1] - range_high
+        _breakout_distance_pct = (_breakout_distance_abs / range_high * 100) if range_high > 0 else 0.0
+        logger.debug("breakout_gate", symbol=symbol,
+                     close=round(closes[-1], 6),
+                     range_high=round(range_high, 6),
+                     distance_abs=round(_breakout_distance_abs, 6),
+                     distance_pct=round(_breakout_distance_pct, 4),
+                     bars_in_range=CFG.range_lookback,
+                     passed=bool(confirmations['breakout']))
+
         n_confirms = sum(1 for v in confirmations.values() if bool(v))
         if n_confirms < CFG.min_confirmations:
             return None
@@ -542,12 +572,8 @@ class LiqClusterEngineV5:
         aggression = _compute_aggression(candles_5m)
         decile = _score_to_decile(aggression)
 
-        # Reject D3, D4 and D10 (negative expectancy in backtest + live forward validation)
-        if decile not in TRADE_DECILES:
-            return None
-
-        # V6.2: D1-D2 require directional confirmation (imb_z or vol_z)
-        if decile in (1, 2) and not (confirmations.get('imb') or confirmations.get('vol')):
+        # V6.4.1: Unified decile filter — D4/D10 never traded, D1/D2 require imb or vol
+        if not _is_decile_tradable(decile, confirmations):
             return None
 
         # V5.1 Vol-Targeting Normalization
@@ -599,6 +625,10 @@ class LiqClusterEngineV5:
                 "vol_z": vol_z,
                 "atr": atr,
                 "risk_pct": risk_pct,
+                "range_high": range_high,
+                "breakout_distance_pct": round(_breakout_distance_pct, 4),
+                "imb_z": round(imb_z, 4),
+                "imb_fallback_triggered": _imb_fallback_triggered,
             },
             timestamp=bar.close_time if hasattr(bar, 'close_time') else datetime.now(timezone.utc),
         )
