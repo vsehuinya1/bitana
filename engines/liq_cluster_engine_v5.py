@@ -564,7 +564,7 @@ class LiqClusterEngineV5:
         # Phase 1: BD lower-bound gate — reject deep pullback entries
         # BD < -2.0% shows consistent negative expectancy (structural loss cluster)
         if _breakout_distance_pct < -2.0:
-            logger.debug("BD_FILTER", symbol=symbol,
+            logger.info("BD_FILTER_REJECT", symbol=symbol,
                         breakout_distance_pct=round(_breakout_distance_pct, 4),
                         range_high=round(range_high, 6),
                         close=round(closes[-1], 6),
