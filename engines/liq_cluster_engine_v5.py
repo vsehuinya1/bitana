@@ -158,7 +158,7 @@ class V5Config:
     impulse_min_pct: float = 0.20  # V6.4: 0.30→0.20 (lower min move)
     ema_period: int = 20
     z_lookback: int = 100
-    min_confirmations: int = 3  # V6.4: 4/6→3/6 (more entries, noisier)
+    min_confirmations: int = 4  # V6.3: 4/6 (revert V6.4 loosening that produced -11.16R on 18 trades)
 
     # Selectivity
     cooldown_bars: int = 36
