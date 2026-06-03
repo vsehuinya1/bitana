@@ -83,12 +83,18 @@ def evaluate_shadows(
             loose_r = (loose_trail - entry_price) / risk_per_unit
             triggers.append(("loose_runner_trail_5.0", loose_trail, loose_r))
 
-    # ── Shadow 5: Breakeven Stop After 1R MFE ─────────────────────
+    # ── Shadow 5: Breakeven Stop After 0.5R MFE ───────────────────
+    # Phase 5/exit_sim OOS winner: test whether earlier breakeven
+    # would prevent green trades from round-tripping to full stops.
+    if mfe >= 0.5 and low <= entry_price:
+        triggers.append(("breakeven_after_0.5R", entry_price, 0.0))
+
+    # ── Shadow 6: Breakeven Stop After 1R MFE ─────────────────────
     # Once MFE hits 1R, move stop to entry price
     if mfe >= 1.0 and low <= entry_price:
         triggers.append(("breakeven_after_1R", entry_price, 0.0))
 
-    # ── Shadow 6: Early Dead Trade Cut ────────────────────────────
+    # ── Shadow 7: Early Dead Trade Cut ────────────────────────────
     # At bar 15, if unrealized < -0.5R and MFE < 0.1R, trade is dead
     if bars_held >= 15 and current_r < -0.5 and mfe < 0.1:
         triggers.append(("early_dead_cut", price, current_r))

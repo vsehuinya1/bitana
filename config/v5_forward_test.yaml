@@ -82,8 +82,17 @@ symbols:
 
 risk:
   max_leverage: 10
-  max_positions: 15
+  max_positions: 8
   max_per_symbol: 1
+
+# Paper/live safety gates (v6.4.2 — audit v2 + handoff)
+gates:
+  blocked_symbols:             # audit §11 worst experimental bleeders (not whole tier)
+    - AVAXUSDT
+    - HYPEUSDT
+  max_risk_pct: 0.005          # 0.5% per trade cap (overrides vol-target spike)
+  daily_loss_stop_r: -2.0
+  weekly_loss_stop_r: -5.0
 
 initial_equity: 10000.0
 

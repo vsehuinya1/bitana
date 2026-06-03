@@ -1,6 +1,11 @@
 """
 Liquidation Cluster Expansion Engine — Production V6.
 
+V6.4.2 (forward-test hardening):
+  - London bleed window gate (08-14 UTC, audit v2)
+  - MAX_RISK_PCT capped at 1% (vol-target normalization)
+  - Breakeven exit after +0.5R MFE (exit_sim)
+
 V6 changes from V5.3:
   - Fixed double bars_held increment (was cutting winners at 2x speed)
   - Fixed imb_z confirmation to use real taker buy imbalance z-score
@@ -48,8 +53,11 @@ logger = get_logger("liq_cluster_engine_v5")
 # Normalizes risk relative to a 2.0% ATR target (PF 2.81 bridge)
 BASE_RISK_PCT = 0.04
 TARGET_ATR_PCT = 2.0
-MAX_RISK_PCT = 0.12   # Cap risk at 12% to prevent extreme skew
+MAX_RISK_PCT = 0.01   # Hard cap (paper/live); vol-target can spike without this
 MIN_RISK_PCT = 0.01
+
+# V6 audit v2: London 08-14 UTC was primary bleed (20% WR, -6.21R / 15 trades post-gate)
+LONDON_BLEED_HOURS = frozenset(range(8, 14))
 
 # FLAT_RISK_PCT preserved for backward compatibility/legacy reference
 FLAT_RISK_PCT = 0.04
@@ -571,6 +579,16 @@ class LiqClusterEngineV5:
                         reason="BD_FILTER_<-2%")
             return None
 
+        bar_time = bar.close_time if hasattr(bar, "close_time") and bar.close_time else datetime.now(timezone.utc)
+        if bar_time.tzinfo is None:
+            bar_time = bar_time.replace(tzinfo=timezone.utc)
+        if bar_time.hour in LONDON_BLEED_HOURS:
+            logger.info("SESSION_FILTER_REJECT", symbol=symbol,
+                        hour_utc=bar_time.hour,
+                        window="08-14_UTC",
+                        reason="london_bleed_window")
+            return None
+
         n_confirms = sum(1 for v in confirmations.values() if bool(v))
         if n_confirms < CFG.min_confirmations:
             return None
@@ -690,6 +708,17 @@ class LiqClusterEngineV5:
             return {"action": "close", "reason": "stop_loss", "exit_price": stop_price,
                     "r": (stop_price - st.entry_price) / st.risk_per_unit,
                     "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                    "decile": st.decile, "aggression": st.aggression_score}
+
+        # Breakeven stop after +0.5R MFE (exit_sim OOS-validated; risk-reducing only —
+        # stop can only move up to entry, never increases per-trade loss). Targets the
+        # green-then-dead bucket (trades that reached +0.5R then round-tripped to full stop).
+        if st.mfe >= 0.5 and low <= st.entry_price:
+            st.in_trade = False
+            st.cooldown = CFG.cooldown_bars
+            st.consecutive_stops = 0
+            return {"action": "close", "reason": "breakeven_0.5r", "exit_price": st.entry_price,
+                    "r": 0.0, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                     "decile": st.decile, "aggression": st.aggression_score}
 
         # Volatility trail (decile-specific)

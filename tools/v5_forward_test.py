@@ -238,6 +238,14 @@ class V5Database:
             "SELECT * FROM trades WHERE entry_time >= ? ORDER BY id", (since,)
         ).fetchall()]
 
+    def sum_closed_pnl_r_since(self, since_iso: str) -> float:
+        row = self.conn.execute(
+            "SELECT COALESCE(SUM(pnl_r), 0) FROM trades "
+            "WHERE exit_time IS NOT NULL AND exit_time >= ?",
+            (since_iso,),
+        ).fetchone()
+        return float(row[0]) if row else 0.0
+
     def save_equity_snapshot(self, equity, n_open, unrealized_r):
         self.conn.execute(
             "INSERT INTO equity_snapshots(timestamp,equity,open_positions,unrealized_r) VALUES(?,?,?,?)",
@@ -336,6 +344,13 @@ class V5ForwardTest:
         self.max_positions = risk_cfg["max_positions"]
         self.max_per_symbol = risk_cfg["max_per_symbol"]
 
+        gates = self.v5_cfg.get("gates", {})
+        self.blocked_symbols = set(gates.get("blocked_symbols", []))
+        self.max_risk_pct = float(gates.get("max_risk_pct", 0.005))
+        self.daily_loss_stop_r = float(gates.get("daily_loss_stop_r", -2.0))
+        self.weekly_loss_stop_r = float(gates.get("weekly_loss_stop_r", -5.0))
+        self._entries_halted = False
+
         # State
         saved_eq = self.db.get_state("equity")
         eq = float(saved_eq) if saved_eq else self.v5_cfg.get("initial_equity", 10000.0)
@@ -410,8 +425,9 @@ class V5ForwardTest:
             recovered_block = "\n🔄 Recovered positions:\n" + "\n".join(recovered_lines)
 
         await self.alerts.send(
-            f"🧪 Liq-Cluster Started (WebSocket + Coinalyze seeding)\n"
-            f"Symbols: {len(self.symbols)}\n"
+            f"🧪 Liq-Cluster v6.4.2 (gates active)\n"
+            f"Symbols: {len(self.symbols)} | Blocked: {len(self.blocked_symbols)}\n"
+            f"Risk cap: {self.max_risk_pct*100:.2f}%/trade | Stops: {self.daily_loss_stop_r:+.0f}R day / {self.weekly_loss_stop_r:+.0f}R week\n"
             f"Cascades active: {n_cascade}\n"
             f"Equity: {self.executor.equity:.2f}\n"
             f"Open positions: {len(self.open_positions)}\n"
@@ -1107,6 +1123,22 @@ class V5ForwardTest:
 
     # ── Entry Logic ──────────────────────────────────────────────
 
+    def _entry_halt_reason(self) -> str | None:
+        if self._entries_halted:
+            return "entries_halted_manual"
+        now = datetime.now(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        week_start = (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).isoformat()
+        day_r = self.db.sum_closed_pnl_r_since(day_start)
+        week_r = self.db.sum_closed_pnl_r_since(week_start)
+        if day_r <= self.daily_loss_stop_r:
+            return f"daily_loss_stop ({day_r:+.2f}R <= {self.daily_loss_stop_r:+.1f}R)"
+        if week_r <= self.weekly_loss_stop_r:
+            return f"weekly_loss_stop ({week_r:+.2f}R <= {self.weekly_loss_stop_r:+.1f}R)"
+        return None
+
     async def _check_entry(self, symbol: str, candle: Candle):
         # Position limits
         sym_positions = [p for p in self.open_positions if p["symbol"] == symbol and not p.get("_closed")]
@@ -1118,6 +1150,14 @@ class V5ForwardTest:
             return
 
         if self.executor.equity <= 0:
+            return
+
+        if symbol in self.blocked_symbols:
+            return
+
+        halt = self._entry_halt_reason()
+        if halt:
+            logger.info("Entry blocked", symbol=symbol, reason=halt)
             return
 
         # Duplicate check — V6: uses signal side, not hardcoded LONG
@@ -1140,8 +1180,8 @@ class V5ForwardTest:
         st = self.engine._get_state(symbol)
         decile = st.decile # get from engine state after evaluate
 
-        # V5.1 Dynamic Vol-Targeting Risk
-        risk_pct = sig.signal_data.get("risk_pct", BASE_RISK_PCT)
+        # V5.1 Dynamic Vol-Targeting Risk (capped by gates.max_risk_pct)
+        risk_pct = min(float(sig.signal_data.get("risk_pct", BASE_RISK_PCT)), self.max_risk_pct)
 
         sd = sig.stop_price
         if sd <= 0:
