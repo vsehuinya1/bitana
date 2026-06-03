@@ -59,6 +59,14 @@ MIN_RISK_PCT = 0.01
 # V6 audit v2: London 08-14 UTC was primary bleed (20% WR, -6.21R / 15 trades post-gate)
 LONDON_BLEED_HOURS = frozenset(range(8, 14))
 
+# V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
+# Thesis: cut the dead fast, let the confirmed ones run. Decomposition showed +25.28R post-gate
+# uplift (-31.93R -> -6.65R) and +13.89R OOS. "confirm-or-cut" alone gives +9.82R; the
+# breakeven-floored wide trail on survivors supplies the rest.
+RUNNER_CONFIRM_BY = 10     # bars to show life
+RUNNER_CONFIRM_R = 0.3     # MFE (R) required within the confirmation window
+RUNNER_GIVEBACK = 0.75     # R given back under the running peak once confirmed
+
 # FLAT_RISK_PCT preserved for backward compatibility/legacy reference
 FLAT_RISK_PCT = 0.04
 
@@ -212,6 +220,7 @@ class SymbolState:
 
     mae: float = 0.0
     mfe: float = 0.0
+    confirmed: bool = False  # V6.4.3: reached RUNNER_CONFIRM_R → runner management
 
     aggression_score: float = 0.0
     decile: int = 5
@@ -632,6 +641,7 @@ class LiqClusterEngineV5:
         st.consecutive_red = 0
         st.mae = 0.0
         st.mfe = 0.0
+        st.confirmed = False
 
         logger.info("V5 signal", symbol=symbol, aggression=f"{aggression:.1f}",
                    decile=decile, risk_pct=f"{risk_pct:.1%}",
@@ -685,16 +695,8 @@ class LiqClusterEngineV5:
         if current_r < st.mae:
             st.mae = current_r
 
-        # Get decile-specific exit params
+        # Decile params retained for max_hold_bars (time stop)
         exits = DECILE_EXITS.get(st.decile, DECILE_EXITS[5])
-
-        # Track consecutive red bars for decay
-        if len(candles_5m) >= 2:
-            prev = candles_5m[-2]
-            if candle.close < prev.close:
-                st.consecutive_red += 1
-            else:
-                st.consecutive_red = 0
 
         # Stop loss
         stop_price = st.entry_price - st.risk_per_unit
@@ -710,90 +712,46 @@ class LiqClusterEngineV5:
                     "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                     "decile": st.decile, "aggression": st.aggression_score}
 
-        # Breakeven stop after +0.5R MFE (exit_sim OOS-validated; risk-reducing only —
-        # stop can only move up to entry, never increases per-trade loss). Targets the
-        # green-then-dead bucket (trades that reached +0.5R then round-tripped to full stop).
-        if st.mfe >= 0.5 and low <= st.entry_price:
-            st.in_trade = False
-            st.cooldown = CFG.cooldown_bars
-            st.consecutive_stops = 0
-            return {"action": "close", "reason": "breakeven_0.5r", "exit_price": st.entry_price,
-                    "r": 0.0, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
-                    "decile": st.decile, "aggression": st.aggression_score}
+        # ── V6.4.3 two-stage management (exit_sim OOS-validated) ──
+        # Once a trade shows real expansion (MFE >= confirm_r) it earns "runner" status.
+        if st.mfe >= RUNNER_CONFIRM_R:
+            st.confirmed = True
 
-        # Volatility trail (decile-specific)
-        atr = _atr(
-            np.array([c.high for c in candles_5m]),
-            np.array([c.low for c in candles_5m]),
-            np.array([c.close for c in candles_5m]),
-            CFG.atr_period,
-        )
-        new_vol_trail = st.best_price - atr * exits.vol_trail_atr
-        if new_vol_trail > st.vol_trail:
-            st.vol_trail = new_vol_trail
-        if st.vol_trail > st.entry_price and low <= st.vol_trail:
-            st.in_trade = False
-            st.cooldown = CFG.cooldown_bars
-            st.consecutive_stops = 0
-            return {"action": "close", "reason": "vol_trail", "exit_price": st.vol_trail,
-                    "r": (st.vol_trail - st.entry_price) / st.risk_per_unit,
-                    "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
-                    "decile": st.decile, "aggression": st.aggression_score}
-
-        # Structure trail (decile-specific lookback)
-        struct_lb = exits.struct_lookback
-        if len(candles_5m) >= struct_lb:
-            swing_low = min(c.low for c in candles_5m[-struct_lb:])
-            if swing_low > st.struct_trail:
-                st.struct_trail = swing_low
-            if st.struct_trail > st.entry_price and low <= st.struct_trail:
+        if not st.confirmed:
+            # Stage 1 — kill the dead: no +0.3R MFE inside the confirmation window → cut at
+            # market. ~half of losers never show life; cutting here avoids the full -1R stop.
+            if st.bars_held >= RUNNER_CONFIRM_BY:
+                st.in_trade = False
+                st.cooldown = CFG.cooldown_bars
+                st.consecutive_stops += 1
+                if st.consecutive_stops >= CFG.max_consecutive_stops:
+                    st.stop_cooldown = 288
+                return {"action": "close", "reason": "unconfirmed_cut", "exit_price": price,
+                        "r": current_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                        "decile": st.decile, "aggression": st.aggression_score}
+            # Inside confirmation window: only the hard stop (above) applies.
+            if st.bars_held >= exits.max_hold_bars:
                 st.in_trade = False
                 st.cooldown = CFG.cooldown_bars
                 st.consecutive_stops = 0
-                return {"action": "close", "reason": "struct_trail", "exit_price": st.struct_trail,
-                        "r": (st.struct_trail - st.entry_price) / st.risk_per_unit,
-                        "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                return {"action": "close", "reason": "time_stop", "exit_price": price,
+                        "r": current_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                         "decile": st.decile, "aggression": st.aggression_score}
+            return None  # hold (still proving itself)
 
-        # V6: Cascade-deactivation tightening — if cascade turned off mid-trade,
-        # tighten to 1.0 ATR trail to protect profits
-        if not st.cascade_active and st.bars_held > 6:
-            tight_trail = st.best_price - atr * 1.0
-            if tight_trail > st.entry_price and low <= tight_trail:
-                st.in_trade = False
-                st.cooldown = CFG.cooldown_bars
-                st.consecutive_stops = 0
-                return {"action": "close", "reason": "cascade_deactivated", "exit_price": tight_trail,
-                        "r": (tight_trail - st.entry_price) / st.risk_per_unit,
-                        "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
-                        "decile": st.decile, "aggression": st.aggression_score}
-
-        # V6.2: Cut dead trades at decay bar — never showed life, stop the bleed
-        if st.bars_held >= exits.decay_start_bar and current_r < -0.5 and st.mfe < 0.1:
+        # Stage 2 — let it run: breakeven-floored wide trail. Once confirmed, the trade never
+        # gives back below entry and trails RUNNER_GIVEBACK R under the running peak (st.mfe).
+        stop_r = max(st.mfe - RUNNER_GIVEBACK, 0.0)
+        runner_stop_price = st.entry_price + stop_r * st.risk_per_unit
+        if low <= runner_stop_price:
             st.in_trade = False
             st.cooldown = CFG.cooldown_bars
-            st.consecutive_stops += 1
-            if st.consecutive_stops >= CFG.max_consecutive_stops:
-                st.stop_cooldown = 288
-            return {"action": "close", "reason": "early_cut", "exit_price": price,
-                    "r": current_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+            st.consecutive_stops = 0
+            return {"action": "close", "reason": "runner_trail", "exit_price": runner_stop_price,
+                    "r": stop_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                     "decile": st.decile, "aggression": st.aggression_score}
 
-        # Decay exit (decile-specific)
-        if exits.decay_enabled and current_r >= exits.decay_min_r and st.bars_held >= exits.decay_start_bar:
-            if st.consecutive_red >= exits.decay_red_bars:
-                # Tighten trail
-                decay_trail = st.best_price - atr * exits.decay_atr_mult
-                if decay_trail > st.entry_price and low <= decay_trail:
-                    st.in_trade = False
-                    st.cooldown = CFG.cooldown_bars
-                    st.consecutive_stops = 0
-                    return {"action": "close", "reason": "decay", "exit_price": decay_trail,
-                            "r": (decay_trail - st.entry_price) / st.risk_per_unit,
-                            "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
-                            "decile": st.decile, "aggression": st.aggression_score}
-
-        # Time stop (decile-specific)
+        # Time stop (safety; decile-specific max hold)
         if st.bars_held >= exits.max_hold_bars:
             st.in_trade = False
             st.cooldown = CFG.cooldown_bars
@@ -802,4 +760,4 @@ class LiqClusterEngineV5:
                     "r": current_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
                     "decile": st.decile, "aggression": st.aggression_score}
 
-        return None  # hold
+        return None  # hold (confirmed, trailing)

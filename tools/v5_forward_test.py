@@ -36,7 +36,7 @@ from core.logging_setup import setup_logging, get_logger
 from core.models import AlertTier, Candle, EngineType, Side, Signal
 from data.binance_rest import BinanceRestClient
 from data.rate_limiter import RateLimiterGroup
-from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES
+from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES, RUNNER_CONFIRM_R
 from tg_bot.alerts import TelegramAlerts
 
 # Research telemetry — purely observational, never affects trading
@@ -407,6 +407,11 @@ class V5ForwardTest:
                 st.bars_held = p.get("candles_held", 0)
                 st.aggression_score = p.get("aggression", 0)
                 st.decile = p.get("decile", 5)
+                # V6.4.3: restore mfe/confirmation so two-stage mgmt doesn't mis-cut a runner on restart
+                st.mfe = float(p.get("mfe") or 0.0)
+                st.mae = float(p.get("mae") or 0.0)
+                st.best_price = max(float(p["entry_price"]), float(p["entry_price"]) + st.mfe * st.risk_per_unit)
+                st.confirmed = st.mfe >= RUNNER_CONFIRM_R
 
         # Startup self-test
         self._self_test()
