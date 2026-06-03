@@ -56,8 +56,11 @@ TARGET_ATR_PCT = 2.0
 MAX_RISK_PCT = 0.01   # Hard cap (paper/live); vol-target can spike without this
 MIN_RISK_PCT = 0.01
 
-# V6 audit v2: London 08-14 UTC was primary bleed (20% WR, -6.21R / 15 trades post-gate)
-LONDON_BLEED_HOURS = frozenset(range(8, 14))
+# V6.4.4 sniper mode: fewer trades, bigger winners.
+# Fresh VPS r_path replay (current gates + v6.4.3 management):
+# 14-24 UTC + ATR% < 0.65 = +13.24R full / +4.07R OOS test, while Asia was -5.86R.
+SNIPER_ALLOWED_HOURS = frozenset(range(14, 24))
+SNIPER_MAX_ATR_PCT = 0.65
 
 # V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
 # Thesis: cut the dead fast, let the confirmed ones run. Decomposition showed +25.28R post-gate
@@ -591,11 +594,11 @@ class LiqClusterEngineV5:
         bar_time = bar.close_time if hasattr(bar, "close_time") and bar.close_time else datetime.now(timezone.utc)
         if bar_time.tzinfo is None:
             bar_time = bar_time.replace(tzinfo=timezone.utc)
-        if bar_time.hour in LONDON_BLEED_HOURS:
+        if bar_time.hour not in SNIPER_ALLOWED_HOURS:
             logger.info("SESSION_FILTER_REJECT", symbol=symbol,
                         hour_utc=bar_time.hour,
-                        window="08-14_UTC",
-                        reason="london_bleed_window")
+                        window="14-24_UTC",
+                        reason="sniper_session_only")
             return None
 
         n_confirms = sum(1 for v in confirmations.values() if bool(v))
@@ -617,6 +620,12 @@ class LiqClusterEngineV5:
         # Reuse already-computed closes/highs/lows/atr from above
         entry_price = closes[-1]
         atr_pct = (atr / entry_price) * 100 if entry_price > 0 else 0
+        if atr_pct >= SNIPER_MAX_ATR_PCT:
+            logger.info("ATR_FILTER_REJECT", symbol=symbol,
+                        atr_pct=round(atr_pct, 4),
+                        max_atr_pct=SNIPER_MAX_ATR_PCT,
+                        reason="sniper_low_atr_only")
+            return None
         if atr_pct > 0:
             risk_pct = BASE_RISK_PCT * (TARGET_ATR_PCT / atr_pct)
             risk_pct = max(MIN_RISK_PCT, min(MAX_RISK_PCT, risk_pct))
