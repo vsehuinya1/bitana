@@ -1,0 +1,21 @@
+[Unit]
+Description=Bitana V5 Liq-Cluster Paper Forward Test
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/bitana
+Environment=PYTHONPATH=/root/bitana
+ExecStart=/root/bitana/venv/bin/python -m tools.v5_forward_test
+Restart=on-failure
+RestartSec=15
+KillSignal=SIGTERM
+TimeoutStopSec=60
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bitana-v5-paper
+
+[Install]
+WantedBy=multi-user.target
