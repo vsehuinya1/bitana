@@ -91,8 +91,8 @@ gates:
     - AVAXUSDT
     - HYPEUSDT
   max_risk_pct: 0.005          # 0.5% per trade cap (overrides vol-target spike)
-  daily_loss_stop_r: -2.0
-  weekly_loss_stop_r: -5.0
+  daily_loss_stop_r: -4.0      # paper: wider so circuit-breaker doesn't starve the sample
+  weekly_loss_stop_r: -10.0
 
 initial_equity: 10000.0
 
