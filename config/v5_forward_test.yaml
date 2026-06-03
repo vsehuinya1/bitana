@@ -92,7 +92,7 @@ gates:
     - HYPEUSDT
   max_risk_pct: 0.005          # 0.5% per trade cap (overrides vol-target spike)
   daily_loss_stop_r: -4.0      # paper: wider so circuit-breaker doesn't starve the sample
-  weekly_loss_stop_r: -10.0
+  weekly_loss_stop_r: -100.0   # paper sniper test: ignore pre-v6.4.4 weekly drawdown
 
 initial_equity: 10000.0
 
