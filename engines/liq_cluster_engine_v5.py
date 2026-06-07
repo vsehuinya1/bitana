@@ -61,6 +61,9 @@ MIN_RISK_PCT = 0.01
 # 14-24 UTC + ATR% < 0.65 = +13.24R full / +4.07R OOS test, while Asia was -5.86R.
 SNIPER_ALLOWED_HOURS = frozenset(range(14, 24))
 SNIPER_MAX_ATR_PCT = 0.65
+# V6.4.5 flow gate — forward winners had vol_z>>0 + cascade>=1.38; all 3 full stops failed it.
+SNIPER_MIN_VOL_Z = 0.0          # require vol_z > 0 (positive order-flow pressure)
+SNIPER_MIN_CASCADE = 1.38
 
 # V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
 # Thesis: cut the dead fast, let the confirmed ones run. Decomposition showed +25.28R post-gate
@@ -625,6 +628,14 @@ class LiqClusterEngineV5:
                         atr_pct=round(atr_pct, 4),
                         max_atr_pct=SNIPER_MAX_ATR_PCT,
                         reason="sniper_low_atr_only")
+            return None
+        if vol_z <= SNIPER_MIN_VOL_Z or st.cascade_strength < SNIPER_MIN_CASCADE:
+            logger.info("FLOW_FILTER_REJECT", symbol=symbol,
+                        vol_z=round(vol_z, 4),
+                        cascade_strength=round(st.cascade_strength, 4),
+                        min_vol_z=SNIPER_MIN_VOL_Z,
+                        min_cascade=SNIPER_MIN_CASCADE,
+                        reason="sniper_flow_gate")
             return None
         if atr_pct > 0:
             risk_pct = BASE_RISK_PCT * (TARGET_ATR_PCT / atr_pct)
