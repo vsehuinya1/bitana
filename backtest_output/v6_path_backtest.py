@@ -20,6 +20,7 @@ FIDELITY (be honest):
 from __future__ import annotations
 
 import csv
+import os
 import sqlite3
 import sys
 import uuid as uuidlib
@@ -28,7 +29,8 @@ from pathlib import Path
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
 
 import engines.liq_cluster_engine_v5 as eng  # noqa: E402
 from engines.liq_cluster_engine_v5 import LiqClusterEngineV5  # noqa: E402
@@ -48,10 +50,12 @@ eng.SNIPER_MAX_ATR_PCT = 1e9
 eng.SNIPER_MIN_VOL_Z = -1e9
 eng.SNIPER_MIN_CASCADE = -1.0
 
-KLINES_DB = Path("/root/bitana/backtest_data/klines_5m.db")
-LIQ_DB = Path("/root/bitana/backtest_data/coinalyze_liq.db")
-CFG_PATH = Path("/root/bitana/config/v5_forward_test.yaml")
-OUT_DIR = Path("/root/bitana/backtest_output")
+KLINES_DB = REPO / "backtest_data" / "klines_5m.db"
+LIQ_DB = REPO / "backtest_data" / "coinalyze_liq.db"
+FORCE_ORDERS_DB = REPO / "backtest_data" / "force_orders.db"
+CFG_PATH = REPO / "config" / "v5_forward_test.yaml"
+OUT_DIR = REPO / "backtest_output"
+LIQ_SOURCE = os.environ.get("LIQ_SOURCE", "coinalyze")  # coinalyze | binance_force
 
 WARMUP_DAYS = 30
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -93,7 +97,7 @@ def load_klines(sym, s_ms, e_ms):
     ]
 
 
-def load_liq(sym):
+def load_liq_coinalyze(sym):
     c = sqlite3.connect(str(LIQ_DB))
     rows = c.execute(
         "select timestamp,long_liq,short_liq from liquidation_history where symbol=? order by timestamp",
@@ -101,6 +105,37 @@ def load_liq(sym):
     ).fetchall()
     c.close()
     return rows
+
+
+def load_liq_binance(sym):
+    """Daily long/short liq from backfilled allForceOrders (same side mapping as live WS)."""
+    c = sqlite3.connect(str(FORCE_ORDERS_DB))
+    rows = c.execute(
+        "select event_time_ms, side, volume_usd from force_order_events "
+        "where symbol=? order by event_time_ms",
+        (sym,),
+    ).fetchall()
+    c.close()
+    daily: dict[str, list[float]] = {}
+    for t_ms, side, vol in rows:
+        d = datetime.fromtimestamp(t_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+        bucket = daily.setdefault(d, [0.0, 0.0])
+        if side == "SELL":
+            bucket[0] += vol
+        elif side == "BUY":
+            bucket[1] += vol
+    out = []
+    for d in sorted(daily):
+        ll, sl = daily[d]
+        ts = int(datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        out.append((ts, ll, sl))
+    return out
+
+
+def load_liq(sym):
+    if LIQ_SOURCE == "binance_force":
+        return load_liq_binance(sym)
+    return load_liq_coinalyze(sym)
 
 
 def load_closes(sym):
@@ -130,6 +165,7 @@ def run_capture():
     configured = cfg["symbols"]["tier_a"] + cfg["symbols"]["tier_b"] + cfg["symbols"].get("tier_c_experimental", [])
     avail = klines_symbols()
     syms = [s for s in configured if s in avail]
+    print(f"liq_source: {LIQ_SOURCE}", flush=True)
     print(f"symbols: {len(syms)} usable of {len(configured)} configured", flush=True)
 
     engine = LiqClusterEngineV5()
@@ -200,11 +236,14 @@ def run_capture():
             print(f"  {si + 1}/{len(syms)} symbols | trades={len(trades)}", flush=True)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    with open(OUT_DIR / "v6_bt_trades.csv", "w", newline="") as f:
+    tag = "_binance" if LIQ_SOURCE == "binance_force" else ""
+    trades_path = OUT_DIR / f"v6_bt_trades{tag}.csv"
+    rpath_path = OUT_DIR / f"v6_bt_rpath{tag}.csv"
+    with open(trades_path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(trades[0].keys()))
         w.writeheader()
         w.writerows(trades)
-    with open(OUT_DIR / "v6_bt_rpath.csv", "w", newline="") as f:
+    with open(rpath_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["trade_uuid", "bar_index", "mfe_so_far", "mae_so_far", "unrealized_r"])
         w.writerows(rpath)

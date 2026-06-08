@@ -68,12 +68,14 @@ POLL_INTERVAL_S = 15
 TAKER_BPS = 4.5
 SLIP_BPS = 2.0
 DB_PATH = Path("storage/v5_forward_test.db")
+FORCE_ORDER_DB_PATH = Path("storage/force_orders.db")
 DAILY_REPORT_HOUR = 8
 DAILY_REPORT_MINUTE = 5
 
 # Binance liq fetch config
 LIQ_FETCH_DAYS = 7          # Binance allForceOrders default window
 LIQ_CACHE_MAX_DAYS = 120    # Max days to keep in local cache
+FORCE_ORDER_RETENTION_DAYS = 120  # Raw WS events kept for backtest replay
 WS_ENGINE_FLUSH_INTERVAL = 60  # V6: debounce WS engine updates (seconds)
 
 # DB column whitelist for positions
@@ -285,6 +287,54 @@ class V5Database:
         self.conn.close()
 
 
+class ForceOrderDatabase:
+    """Persistent log of raw Binance !forceOrder@arr events for live-aligned backtests."""
+
+    def __init__(self, path: Path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(str(path))
+        self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self._init()
+
+    def _init(self):
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS force_order_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_time_ms INTEGER NOT NULL,
+                symbol TEXT NOT NULL,
+                side TEXT NOT NULL,
+                qty REAL NOT NULL,
+                price REAL NOT NULL,
+                volume_usd REAL NOT NULL,
+                received_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_foe_symbol_time
+                ON force_order_events(symbol, event_time_ms);
+        """)
+        self.conn.commit()
+
+    def insert_event(self, event_time_ms: int, symbol: str, side: str,
+                     qty: float, price: float, volume_usd: float):
+        self.conn.execute(
+            """INSERT INTO force_order_events
+               (event_time_ms, symbol, side, qty, price, volume_usd, received_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (event_time_ms, symbol, side, qty, price, volume_usd,
+             datetime.now(timezone.utc).isoformat()),
+        )
+
+    def prune_before_ms(self, before_ms: int):
+        self.conn.execute(
+            "DELETE FROM force_order_events WHERE event_time_ms < ?",
+            (before_ms,),
+        )
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
 # ═══════════════════════════════════════════════════
 # Paper Fill
 # ═══════════════════════════════════════════════════
@@ -323,6 +373,7 @@ class V5ForwardTest:
         self.v5_cfg = load_v5_config()
         self.ca_api_key = self.v5_cfg.get("coinalyze", {}).get("api_key", "")
         self.db = V5Database(DB_PATH)
+        self.force_order_db = ForceOrderDatabase(FORCE_ORDER_DB_PATH)
         self.engine = LiqClusterEngineV5()
         self.alerts = TelegramAlerts(
             self.app_cfg.secrets.telegram_bot_token,
@@ -482,6 +533,11 @@ class V5ForwardTest:
         self.db.set_state("equity", str(round(self.executor.equity, 4)))
         self.db.set_state("peak_equity", str(round(self.executor.peak, 4)))
         try:
+            self.force_order_db.conn.commit()
+            self.force_order_db.close()
+        except Exception:
+            pass
+        try:
             self.db.close()
         except Exception:
             pass
@@ -563,6 +619,8 @@ class V5ForwardTest:
         # Prune old cache entries
         prune_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
         self.db.prune_liq_cache(prune_date)
+        prune_ms = int((datetime.now(timezone.utc) - timedelta(days=FORCE_ORDER_RETENTION_DAYS)).timestamp() * 1000)
+        self.force_order_db.prune_before_ms(prune_ms)
 
         min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
 
@@ -731,6 +789,10 @@ class V5ForwardTest:
                         if volume <= 0:
                             continue
 
+                        self.force_order_db.insert_event(
+                            time_ms, symbol, side, qty, price, volume,
+                        )
+
                         # Update database cache for the given date
                         dt = datetime.fromtimestamp(time_ms / 1000, tz=timezone.utc)
                         date_str = dt.strftime("%Y-%m-%d")
@@ -766,6 +828,7 @@ class V5ForwardTest:
                         now_mono = time.monotonic()
                         if now_mono - self._ws_last_flush >= WS_ENGINE_FLUSH_INTERVAL:
                             self.db.conn.commit()
+                            self.force_order_db.conn.commit()
                             await self._flush_ws_to_engine()
                             self._ws_last_flush = now_mono
 
