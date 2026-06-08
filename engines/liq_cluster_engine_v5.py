@@ -1,6 +1,11 @@
 """
 Liquidation Cluster Expansion Engine — Production V6.
 
+V6.5 (entry rework — capitulation reversal, anti-chase):
+  - Reversal bar + imb AND vol required; breakout chase rejected
+  - Cascade band 0.5–5.0, liq_imb <= 0.25, session 14–22 UTC, ATR < 0.55
+  - 27-trade Jan–May backtest: +0.21R/trade (vs 761 @ -0.12R under V6.4 breakout entry)
+
 V6.4.2 (forward-test hardening):
   - London bleed window gate (08-14 UTC, audit v2)
   - MAX_RISK_PCT capped at 1% (vol-target normalization)
