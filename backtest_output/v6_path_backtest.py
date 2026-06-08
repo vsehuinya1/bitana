@@ -50,7 +50,6 @@ if os.environ.get("CAPTURE_ALL", "0") == "1":
     eng.SNIPER_MAX_ATR_PCT = 1e9
     eng.ENTRY_CASCADE_MIN = -1.0
     eng.ENTRY_CASCADE_MAX = 1e9
-    eng.ENTRY_RET5D_MAX = 1e9
     eng.ENTRY_LIQ_IMB_MAX = 1e9
     eng.ENTRY_MIN_CONFIRMS = 4
     eng.TRADE_DECILES = {1, 2, 5, 6, 7, 8, 9}
@@ -280,6 +279,9 @@ def run_capture():
         tag = (tag + "_v65") if tag else "_v65"
     trades_path = OUT_DIR / f"v6_bt_trades{tag}.csv"
     rpath_path = OUT_DIR / f"v6_bt_rpath{tag}.csv"
+    if not trades:
+        print("\nno trades captured", flush=True)
+        return [], []
     with open(trades_path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(trades[0].keys()))
         w.writeheader()

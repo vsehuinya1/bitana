@@ -61,11 +61,10 @@ MIN_RISK_PCT = 0.01
 # Enter reversal bars after long-liq capitulation, not 60-bar range breakouts.
 SNIPER_ALLOWED_HOURS = frozenset(range(14, 22))   # NY core session
 SNIPER_MAX_ATR_PCT = 0.55
-ENTRY_CASCADE_MIN = 1.0
-ENTRY_CASCADE_MAX = 4.0
-ENTRY_RET5D_MAX = 0.0           # non-rallying 5d context (<=0%); deep -3% was live-only, 0 trades in backtest
-ENTRY_LIQ_IMB_MAX = 0.0         # long-liq skew or neutral (not short-liq dominated)
-ENTRY_MIN_CONFIRMS = 5          # of 6 (reversal stack)
+ENTRY_CASCADE_MIN = 0.5
+ENTRY_CASCADE_MAX = 5.0
+ENTRY_LIQ_IMB_MAX = 0.25        # skip strong short-liq dominance; ret_5d gate removed (0 in backtest w/o closes)
+ENTRY_MIN_CONFIRMS = 4          # of 6; reversal replaces breakout in the stack
 ENTRY_MAX_BREAKOUT_CHASE_PCT = 0.5  # reject extended chase above range high
 
 # V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
@@ -79,12 +78,15 @@ RUNNER_GIVEBACK = 0.75     # R given back under the running peak once confirmed
 # FLAT_RISK_PCT preserved for backward compatibility/legacy reference
 FLAT_RISK_PCT = 0.04
 
-# V6.5: D1/D2 grinder deciles dropped (761-trade backtest: D1 -0.09, D2 -0.23 at scale).
-TRADE_DECILES = {5, 6, 7, 8, 9}
+# D4/D10 dropped; D1/D2 need directional flow confirm (unchanged from V6.4).
+TRADE_DECILES = {1, 2, 5, 6, 7, 8, 9}
 
 def _is_decile_tradable(decile: int, confirmations: dict) -> bool:
-    """Return True if decile is in the tradable set."""
-    return decile in TRADE_DECILES
+    if decile not in TRADE_DECILES:
+        return False
+    if decile in (1, 2):
+        return bool(confirmations.get('imb') or confirmations.get('vol'))
+    return True
 
 
 # ═══════════════════════════════════════════════════
@@ -512,12 +514,6 @@ class LiqClusterEngineV5:
                         band=f"{ENTRY_CASCADE_MIN}-{ENTRY_CASCADE_MAX}")
             return None
 
-        if st.ret_5d > ENTRY_RET5D_MAX:
-            logger.info("CAPITULATION_REJECT", symbol=symbol,
-                        ret_5d=round(st.ret_5d, 2), max_ret5d=ENTRY_RET5D_MAX,
-                        reason="not_beaten_down")
-            return None
-
         if st.liq_direction_imb > ENTRY_LIQ_IMB_MAX:
             logger.info("CAPITULATION_REJECT", symbol=symbol,
                         liq_imb=round(st.liq_direction_imb, 4), max_imb=ENTRY_LIQ_IMB_MAX,
@@ -614,8 +610,9 @@ class LiqClusterEngineV5:
                         hour_utc=bar_time.hour, window="14-22_UTC")
             return None
 
-        if not (confirmations['reversal'] and confirmations['imb'] and confirmations['vol']
-                and confirmations['momentum']):
+        if not confirmations['reversal']:
+            return None
+        if not (confirmations['imb'] and confirmations['vol']):
             return None
 
         n_confirms = sum(1 for v in confirmations.values() if bool(v))
