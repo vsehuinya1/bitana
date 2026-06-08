@@ -1,11 +1,10 @@
-"""Backfill Binance allForceOrders into force_orders.db for WS-aligned backtests.
+"""Backfill Binance force orders into force_orders.db for WS-aligned backtests.
 
-Uses the same event schema as live WS logging. Aggregate daily in the path
-backtester — no 6-week wait for live accumulation.
+NOTE: /fapi/v1/allForceOrders REST is out of maintenance (400). Prefer:
+  - LIQ_SOURCE=ws_cache / ws_merged in v6_path_backtest (live liq_cache export)
+  - ongoing WS logging via tools/v5_forward_test.py
 
-Usage (VPS):
-  python backtest_output/backfill_force_orders.py \\
-    --start 2025-11-01 --end 2026-05-22
+This script remains for if/when a working historical endpoint exists.
 """
 from __future__ import annotations
 

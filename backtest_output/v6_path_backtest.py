@@ -53,9 +53,11 @@ eng.SNIPER_MIN_CASCADE = -1.0
 KLINES_DB = REPO / "backtest_data" / "klines_5m.db"
 LIQ_DB = REPO / "backtest_data" / "coinalyze_liq.db"
 FORCE_ORDERS_DB = REPO / "backtest_data" / "force_orders.db"
+WS_LIQ_DB = REPO / "storage" / "v5_forward_test.db"
 CFG_PATH = REPO / "config" / "v5_forward_test.yaml"
 OUT_DIR = REPO / "backtest_output"
-LIQ_SOURCE = os.environ.get("LIQ_SOURCE", "coinalyze")  # coinalyze | binance_force
+# coinalyze | binance_force (REST dead) | ws_cache (live WS daily aggregates from forward-test DB)
+LIQ_SOURCE = os.environ.get("LIQ_SOURCE", "coinalyze")
 
 WARMUP_DAYS = 30
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -132,9 +134,38 @@ def load_liq_binance(sym):
     return out
 
 
+def load_liq_ws_cache(sym):
+    """Daily liq from live paper bot liq_cache (Binance WS aggregates)."""
+    c = sqlite3.connect(str(WS_LIQ_DB))
+    rows = c.execute(
+        "select date, long_liq, short_liq from liq_cache where symbol=? order by date",
+        (sym,),
+    ).fetchall()
+    c.close()
+    out = []
+    for d, ll, sl in rows:
+        ts = int(datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        out.append((ts, float(ll), float(sl)))
+    return out
+
+
+def load_liq_merged(sym):
+    """Coinalyze for warmup; WS cache overrides overlapping dates (live-aligned)."""
+    co = {datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d"): (ts, ll, sl)
+          for ts, ll, sl in load_liq_coinalyze(sym)}
+    ws = {datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d"): (ts, ll, sl)
+          for ts, ll, sl in load_liq_ws_cache(sym)}
+    merged = {**co, **ws}
+    return [merged[d] for d in sorted(merged)]
+
+
 def load_liq(sym):
     if LIQ_SOURCE == "binance_force":
         return load_liq_binance(sym)
+    if LIQ_SOURCE == "ws_cache":
+        return load_liq_ws_cache(sym)
+    if LIQ_SOURCE == "ws_merged":
+        return load_liq_merged(sym)
     return load_liq_coinalyze(sym)
 
 
@@ -236,7 +267,7 @@ def run_capture():
             print(f"  {si + 1}/{len(syms)} symbols | trades={len(trades)}", flush=True)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    tag = "_binance" if LIQ_SOURCE == "binance_force" else ""
+    tag = {"binance_force": "_binance", "ws_cache": "_ws", "ws_merged": "_ws_merged"}.get(LIQ_SOURCE, "")
     trades_path = OUT_DIR / f"v6_bt_trades{tag}.csv"
     rpath_path = OUT_DIR / f"v6_bt_rpath{tag}.csv"
     with open(trades_path, "w", newline="") as f:
@@ -247,7 +278,7 @@ def run_capture():
         w = csv.writer(f)
         w.writerow(["trade_uuid", "bar_index", "mfe_so_far", "mae_so_far", "unrealized_r"])
         w.writerows(rpath)
-    print(f"\nsaved {len(trades)} trades, {len(rpath)} r_path rows", flush=True)
+    print(f"\nsaved {len(trades)} trades, {len(rpath)} r_path rows → {trades_path.name}", flush=True)
     return trades, rpath
 
 
