@@ -63,8 +63,8 @@ SNIPER_ALLOWED_HOURS = frozenset(range(14, 22))   # NY core session
 SNIPER_MAX_ATR_PCT = 0.55
 ENTRY_CASCADE_MIN = 1.0
 ENTRY_CASCADE_MAX = 4.0
-ENTRY_RET5D_MAX = -3.0          # require beaten-down 5d context
-ENTRY_LIQ_IMB_MAX = -0.10       # long liquidations dominated recent liq
+ENTRY_RET5D_MAX = 0.0           # non-rallying 5d context (<=0%); deep -3% was live-only, 0 trades in backtest
+ENTRY_LIQ_IMB_MAX = 0.0         # long-liq skew or neutral (not short-liq dominated)
 ENTRY_MIN_CONFIRMS = 5          # of 6 (reversal stack)
 ENTRY_MAX_BREAKOUT_CHASE_PCT = 0.5  # reject extended chase above range high
 
