@@ -34,6 +34,14 @@ import engines.liq_cluster_engine_v5 as eng  # noqa: E402
 from engines.liq_cluster_engine_v5 import LiqClusterEngineV5  # noqa: E402
 from core.models import Candle  # noqa: E402
 
+# ── Silence the engine's per-bar logging (floods gigabytes otherwise) ──
+class _Silent:
+    def __getattr__(self, _):
+        return lambda *a, **k: None
+
+
+eng.logger = _Silent()
+
 # ── Disable sniper entry gates for capture (applied offline instead) ──
 eng.SNIPER_ALLOWED_HOURS = frozenset(range(24))
 eng.SNIPER_MAX_ATR_PCT = 1e9
