@@ -44,11 +44,16 @@ class _Silent:
 
 eng.logger = _Silent()
 
-# ── Disable sniper entry gates for capture (applied offline instead) ──
-eng.SNIPER_ALLOWED_HOURS = frozenset(range(24))
-eng.SNIPER_MAX_ATR_PCT = 1e9
-eng.SNIPER_MIN_VOL_Z = -1e9
-eng.SNIPER_MIN_CASCADE = -1.0
+# Set CAPTURE_ALL=1 to disable V6.5 entry gates and capture the full base universe.
+if os.environ.get("CAPTURE_ALL", "0") == "1":
+    eng.SNIPER_ALLOWED_HOURS = frozenset(range(24))
+    eng.SNIPER_MAX_ATR_PCT = 1e9
+    eng.ENTRY_CASCADE_MIN = -1.0
+    eng.ENTRY_CASCADE_MAX = 1e9
+    eng.ENTRY_RET5D_MAX = 1e9
+    eng.ENTRY_LIQ_IMB_MAX = 1e9
+    eng.ENTRY_MIN_CONFIRMS = 4
+    eng.TRADE_DECILES = {1, 2, 5, 6, 7, 8, 9}
 
 KLINES_DB = REPO / "backtest_data" / "klines_5m.db"
 LIQ_DB = REPO / "backtest_data" / "coinalyze_liq.db"
@@ -232,6 +237,7 @@ def run_capture():
                         "decile": pos["decile"], "aggression": round(pos["agg"], 1),
                         "vol_z": round(pos["vol_z"], 4), "cascade_strength": round(pos["casc"], 4),
                         "atr_pct": round(pos["atr_pct"], 4), "hour": pos["hour"],
+                        "ret_5d": round(pos["ret_5d"], 4), "liq_imb": round(pos["liq_imb"], 4),
                         "pnl_r": round(res["r"], 4), "exit_reason": res["reason"], "bars_held": st.bars_held,
                     })
                     pos = None
@@ -241,6 +247,7 @@ def run_capture():
                         "decile": pos["decile"], "aggression": round(pos["agg"], 1),
                         "vol_z": round(pos["vol_z"], 4), "cascade_strength": round(pos["casc"], 4),
                         "atr_pct": round(pos["atr_pct"], 4), "hour": pos["hour"],
+                        "ret_5d": round(pos["ret_5d"], 4), "liq_imb": round(pos["liq_imb"], 4),
                         "pnl_r": round(ur, 4), "exit_reason": "path_cap", "bars_held": st.bars_held,
                     })
                     st.in_trade = False
@@ -260,6 +267,7 @@ def run_capture():
                         "etime": c.close_time.isoformat(), "decile": st.decile, "agg": st.aggression_score,
                         "vol_z": sd.get("vol_z", 0.0), "casc": sd.get("cascade_strength", 0.0),
                         "atr_pct": (atr / entry * 100) if entry > 0 else 0.0, "hour": c.close_time.hour,
+                        "ret_5d": sd.get("ret_5d", st.ret_5d), "liq_imb": sd.get("liq_direction_imb", st.liq_direction_imb),
                     }
                     rpath.append((pos["uuid"], 0, 0.0, 0.0, 0.0))
 
@@ -268,6 +276,8 @@ def run_capture():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     tag = {"binance_force": "_binance", "ws_cache": "_ws", "ws_merged": "_ws_merged"}.get(LIQ_SOURCE, "")
+    if os.environ.get("CAPTURE_ALL", "0") != "1":
+        tag = (tag + "_v65") if tag else "_v65"
     trades_path = OUT_DIR / f"v6_bt_trades{tag}.csv"
     rpath_path = OUT_DIR / f"v6_bt_rpath{tag}.csv"
     with open(trades_path, "w", newline="") as f:

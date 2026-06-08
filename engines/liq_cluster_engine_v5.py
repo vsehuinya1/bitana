@@ -56,14 +56,17 @@ TARGET_ATR_PCT = 2.0
 MAX_RISK_PCT = 0.01   # Hard cap (paper/live); vol-target can spike without this
 MIN_RISK_PCT = 0.01
 
-# V6.4.4 sniper mode: fewer trades, bigger winners.
-# Fresh VPS r_path replay (current gates + v6.4.3 management):
-# 14-24 UTC + ATR% < 0.65 = +13.24R full / +4.07R OOS test, while Asia was -5.86R.
-SNIPER_ALLOWED_HOURS = frozenset(range(14, 24))
-SNIPER_MAX_ATR_PCT = 0.65
-# V6.4.5 flow gate — forward winners had vol_z>>0 + cascade>=1.38; all 3 full stops failed it.
-SNIPER_MIN_VOL_Z = 0.0          # require vol_z > 0 (positive order-flow pressure)
-SNIPER_MIN_CASCADE = 1.38
+# V6.5 capitulation-reversal entry (replaces V6.4 breakout-chase after liq cascade).
+# Live WS telemetry: beaten ret_5d and imb+vol subsets least bad; breakout chase negative.
+# Enter reversal bars after long-liq capitulation, not 60-bar range breakouts.
+SNIPER_ALLOWED_HOURS = frozenset(range(14, 22))   # NY core session
+SNIPER_MAX_ATR_PCT = 0.55
+ENTRY_CASCADE_MIN = 1.0
+ENTRY_CASCADE_MAX = 4.0
+ENTRY_RET5D_MAX = -3.0          # require beaten-down 5d context
+ENTRY_LIQ_IMB_MAX = -0.10       # long liquidations dominated recent liq
+ENTRY_MIN_CONFIRMS = 5          # of 6 (reversal stack)
+ENTRY_MAX_BREAKOUT_CHASE_PCT = 0.5  # reject extended chase above range high
 
 # V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
 # Thesis: cut the dead fast, let the confirmed ones run. Decomposition showed +25.28R post-gate
@@ -76,20 +79,12 @@ RUNNER_GIVEBACK = 0.75     # R given back under the running peak once confirmed
 # FLAT_RISK_PCT preserved for backward compatibility/legacy reference
 FLAT_RISK_PCT = 0.04
 
-# Deciles to trade (D4 and D10 dropped — negative expectancy)
-TRADE_DECILES = {1, 2, 5, 6, 7, 8, 9}
+# V6.5: D1/D2 grinder deciles dropped (761-trade backtest: D1 -0.09, D2 -0.23 at scale).
+TRADE_DECILES = {5, 6, 7, 8, 9}
 
 def _is_decile_tradable(decile: int, confirmations: dict) -> bool:
-    """Return True if decile is tradable.
-
-    D1/D2 require imb or vol confirmation (directional filter from V6.2).
-    D4 and D10 are never traded (negative expectancy).
-    """
-    if decile not in TRADE_DECILES:
-        return False
-    if decile in (1, 2):
-        return bool(confirmations.get('imb') or confirmations.get('vol'))
-    return True
+    """Return True if decile is in the tradable set."""
+    return decile in TRADE_DECILES
 
 
 # ═══════════════════════════════════════════════════
@@ -511,9 +506,23 @@ class LiqClusterEngineV5:
         if CFG.min_cascade_strength > 0 and st.cascade_strength < CFG.min_cascade_strength:
             return None
 
-        # V6.1: Filter neutral cascades — require directional imb (DISABLED: p90 check is sufficient)
-        # if CFG.min_cascade_imb > 0 and st.liq_direction_imb < CFG.min_cascade_imb:
-        #     return None
+        if st.cascade_strength < ENTRY_CASCADE_MIN or st.cascade_strength >= ENTRY_CASCADE_MAX:
+            logger.info("CASCADE_BAND_REJECT", symbol=symbol,
+                        strength=round(st.cascade_strength, 4),
+                        band=f"{ENTRY_CASCADE_MIN}-{ENTRY_CASCADE_MAX}")
+            return None
+
+        if st.ret_5d > ENTRY_RET5D_MAX:
+            logger.info("CAPITULATION_REJECT", symbol=symbol,
+                        ret_5d=round(st.ret_5d, 2), max_ret5d=ENTRY_RET5D_MAX,
+                        reason="not_beaten_down")
+            return None
+
+        if st.liq_direction_imb > ENTRY_LIQ_IMB_MAX:
+            logger.info("CAPITULATION_REJECT", symbol=symbol,
+                        liq_imb=round(st.liq_direction_imb, 4), max_imb=ENTRY_LIQ_IMB_MAX,
+                        reason="no_long_liq_capitulation")
+            return None
 
         # V6: time-based stop_cooldown fallback (288 bars = 24h)
         if st.stop_cooldown > 0:
@@ -561,37 +570,40 @@ class LiqClusterEngineV5:
                     fallback_triggered=_imb_fallback_triggered,
                     passed=bool(imb_z > CFG.imb_z_threshold))
 
-        # 6 confirmation checks — need 4/6
-        confirmations = {}
-        confirmations['breakout'] = closes[-1] > range_high
-        confirmations['imb'] = imb_z > CFG.imb_z_threshold
-        confirmations['vol'] = vol_z > CFG.vol_z_threshold
+        is_breakout = closes[-1] > range_high
         body = abs(closes[-1] - bar.open)
         total_range = highs[-1] - lows[-1]
-        confirmations['body'] = (body / total_range) >= CFG.body_strength_min if total_range > 0 else False
-        impulse = abs(closes[-1] - bar.open) / bar.open * 100
-        confirmations['impulse'] = impulse >= CFG.impulse_min_pct
-        confirmations['momentum'] = closes[-1] > ema
+        lower_wick = min(closes[-1], bar.open) - lows[-1]
+        wick_rejection = (lower_wick / total_range >= 0.35) if total_range > 0 else False
+        green_reversal = (
+            closes[-1] > bar.open
+            and len(closes) >= 2
+            and closes[-1] > closes[-2]
+        )
+        impulse = abs(closes[-1] - bar.open) / bar.open * 100 if bar.open > 0 else 0.0
 
-        # V6.4.1: Breakout distance logging for regime diagnostics (observational only)
+        confirmations = {
+            'reversal': green_reversal or wick_rejection,
+            'imb': imb_z > CFG.imb_z_threshold,
+            'vol': vol_z > CFG.vol_z_threshold,
+            'body': (body / total_range) >= CFG.body_strength_min if total_range > 0 else False,
+            'impulse': impulse >= CFG.impulse_min_pct,
+            'momentum': closes[-1] > ema,
+        }
+
         _breakout_distance_abs = closes[-1] - range_high
         _breakout_distance_pct = (_breakout_distance_abs / range_high * 100) if range_high > 0 else 0.0
-        logger.info("breakout_gate", symbol=symbol,
-                    close=round(closes[-1], 6),
-                    range_high=round(range_high, 6),
-                    distance_abs=round(_breakout_distance_abs, 6),
-                    distance_pct=round(_breakout_distance_pct, 4),
-                    bars_in_range=CFG.range_lookback,
-                    passed=bool(confirmations['breakout']))
 
-        # Phase 1: BD lower-bound gate — reject deep pullback entries
-        # BD < -2.0% shows consistent negative expectancy (structural loss cluster)
         if _breakout_distance_pct < -2.0:
             logger.info("BD_FILTER_REJECT", symbol=symbol,
                         breakout_distance_pct=round(_breakout_distance_pct, 4),
-                        range_high=round(range_high, 6),
-                        close=round(closes[-1], 6),
                         reason="BD_FILTER_<-2%")
+            return None
+
+        if is_breakout and _breakout_distance_pct > ENTRY_MAX_BREAKOUT_CHASE_PCT:
+            logger.info("CHASE_FILTER_REJECT", symbol=symbol,
+                        breakout_distance_pct=round(_breakout_distance_pct, 4),
+                        max_chase_pct=ENTRY_MAX_BREAKOUT_CHASE_PCT)
             return None
 
         bar_time = bar.close_time if hasattr(bar, "close_time") and bar.close_time else datetime.now(timezone.utc)
@@ -599,13 +611,15 @@ class LiqClusterEngineV5:
             bar_time = bar_time.replace(tzinfo=timezone.utc)
         if bar_time.hour not in SNIPER_ALLOWED_HOURS:
             logger.info("SESSION_FILTER_REJECT", symbol=symbol,
-                        hour_utc=bar_time.hour,
-                        window="14-24_UTC",
-                        reason="sniper_session_only")
+                        hour_utc=bar_time.hour, window="14-22_UTC")
+            return None
+
+        if not (confirmations['reversal'] and confirmations['imb'] and confirmations['vol']
+                and confirmations['momentum']):
             return None
 
         n_confirms = sum(1 for v in confirmations.values() if bool(v))
-        if n_confirms < CFG.min_confirmations:
+        if n_confirms < ENTRY_MIN_CONFIRMS:
             return None
 
         # Cast all confirmations to native bool for JSON serialization
@@ -625,17 +639,7 @@ class LiqClusterEngineV5:
         atr_pct = (atr / entry_price) * 100 if entry_price > 0 else 0
         if atr_pct >= SNIPER_MAX_ATR_PCT:
             logger.info("ATR_FILTER_REJECT", symbol=symbol,
-                        atr_pct=round(atr_pct, 4),
-                        max_atr_pct=SNIPER_MAX_ATR_PCT,
-                        reason="sniper_low_atr_only")
-            return None
-        if vol_z <= SNIPER_MIN_VOL_Z or st.cascade_strength < SNIPER_MIN_CASCADE:
-            logger.info("FLOW_FILTER_REJECT", symbol=symbol,
-                        vol_z=round(vol_z, 4),
-                        cascade_strength=round(st.cascade_strength, 4),
-                        min_vol_z=SNIPER_MIN_VOL_Z,
-                        min_cascade=SNIPER_MIN_CASCADE,
-                        reason="sniper_flow_gate")
+                        atr_pct=round(atr_pct, 4), max_atr_pct=SNIPER_MAX_ATR_PCT)
             return None
         if atr_pct > 0:
             risk_pct = BASE_RISK_PCT * (TARGET_ATR_PCT / atr_pct)
@@ -663,10 +667,11 @@ class LiqClusterEngineV5:
         st.mfe = 0.0
         st.confirmed = False
 
-        logger.info("V5 signal", symbol=symbol, aggression=f"{aggression:.1f}",
+        logger.info("V6.5 signal", symbol=symbol, aggression=f"{aggression:.1f}",
                    decile=decile, risk_pct=f"{risk_pct:.1%}",
                    confirms=n_confirms, vol_z=f"{vol_z:.2f}",
-                   cascade_strength=f"{st.cascade_strength:.2f}")
+                   cascade_strength=f"{st.cascade_strength:.2f}",
+                   ret_5d=f"{st.ret_5d:.1f}", liq_imb=f"{st.liq_direction_imb:.2f}")
 
         return Signal(
             trade_uuid=str(uuid.uuid4()),
@@ -687,6 +692,9 @@ class LiqClusterEngineV5:
                 "breakout_distance_pct": round(_breakout_distance_pct, 4),
                 "imb_z": round(imb_z, 4),
                 "imb_fallback_triggered": _imb_fallback_triggered,
+                "ret_5d": st.ret_5d,
+                "liq_direction_imb": st.liq_direction_imb,
+                "entry_mode": "capitulation_reversal",
             },
             timestamp=bar.close_time if hasattr(bar, 'close_time') else datetime.now(timezone.utc),
         )
