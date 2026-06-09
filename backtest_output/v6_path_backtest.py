@@ -292,6 +292,9 @@ def run_capture():
     if not trades:
         print("\nno trades captured", flush=True)
         return [], []
+    if os.environ.get("QUIET", "0") == "1":
+        print(f"\n{len(trades)} trades captured (quiet mode, no CSV)", flush=True)
+        return trades, rpath
     with open(trades_path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(trades[0].keys()))
         w.writeheader()

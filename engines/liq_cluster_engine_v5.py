@@ -62,6 +62,11 @@ SNIPER_MAX_ATR_PCT = 0.65
 SNIPER_MIN_VOL_Z = 0.0          # require vol_z > 0
 SNIPER_MIN_CASCADE = 1.38
 
+# Backtest entry-research overrides only (None/False = disabled on live paper)
+RESEARCH_CHASE_MAX_PCT: float | None = None
+RESEARCH_CASCADE_MAX: float | None = None
+RESEARCH_REQUIRE_IMB_AND_VOL = False
+
 # V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
 # Thesis: cut the dead fast, let the confirmed ones run. Decomposition showed +25.28R post-gate
 # uplift (-31.93R -> -6.65R) and +13.89R OOS. "confirm-or-cut" alone gives +9.82R; the
@@ -572,6 +577,16 @@ class LiqClusterEngineV5:
             logger.info("BD_FILTER_REJECT", symbol=symbol,
                         breakout_distance_pct=round(_breakout_distance_pct, 4),
                         reason="BD_FILTER_<-2%")
+            return None
+
+        if RESEARCH_CHASE_MAX_PCT is not None and confirmations['breakout']:
+            if _breakout_distance_pct > RESEARCH_CHASE_MAX_PCT:
+                return None
+
+        if RESEARCH_CASCADE_MAX is not None and st.cascade_strength >= RESEARCH_CASCADE_MAX:
+            return None
+
+        if RESEARCH_REQUIRE_IMB_AND_VOL and not (confirmations['imb'] and confirmations['vol']):
             return None
 
         bar_time = bar.close_time if hasattr(bar, "close_time") and bar.close_time else datetime.now(timezone.utc)
