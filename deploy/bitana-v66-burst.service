@@ -1,0 +1,15 @@
+[Unit]
+Description=Bitana v66 Liq-Burst Continuation Paper Trading
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+ExecStart=/root/bitana/venv/bin/python3 -u tools/v66_burst_forward_test.py
+Restart=always
+RestartSec=30
+StandardOutput=append:/var/log/bitana-v66.log
+StandardError=append:/var/log/bitana-v66.log
+
+[Install]
+WantedBy=multi-user.target
