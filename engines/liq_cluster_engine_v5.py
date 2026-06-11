@@ -1,5 +1,11 @@
 """
-Liquidation Cluster Expansion Engine — Production V6.
+Liquidation Cluster Expansion Engine — Production V6.5-revert.
+
+V6.5-revert (live paper, Jun 2026):
+  - V5 strict entry (vol_z>3, imb_z>2, body>=0.60, impulse>=0.30, 4/6 confirms)
+  - V5 per-decile vol_trail exits (replaces v6.4.3 runner)
+  - NY session 14–22 UTC, BD>-2% gate, v6.2 decile filters
+  - 28 proven symbols, 0.5% vol-target cap
 
 V6.4.2 (forward-test hardening):
   - London bleed window gate (08-14 UTC, audit v2)
@@ -34,6 +40,7 @@ Key changes from V4:
 from __future__ import annotations
 
 import math
+import os
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
@@ -53,19 +60,22 @@ logger = get_logger("liq_cluster_engine_v5")
 # Normalizes risk relative to a 2.0% ATR target (PF 2.81 bridge)
 BASE_RISK_PCT = 0.04
 TARGET_ATR_PCT = 2.0
-MAX_RISK_PCT = 0.01   # Hard cap (paper/live); vol-target can spike without this
+MAX_RISK_PCT = 0.005  # 0.5% hard cap (v6.5-revert)
 MIN_RISK_PCT = 0.01
 
-# V6.4.5 sniper + flow gates (entry research baseline — do not change without OOS proof).
-SNIPER_ALLOWED_HOURS = frozenset(range(14, 24))
-SNIPER_MAX_ATR_PCT = 0.65
-SNIPER_MIN_VOL_Z = 0.0          # require vol_z > 0
-SNIPER_MIN_CASCADE = 1.38
+# V6.5-revert: NY session only (skip London bleed). No v645 flow/ATR sniper.
+SNIPER_ALLOWED_HOURS = frozenset(range(14, 22))
+SNIPER_MAX_ATR_PCT = 1e9
+SNIPER_MIN_VOL_Z = -1e9
+SNIPER_MIN_CASCADE = -1.0
 
 # Backtest entry-research overrides only (None/False = disabled on live paper)
 RESEARCH_CHASE_MAX_PCT: float | None = None
 RESEARCH_CASCADE_MAX: float | None = None
 RESEARCH_REQUIRE_IMB_AND_VOL = False
+# Set LEGACY_RUNNER_EXITS=1 to replay v6.4.3 two-stage runner (research only).
+LEGACY_RUNNER_EXITS = os.environ.get("LEGACY_RUNNER_EXITS", "0") == "1"
+RESEARCH_V5_EXITS = os.environ.get("RESEARCH_V5_EXITS", "0") == "1"  # alias for backtest scripts
 
 # V6.4.3 two-stage trade management (exit_sim OOS-validated on 122 post-gate / 237 all trades).
 # Thesis: cut the dead fast, let the confirmed ones run. Decomposition showed +25.28R post-gate
@@ -171,10 +181,10 @@ class V5Config:
 
     # Entry confirmation (5m) — 3/6 (loosened for choppy regime)
     range_lookback: int = 60
-    imb_z_threshold: float = 1.0   # V6.4: 2.0→1.0 (just needs positive taker pressure)
-    vol_z_threshold: float = 2.0   # V6.4: 3.0→2.0 (above-avg volume, not extreme)
-    body_strength_min: float = 0.50  # V6.4: 0.60→0.50 (slightly more lenient)
-    impulse_min_pct: float = 0.20  # V6.4: 0.30→0.20 (lower min move)
+    imb_z_threshold: float = 2.0   # V6.5-revert: V5 strict
+    vol_z_threshold: float = 3.0
+    body_strength_min: float = 0.60
+    impulse_min_pct: float = 0.30
     ema_period: int = 20
     z_lookback: int = 100
     min_confirmations: int = 4  # V6.3: 4/6 (revert V6.4 loosening that produced -11.16R on 18 trades)
@@ -688,6 +698,99 @@ class LiqClusterEngineV5:
             timestamp=bar.close_time if hasattr(bar, 'close_time') else datetime.now(timezone.utc),
         )
 
+    def _manage_v5_exits(self, symbol: str, candles_5m: list[Candle]) -> Optional[dict]:
+        """V5 per-decile vol_trail / struct_trail / decay exits (research replay only)."""
+        st = self._get_state(symbol)
+        candle = candles_5m[-1]
+        price = candle.close
+        high = candle.high
+        low = candle.low
+
+        if high > st.best_price:
+            st.best_price = high
+
+        current_r = (price - st.entry_price) / st.risk_per_unit if st.risk_per_unit > 0 else 0.0
+        if current_r > st.mfe:
+            st.mfe = current_r
+        if current_r < st.mae:
+            st.mae = current_r
+
+        exits = DECILE_EXITS.get(st.decile, DECILE_EXITS[5])
+
+        if len(candles_5m) >= 2:
+            prev = candles_5m[-2]
+            if candle.close < prev.close:
+                st.consecutive_red += 1
+            else:
+                st.consecutive_red = 0
+
+        stop_price = st.entry_price - st.risk_per_unit
+        if low <= stop_price:
+            st.in_trade = False
+            st.stopped_in_window = True
+            st.cooldown = CFG.cooldown_bars
+            st.consecutive_stops += 1
+            if st.consecutive_stops >= CFG.max_consecutive_stops:
+                st.stop_cooldown = 288
+            return {"action": "close", "reason": "stop_loss", "exit_price": stop_price,
+                    "r": (stop_price - st.entry_price) / st.risk_per_unit,
+                    "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                    "decile": st.decile, "aggression": st.aggression_score}
+
+        atr = _atr(
+            np.array([c.high for c in candles_5m]),
+            np.array([c.low for c in candles_5m]),
+            np.array([c.close for c in candles_5m]),
+            CFG.atr_period,
+        )
+        new_vol_trail = st.best_price - atr * exits.vol_trail_atr
+        if new_vol_trail > st.vol_trail:
+            st.vol_trail = new_vol_trail
+        if st.vol_trail > st.entry_price and low <= st.vol_trail:
+            st.in_trade = False
+            st.cooldown = CFG.cooldown_bars
+            st.consecutive_stops = 0
+            return {"action": "close", "reason": "vol_trail", "exit_price": st.vol_trail,
+                    "r": (st.vol_trail - st.entry_price) / st.risk_per_unit,
+                    "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                    "decile": st.decile, "aggression": st.aggression_score}
+
+        struct_lb = exits.struct_lookback
+        if len(candles_5m) >= struct_lb:
+            swing_low = min(c.low for c in candles_5m[-struct_lb:])
+            if swing_low > st.struct_trail:
+                st.struct_trail = swing_low
+            if st.struct_trail > st.entry_price and low <= st.struct_trail:
+                st.in_trade = False
+                st.cooldown = CFG.cooldown_bars
+                st.consecutive_stops = 0
+                return {"action": "close", "reason": "struct_trail", "exit_price": st.struct_trail,
+                        "r": (st.struct_trail - st.entry_price) / st.risk_per_unit,
+                        "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                        "decile": st.decile, "aggression": st.aggression_score}
+
+        if exits.decay_enabled and current_r >= exits.decay_min_r and st.bars_held >= exits.decay_start_bar:
+            if st.consecutive_red >= exits.decay_red_bars:
+                decay_trail = st.best_price - atr * exits.decay_atr_mult
+                if decay_trail > st.entry_price and low <= decay_trail:
+                    st.in_trade = False
+                    st.cooldown = CFG.cooldown_bars
+                    st.consecutive_stops = 0
+                    return {"action": "close", "reason": "decay", "exit_price": decay_trail,
+                            "r": (decay_trail - st.entry_price) / st.risk_per_unit,
+                            "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                            "decile": st.decile, "aggression": st.aggression_score}
+
+        if st.bars_held >= exits.max_hold_bars:
+            st.in_trade = False
+            st.cooldown = CFG.cooldown_bars
+            st.consecutive_stops = 0
+            return {"action": "close", "reason": "time_stop", "exit_price": price,
+                    "r": current_r, "mae": st.mae, "mfe": st.mfe, "bars_held": st.bars_held,
+                    "decile": st.decile, "aggression": st.aggression_score}
+
+        return None
+
     def manage_position(self, symbol: str, candles_5m: list[Candle]) -> Optional[dict]:
         """V6 exits: per-decile parameters + cascade-deactivation tightening."""
         st = self._get_state(symbol)
@@ -695,6 +798,9 @@ class LiqClusterEngineV5:
             return None
         if len(candles_5m) < 2:
             return None
+
+        if not LEGACY_RUNNER_EXITS:
+            return self._manage_v5_exits(symbol, candles_5m)
 
         # V6: bars_held is managed by the runner, NOT incremented here
         # (was double-counted in V5, cutting winners at 2x speed)

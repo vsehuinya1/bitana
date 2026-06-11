@@ -1,0 +1,1936 @@
+{
+  "cohorts": {
+    "all_r_path": {
+      "breakout_expansion": {
+        "bd_bucket_table": [
+          {
+            "bd_bucket": "<-2%",
+            "early_dead_rate": 0.36,
+            "explosive_rate": 0.12,
+            "mean_eventual_mfe": null,
+            "mean_first10_mfe": 0.37337600000000004,
+            "n": 25
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "early_dead_rate": 0.4032258064516129,
+            "explosive_rate": 0.1935483870967742,
+            "mean_eventual_mfe": null,
+            "mean_first10_mfe": 0.4895806451612903,
+            "n": 62
+          },
+          {
+            "bd_bucket": "0to2%",
+            "early_dead_rate": 0.38095238095238093,
+            "explosive_rate": 0.19047619047619047,
+            "mean_eventual_mfe": null,
+            "mean_first10_mfe": 0.43552380952380954,
+            "n": 21
+          }
+        ],
+        "bd_x_mfe10_cross": [
+          {
+            "bd_bucket": "<-2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0-0.1R",
+            "n": 2
+          },
+          {
+            "bd_bucket": "<-2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.1-0.3R",
+            "n": 5
+          },
+          {
+            "bd_bucket": "<-2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.3-0.5R",
+            "n": 5
+          },
+          {
+            "bd_bucket": "<-2%",
+            "explosive_rate": 0.3333333333333333,
+            "mfe10_bucket": ">0.5R",
+            "n": 9
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0-0.1R",
+            "n": 4
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.1-0.3R",
+            "n": 11
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.3-0.5R",
+            "n": 8
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.5,
+            "mfe10_bucket": ">0.5R",
+            "n": 24
+          },
+          {
+            "bd_bucket": "0to2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.1-0.3R",
+            "n": 5
+          },
+          {
+            "bd_bucket": "0to2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.3-0.5R",
+            "n": 3
+          },
+          {
+            "bd_bucket": "0to2%",
+            "explosive_rate": 0.5,
+            "mfe10_bucket": ">0.5R",
+            "n": 8
+          }
+        ]
+      },
+      "cascade_quality": {
+        "decile_table": [
+          {
+            "cascade_decile": "(0.103, 0.277]",
+            "cascade_strength_mean": 0.15702646762521935,
+            "early_dead_rate": 0.4,
+            "explosive_rate": 0.13333333333333333,
+            "n": 15,
+            "win_rate": 0.4
+          },
+          {
+            "cascade_decile": "(0.277, 0.587]",
+            "cascade_strength_mean": 0.38598778372760656,
+            "early_dead_rate": 0.6428571428571429,
+            "explosive_rate": 0.21428571428571427,
+            "n": 14,
+            "win_rate": 0.35714285714285715
+          },
+          {
+            "cascade_decile": "(0.587, 1.097]",
+            "cascade_strength_mean": 0.8056467687744389,
+            "early_dead_rate": 0.5,
+            "explosive_rate": 0.14285714285714285,
+            "n": 14,
+            "win_rate": 0.35714285714285715
+          },
+          {
+            "cascade_decile": "(1.097, 1.589]",
+            "cascade_strength_mean": 1.3179819232528183,
+            "early_dead_rate": 0.3333333333333333,
+            "explosive_rate": 0.13333333333333333,
+            "n": 15,
+            "win_rate": 0.4666666666666667
+          },
+          {
+            "cascade_decile": "(1.589, 2.371]",
+            "cascade_strength_mean": 1.9419465155875517,
+            "early_dead_rate": 0.35714285714285715,
+            "explosive_rate": 0.21428571428571427,
+            "n": 14,
+            "win_rate": 0.35714285714285715
+          },
+          {
+            "cascade_decile": "(2.371, 4.659]",
+            "cascade_strength_mean": 3.2087397789035994,
+            "early_dead_rate": 0.42857142857142855,
+            "explosive_rate": 0.21428571428571427,
+            "n": 14,
+            "win_rate": 0.5
+          },
+          {
+            "cascade_decile": "(4.659, 9.916]",
+            "cascade_strength_mean": 7.140844459681785,
+            "early_dead_rate": 0.5333333333333333,
+            "explosive_rate": 0.0,
+            "n": 15,
+            "win_rate": 0.13333333333333333
+          },
+          {
+            "cascade_decile": "(9.916, 22.016]",
+            "cascade_strength_mean": 14.653161274503857,
+            "early_dead_rate": 0.6428571428571429,
+            "explosive_rate": 0.0,
+            "n": 14,
+            "win_rate": 0.14285714285714285
+          },
+          {
+            "cascade_decile": "(22.016, 80.324]",
+            "cascade_strength_mean": 45.51216147337717,
+            "early_dead_rate": 0.2857142857142857,
+            "explosive_rate": 0.07142857142857142,
+            "n": 14,
+            "win_rate": 0.42857142857142855
+          },
+          {
+            "cascade_decile": "(80.324, 3312.978]",
+            "cascade_strength_mean": 622.37771066575,
+            "early_dead_rate": 0.4,
+            "explosive_rate": 0.2,
+            "n": 15,
+            "win_rate": 0.4
+          }
+        ],
+        "n": 144
+      },
+      "class_counts": {
+        "EARLY_DEAD": 81,
+        "EXPLOSIVE": 19,
+        "LATE_DEAD": 28,
+        "SURVIVOR": 42
+      },
+      "confirmation_integrity": {
+        "confirmation_mismatch_rate": 0.0,
+        "imb_fallback_rate": 0.36470588235294116,
+        "imb_zero_but_confirm_pass": 48
+      },
+      "confirmation_stack": {
+        "combinations": {
+          "all_six": {
+            "early_dead_rate": 0.3333333333333333,
+            "explosive_rate": 0.3333333333333333,
+            "frequency": 0.01764705882352941,
+            "n": 3,
+            "win_rate": 0.6666666666666666
+          },
+          "imb_momentum": {
+            "early_dead_rate": 0.4796747967479675,
+            "explosive_rate": 0.10569105691056911,
+            "frequency": 0.7235294117647059,
+            "n": 123,
+            "win_rate": 0.34959349593495936
+          },
+          "imb_vol": {
+            "early_dead_rate": 0.3076923076923077,
+            "explosive_rate": 0.07692307692307693,
+            "frequency": 0.07647058823529412,
+            "n": 13,
+            "win_rate": 0.5384615384615384
+          },
+          "vol_breakout": {
+            "early_dead_rate": 0.4,
+            "explosive_rate": 0.13333333333333333,
+            "frequency": 0.08823529411764706,
+            "n": 15,
+            "win_rate": 0.4666666666666667
+          }
+        },
+        "single": {
+          "body": {
+            "early_dead_rate": 0.4782608695652174,
+            "explosive_rate": 0.11180124223602485,
+            "frequency": 0.9470588235294117,
+            "n": 161,
+            "win_rate": 0.35403726708074534
+          },
+          "breakout": {
+            "early_dead_rate": 0.47368421052631576,
+            "explosive_rate": 0.10526315789473684,
+            "frequency": 0.2235294117647059,
+            "n": 38,
+            "win_rate": 0.42105263157894735
+          },
+          "imb": {
+            "early_dead_rate": 0.48148148148148145,
+            "explosive_rate": 0.1037037037037037,
+            "frequency": 0.7941176470588235,
+            "n": 135,
+            "win_rate": 0.34814814814814815
+          },
+          "impulse": {
+            "early_dead_rate": 0.4714285714285714,
+            "explosive_rate": 0.12857142857142856,
+            "frequency": 0.8235294117647058,
+            "n": 140,
+            "win_rate": 0.37857142857142856
+          },
+          "momentum": {
+            "early_dead_rate": 0.477124183006536,
+            "explosive_rate": 0.1111111111111111,
+            "frequency": 0.9,
+            "n": 153,
+            "win_rate": 0.35947712418300654
+          },
+          "vol": {
+            "early_dead_rate": 0.38636363636363635,
+            "explosive_rate": 0.11363636363636363,
+            "frequency": 0.25882352941176473,
+            "n": 44,
+            "win_rate": 0.45454545454545453
+          }
+        }
+      },
+      "earliest_separation": {
+        "bar_3": {
+          "features": [
+            {
+              "cohens_d": 2.5257434671910963,
+              "early_dead_mean": -0.357679012345679,
+              "explosive_mean": 0.506157894736842,
+              "feature": "unrealized_r_b3",
+              "mutual_information": 0.3666186852812514,
+              "univariate_auc": 0.9714100064977258
+            },
+            {
+              "cohens_d": 2.2903248036304658,
+              "early_dead_mean": 0.031161728395061733,
+              "explosive_mean": 0.36044210526315795,
+              "feature": "mfe_b3",
+              "mutual_information": 0.20434405961236557,
+              "univariate_auc": 0.8473034437946718
+            },
+            {
+              "cohens_d": 2.2764665668858237,
+              "early_dead_mean": 0.015775625,
+              "explosive_mean": 0.18022105263157898,
+              "feature": "mfe_velocity_b3",
+              "mutual_information": 0.23412010661715388,
+              "univariate_auc": 0.8467105263157895
+            },
+            {
+              "cohens_d": 1.3585823130549637,
+              "early_dead_mean": -0.27141975308641975,
+              "explosive_mean": -0.02943684210526316,
+              "feature": "mae_b3",
+              "mutual_information": 0.1225045498740438,
+              "univariate_auc": 0.8745938921377518
+            },
+            {
+              "cohens_d": 0.4040975386405883,
+              "early_dead_mean": 0.40176301932804037,
+              "explosive_mean": 1.0904850928409318,
+              "feature": "vol_z",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.6072874493927125
+            },
+            {
+              "cohens_d": 0.3845156329938478,
+              "early_dead_mean": 58.938787284408725,
+              "explosive_mean": 64.54678118643459,
+              "feature": "aggression_score",
+              "mutual_information": 0.06840815990707139,
+              "univariate_auc": 0.6251012145748988
+            },
+            {
+              "cohens_d": 0.3615916953823068,
+              "early_dead_mean": 0.8148148148148148,
+              "explosive_mean": 0.9473684210526315,
+              "feature": "confirm_impulse",
+              "mutual_information": 0.03004403400169986,
+              "univariate_auc": 0.5662768031189084
+            },
+            {
+              "cohens_d": 0.26289213635703934,
+              "early_dead_mean": 0.8165015384615384,
+              "explosive_mean": 1.0619789473684211,
+              "feature": "imbalance_z",
+              "mutual_information": 0.07687881704873512,
+              "univariate_auc": 0.5659919028340081
+            },
+            {
+              "cohens_d": 0.18925042902490224,
+              "early_dead_mean": -1.3624044807254307,
+              "explosive_mean": -1.0667377405606755,
+              "feature": "bd_distance_pct",
+              "mutual_information": 0.08219341113456147,
+              "univariate_auc": 0.5238095238095237
+            },
+            {
+              "cohens_d": -0.1598239727086746,
+              "early_dead_mean": 0.8024691358024691,
+              "explosive_mean": 0.7368421052631579,
+              "feature": "confirm_imb",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.46718648473034435
+            },
+            {
+              "cohens_d": -0.13127818781759432,
+              "early_dead_mean": 87.35952027265773,
+              "explosive_mean": 35.95862021035194,
+              "feature": "cascade_strength",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.44048582995951413
+            },
+            {
+              "cohens_d": 0.1274920803009705,
+              "early_dead_mean": 0.20987654320987653,
+              "explosive_mean": 0.2631578947368421,
+              "feature": "confirm_vol",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5266406757634827
+            },
+            {
+              "cohens_d": -0.08480942815407384,
+              "early_dead_mean": 2.076923076923077,
+              "explosive_mean": 1.894736842105263,
+              "feature": "entry_decile",
+              "mutual_information": 0.024140780287542185,
+              "univariate_auc": 0.5724696356275303
+            },
+            {
+              "cohens_d": -0.027952131036009235,
+              "early_dead_mean": 0.2222222222222222,
+              "explosive_mean": 0.21052631578947367,
+              "feature": "confirm_breakout",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.49415204678362573
+            },
+            {
+              "cohens_d": -0.02144217524940359,
+              "early_dead_mean": 0.9012345679012346,
+              "explosive_mean": 0.8947368421052632,
+              "feature": "confirm_momentum",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4967511371020143
+            },
+            {
+              "cohens_d": -0.014757236718623869,
+              "early_dead_mean": 0.9506172839506173,
+              "explosive_mean": 0.9473684210526315,
+              "feature": "confirm_body",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4983755685510071
+            }
+          ],
+          "n": 100
+        },
+        "bar_5": {
+          "features": [
+            {
+              "cohens_d": 4.726635391578524,
+              "early_dead_mean": 0.0379037037037037,
+              "explosive_mean": 0.7003157894736842,
+              "feature": "mfe_b5",
+              "mutual_information": 0.42944674655831294,
+              "univariate_auc": 0.9883040935672514
+            },
+            {
+              "cohens_d": 3.560970102387989,
+              "early_dead_mean": 0.006437083333333332,
+              "explosive_mean": 0.15176315789473682,
+              "feature": "mfe_velocity_b5",
+              "mutual_information": 0.3794515386203339,
+              "univariate_auc": 0.9907894736842104
+            },
+            {
+              "cohens_d": 2.783095354245233,
+              "early_dead_mean": -0.47439382716049383,
+              "explosive_mean": 0.6051,
+              "feature": "unrealized_r_b5",
+              "mutual_information": 0.3706352128409045,
+              "univariate_auc": 0.9915529564652372
+            },
+            {
+              "cohens_d": 1.612945554503978,
+              "early_dead_mean": -0.3752259259259259,
+              "explosive_mean": -0.02943684210526316,
+              "feature": "mae_b5",
+              "mutual_information": 0.24633410805335432,
+              "univariate_auc": 0.9298245614035088
+            },
+            {
+              "cohens_d": 0.4040975386405883,
+              "early_dead_mean": 0.40176301932804037,
+              "explosive_mean": 1.0904850928409318,
+              "feature": "vol_z",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.6072874493927125
+            },
+            {
+              "cohens_d": 0.3845156329938478,
+              "early_dead_mean": 58.938787284408725,
+              "explosive_mean": 64.54678118643459,
+              "feature": "aggression_score",
+              "mutual_information": 0.06840815990707139,
+              "univariate_auc": 0.6251012145748988
+            },
+            {
+              "cohens_d": 0.3615916953823068,
+              "early_dead_mean": 0.8148148148148148,
+              "explosive_mean": 0.9473684210526315,
+              "feature": "confirm_impulse",
+              "mutual_information": 0.03004403400169986,
+              "univariate_auc": 0.5662768031189084
+            },
+            {
+              "cohens_d": 0.26289213635703934,
+              "early_dead_mean": 0.8165015384615384,
+              "explosive_mean": 1.0619789473684211,
+              "feature": "imbalance_z",
+              "mutual_information": 0.07687881704873512,
+              "univariate_auc": 0.5659919028340081
+            },
+            {
+              "cohens_d": 0.18925042902490224,
+              "early_dead_mean": -1.3624044807254307,
+              "explosive_mean": -1.0667377405606755,
+              "feature": "bd_distance_pct",
+              "mutual_information": 0.08219341113456147,
+              "univariate_auc": 0.5238095238095237
+            },
+            {
+              "cohens_d": -0.1598239727086746,
+              "early_dead_mean": 0.8024691358024691,
+              "explosive_mean": 0.7368421052631579,
+              "feature": "confirm_imb",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.46718648473034435
+            },
+            {
+              "cohens_d": -0.13127818781759432,
+              "early_dead_mean": 87.35952027265773,
+              "explosive_mean": 35.95862021035194,
+              "feature": "cascade_strength",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.44048582995951413
+            },
+            {
+              "cohens_d": 0.1274920803009705,
+              "early_dead_mean": 0.20987654320987653,
+              "explosive_mean": 0.2631578947368421,
+              "feature": "confirm_vol",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5266406757634827
+            },
+            {
+              "cohens_d": -0.08480942815407384,
+              "early_dead_mean": 2.076923076923077,
+              "explosive_mean": 1.894736842105263,
+              "feature": "entry_decile",
+              "mutual_information": 0.024140780287542185,
+              "univariate_auc": 0.5724696356275303
+            },
+            {
+              "cohens_d": -0.027952131036009235,
+              "early_dead_mean": 0.2222222222222222,
+              "explosive_mean": 0.21052631578947367,
+              "feature": "confirm_breakout",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.49415204678362573
+            },
+            {
+              "cohens_d": -0.02144217524940359,
+              "early_dead_mean": 0.9012345679012346,
+              "explosive_mean": 0.8947368421052632,
+              "feature": "confirm_momentum",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4967511371020143
+            },
+            {
+              "cohens_d": -0.014757236718623869,
+              "early_dead_mean": 0.9506172839506173,
+              "explosive_mean": 0.9473684210526315,
+              "feature": "confirm_body",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4983755685510071
+            }
+          ],
+          "n": 100
+        },
+        "entry": {
+          "features": [
+            {
+              "cohens_d": 0.4040975386405883,
+              "early_dead_mean": 0.40176301932804037,
+              "explosive_mean": 1.0904850928409318,
+              "feature": "vol_z",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.6072874493927125
+            },
+            {
+              "cohens_d": 0.3845156329938478,
+              "early_dead_mean": 58.938787284408725,
+              "explosive_mean": 64.54678118643459,
+              "feature": "aggression_score",
+              "mutual_information": 0.06840815990707139,
+              "univariate_auc": 0.6251012145748988
+            },
+            {
+              "cohens_d": 0.3615916953823068,
+              "early_dead_mean": 0.8148148148148148,
+              "explosive_mean": 0.9473684210526315,
+              "feature": "confirm_impulse",
+              "mutual_information": 0.06964644625832994,
+              "univariate_auc": 0.5662768031189084
+            },
+            {
+              "cohens_d": 0.26289213635703934,
+              "early_dead_mean": 0.8165015384615384,
+              "explosive_mean": 1.0619789473684211,
+              "feature": "imbalance_z",
+              "mutual_information": 0.07687881704873512,
+              "univariate_auc": 0.5659919028340081
+            },
+            {
+              "cohens_d": 0.18925042902490224,
+              "early_dead_mean": -1.3624044807254307,
+              "explosive_mean": -1.0667377405606755,
+              "feature": "bd_distance_pct",
+              "mutual_information": 0.08219341113456147,
+              "univariate_auc": 0.5238095238095237
+            },
+            {
+              "cohens_d": -0.1598239727086746,
+              "early_dead_mean": 0.8024691358024691,
+              "explosive_mean": 0.7368421052631579,
+              "feature": "confirm_imb",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.46718648473034435
+            },
+            {
+              "cohens_d": -0.13127818781759432,
+              "early_dead_mean": 87.35952027265773,
+              "explosive_mean": 35.95862021035194,
+              "feature": "cascade_strength",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.44048582995951413
+            },
+            {
+              "cohens_d": 0.1274920803009705,
+              "early_dead_mean": 0.20987654320987653,
+              "explosive_mean": 0.2631578947368421,
+              "feature": "confirm_vol",
+              "mutual_information": 0.030519112765626355,
+              "univariate_auc": 0.5266406757634827
+            },
+            {
+              "cohens_d": -0.08480942815407384,
+              "early_dead_mean": 2.076923076923077,
+              "explosive_mean": 1.894736842105263,
+              "feature": "entry_decile",
+              "mutual_information": 0.011721015079522612,
+              "univariate_auc": 0.5724696356275303
+            },
+            {
+              "cohens_d": -0.027952131036009235,
+              "early_dead_mean": 0.2222222222222222,
+              "explosive_mean": 0.21052631578947367,
+              "feature": "confirm_breakout",
+              "mutual_information": 0.02607573665541829,
+              "univariate_auc": 0.49415204678362573
+            },
+            {
+              "cohens_d": -0.02144217524940359,
+              "early_dead_mean": 0.9012345679012346,
+              "explosive_mean": 0.8947368421052632,
+              "feature": "confirm_momentum",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4967511371020143
+            },
+            {
+              "cohens_d": -0.014757236718623869,
+              "early_dead_mean": 0.9506172839506173,
+              "explosive_mean": 0.9473684210526315,
+              "feature": "confirm_body",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4983755685510071
+            }
+          ],
+          "n": 100
+        }
+      },
+      "feature_comparison": {
+        "aggression_score": {
+          "cohens_d": 0.3845156329938478,
+          "early_dead_mean": 58.938787284408725,
+          "early_dead_median": 58.98264695193496,
+          "early_dead_n": 65,
+          "explosive_mean": 64.54678118643459,
+          "explosive_median": 66.27292497865899,
+          "explosive_n": 19
+        },
+        "breakout_distance_pct": {
+          "cohens_d": 0.18925042902490224,
+          "early_dead_mean": -1.3624044807254307,
+          "early_dead_median": -0.9030913716229307,
+          "early_dead_n": 42,
+          "explosive_mean": -1.0667377405606755,
+          "explosive_median": -1.359292874065958,
+          "explosive_n": 19
+        },
+        "cascade_strength": {
+          "cohens_d": -0.13127818781759432,
+          "early_dead_mean": 87.35952027265773,
+          "early_dead_median": 2.602250203961554,
+          "early_dead_n": 65,
+          "explosive_mean": 35.95862021035194,
+          "explosive_median": 1.7803023469350256,
+          "explosive_n": 19
+        },
+        "confirm_body": {
+          "early_dead_rate": 0.9506172839506173,
+          "explosive_rate": 0.9473684210526315
+        },
+        "confirm_breakout": {
+          "early_dead_rate": 0.2222222222222222,
+          "explosive_rate": 0.21052631578947367
+        },
+        "confirm_imb": {
+          "early_dead_rate": 0.8024691358024691,
+          "explosive_rate": 0.7368421052631579
+        },
+        "confirm_impulse": {
+          "early_dead_rate": 0.8148148148148148,
+          "explosive_rate": 0.9473684210526315
+        },
+        "confirm_momentum": {
+          "early_dead_rate": 0.9012345679012346,
+          "explosive_rate": 0.8947368421052632
+        },
+        "confirm_vol": {
+          "early_dead_rate": 0.20987654320987653,
+          "explosive_rate": 0.2631578947368421
+        },
+        "decile": {
+          "cohens_d": -0.08480942815407384,
+          "early_dead_mean": 2.076923076923077,
+          "early_dead_median": 1.0,
+          "early_dead_n": 65,
+          "explosive_mean": 1.894736842105263,
+          "explosive_median": 1.0,
+          "explosive_n": 19
+        },
+        "imbalance_z": {
+          "cohens_d": 0.26289213635703934,
+          "early_dead_mean": 0.8165015384615384,
+          "early_dead_median": 1.0409,
+          "early_dead_n": 65,
+          "explosive_mean": 1.0619789473684211,
+          "explosive_median": 1.0863,
+          "explosive_n": 19
+        },
+        "is_experimental": {
+          "by_class": [
+            {
+              "class": "EXPLOSIVE",
+              "distribution": {
+                "0": 0.3684210526315789,
+                "1": 0.631578947368421
+              },
+              "n": 19
+            },
+            {
+              "class": "EARLY_DEAD",
+              "distribution": {
+                "0": 0.4691358024691358,
+                "1": 0.5308641975308642
+              },
+              "n": 81
+            }
+          ]
+        },
+        "session": {
+          "by_class": [
+            {
+              "class": "EXPLOSIVE",
+              "distribution": {
+                "asia": 0.3157894736842105,
+                "london": 0.3684210526315789,
+                "ny": 0.21052631578947367,
+                "off": 0.10526315789473684
+              },
+              "n": 19
+            },
+            {
+              "class": "EARLY_DEAD",
+              "distribution": {
+                "asia": 0.25925925925925924,
+                "london": 0.30864197530864196,
+                "ny": 0.345679012345679,
+                "off": 0.08641975308641975
+              },
+              "n": 81
+            }
+          ]
+        },
+        "tier_group": {
+          "by_class": [
+            {
+              "class": "EXPLOSIVE",
+              "distribution": {
+                "experimental": 0.631578947368421,
+                "proven": 0.3684210526315789
+              },
+              "n": 19
+            },
+            {
+              "class": "EARLY_DEAD",
+              "distribution": {
+                "experimental": 0.5308641975308642,
+                "proven": 0.4691358024691358
+              },
+              "n": 81
+            }
+          ]
+        },
+        "vol_z": {
+          "cohens_d": 0.4040975386405883,
+          "early_dead_mean": 0.40176301932804037,
+          "early_dead_median": -0.2268446143683816,
+          "early_dead_n": 65,
+          "explosive_mean": 1.0904850928409318,
+          "explosive_median": 0.20063406178135212,
+          "explosive_n": 19
+        }
+      },
+      "n": 170,
+      "symbol_tier_confound": {
+        "by_symbol": [
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 4,
+            "SURVIVOR": 2,
+            "symbol": "AAVEUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "APTUSDT"
+          },
+          {
+            "EARLY_DEAD": 6,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 2,
+            "SURVIVOR": 2,
+            "symbol": "AVAXUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 2,
+            "SURVIVOR": 0,
+            "symbol": "BNBUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 3,
+            "symbol": "DASHUSDT"
+          },
+          {
+            "EARLY_DEAD": 3,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "DEXEUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "DOTUSDT"
+          },
+          {
+            "EARLY_DEAD": 5,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 3,
+            "symbol": "ETHUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 2,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "FILUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 2,
+            "symbol": "GRASSUSDT"
+          },
+          {
+            "EARLY_DEAD": 6,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "HYPEUSDT"
+          },
+          {
+            "EARLY_DEAD": 4,
+            "EXPLOSIVE": 3,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 3,
+            "symbol": "INJUSDT"
+          },
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "KAITOUSDT"
+          },
+          {
+            "EARLY_DEAD": 4,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 2,
+            "symbol": "LINKUSDT"
+          },
+          {
+            "EARLY_DEAD": 6,
+            "EXPLOSIVE": 2,
+            "LATE_DEAD": 4,
+            "SURVIVOR": 1,
+            "symbol": "LTCUSDT"
+          },
+          {
+            "EARLY_DEAD": 5,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 3,
+            "symbol": "NEARUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 2,
+            "symbol": "NMRUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 2,
+            "SURVIVOR": 2,
+            "symbol": "QNTUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "SEIUSDT"
+          },
+          {
+            "EARLY_DEAD": 4,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 4,
+            "symbol": "SOLUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "SUIUSDT"
+          },
+          {
+            "EARLY_DEAD": 4,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 2,
+            "symbol": "TAOUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "TIAUSDT"
+          },
+          {
+            "EARLY_DEAD": 3,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "TONUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "TRUMPUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "UNIUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "VIRTUALUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 2,
+            "symbol": "WLDUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "XRPUSDT"
+          },
+          {
+            "EARLY_DEAD": 4,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "ZECUSDT"
+          }
+        ],
+        "by_tier": [
+          {
+            "EARLY_DEAD": 43,
+            "EXPLOSIVE": 12,
+            "LATE_DEAD": 14,
+            "SURVIVOR": 19,
+            "tier_group": "experimental"
+          },
+          {
+            "EARLY_DEAD": 38,
+            "EXPLOSIVE": 7,
+            "LATE_DEAD": 14,
+            "SURVIVOR": 23,
+            "tier_group": "proven"
+          }
+        ]
+      }
+    },
+    "post_gate": {
+      "breakout_expansion": {
+        "bd_bucket_table": [
+          {
+            "bd_bucket": "-2to0%",
+            "early_dead_rate": 0.358974358974359,
+            "explosive_rate": 0.23076923076923078,
+            "mean_eventual_mfe": null,
+            "mean_first10_mfe": 0.5600820512820512,
+            "n": 39
+          },
+          {
+            "bd_bucket": "0to2%",
+            "early_dead_rate": 0.3125,
+            "explosive_rate": 0.25,
+            "mean_eventual_mfe": null,
+            "mean_first10_mfe": 0.49715624999999997,
+            "n": 16
+          }
+        ],
+        "bd_x_mfe10_cross": [
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0-0.1R",
+            "n": 1
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.1-0.3R",
+            "n": 8
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.3-0.5R",
+            "n": 3
+          },
+          {
+            "bd_bucket": "-2to0%",
+            "explosive_rate": 0.5294117647058824,
+            "mfe10_bucket": ">0.5R",
+            "n": 17
+          },
+          {
+            "bd_bucket": "0to2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.1-0.3R",
+            "n": 5
+          },
+          {
+            "bd_bucket": "0to2%",
+            "explosive_rate": 0.0,
+            "mfe10_bucket": "0.3-0.5R",
+            "n": 2
+          },
+          {
+            "bd_bucket": "0to2%",
+            "explosive_rate": 0.5714285714285714,
+            "mfe10_bucket": ">0.5R",
+            "n": 7
+          }
+        ]
+      },
+      "cascade_quality": {
+        "decile_table": [
+          {
+            "cascade_decile": "(0.103, 0.172]",
+            "cascade_strength_mean": 0.13340908567843882,
+            "early_dead_rate": 0.3333333333333333,
+            "explosive_rate": 0.3333333333333333,
+            "n": 6,
+            "win_rate": 0.5
+          },
+          {
+            "cascade_decile": "(0.172, 0.451]",
+            "cascade_strength_mean": 0.30840397756271326,
+            "early_dead_rate": 0.6,
+            "explosive_rate": 0.4,
+            "n": 5,
+            "win_rate": 0.4
+          },
+          {
+            "cascade_decile": "(0.451, 0.902]",
+            "cascade_strength_mean": 0.659698242992543,
+            "early_dead_rate": 0.16666666666666666,
+            "explosive_rate": 0.3333333333333333,
+            "n": 6,
+            "win_rate": 0.5
+          },
+          {
+            "cascade_decile": "(0.902, 1.16]",
+            "cascade_strength_mean": 1.0919737456217433,
+            "early_dead_rate": 0.6,
+            "explosive_rate": 0.2,
+            "n": 5,
+            "win_rate": 0.4
+          },
+          {
+            "cascade_decile": "(1.16, 1.558]",
+            "cascade_strength_mean": 1.3964675247284994,
+            "early_dead_rate": 0.16666666666666666,
+            "explosive_rate": 0.16666666666666666,
+            "n": 6,
+            "win_rate": 0.6666666666666666
+          },
+          {
+            "cascade_decile": "(1.558, 2.094]",
+            "cascade_strength_mean": 1.9021930475702589,
+            "early_dead_rate": 0.4,
+            "explosive_rate": 0.4,
+            "n": 5,
+            "win_rate": 0.4
+          },
+          {
+            "cascade_decile": "(2.094, 3.53]",
+            "cascade_strength_mean": 2.78657731474841,
+            "early_dead_rate": 0.4,
+            "explosive_rate": 0.2,
+            "n": 5,
+            "win_rate": 0.4
+          },
+          {
+            "cascade_decile": "(3.53, 10.808]",
+            "cascade_strength_mean": 6.118934325909689,
+            "early_dead_rate": 0.3333333333333333,
+            "explosive_rate": 0.0,
+            "n": 6,
+            "win_rate": 0.3333333333333333
+          },
+          {
+            "cascade_decile": "(10.808, 68.876]",
+            "cascade_strength_mean": 34.394809553272886,
+            "early_dead_rate": 0.2,
+            "explosive_rate": 0.0,
+            "n": 5,
+            "win_rate": 0.4
+          },
+          {
+            "cascade_decile": "(68.876, 3312.978]",
+            "cascade_strength_mean": 798.0733516596039,
+            "early_dead_rate": 0.3333333333333333,
+            "explosive_rate": 0.3333333333333333,
+            "n": 6,
+            "win_rate": 0.5
+          }
+        ],
+        "n": 55
+      },
+      "class_counts": {
+        "EARLY_DEAD": 19,
+        "EXPLOSIVE": 13,
+        "LATE_DEAD": 11,
+        "SURVIVOR": 12
+      },
+      "confirmation_integrity": {
+        "confirmation_mismatch_rate": 0.0,
+        "imb_fallback_rate": 0.0,
+        "imb_zero_but_confirm_pass": 0
+      },
+      "confirmation_stack": {
+        "combinations": {
+          "all_six": {
+            "early_dead_rate": 0.5,
+            "explosive_rate": 0.5,
+            "frequency": 0.03636363636363636,
+            "n": 2,
+            "win_rate": 0.5
+          },
+          "imb_momentum": {
+            "early_dead_rate": 0.38636363636363635,
+            "explosive_rate": 0.20454545454545456,
+            "frequency": 0.8,
+            "n": 44,
+            "win_rate": 0.4090909090909091
+          },
+          "imb_vol": {
+            "early_dead_rate": 0.2,
+            "explosive_rate": 0.2,
+            "frequency": 0.09090909090909091,
+            "n": 5,
+            "win_rate": 0.8
+          },
+          "vol_breakout": {
+            "early_dead_rate": 0.16666666666666666,
+            "explosive_rate": 0.3333333333333333,
+            "frequency": 0.10909090909090909,
+            "n": 6,
+            "win_rate": 0.6666666666666666
+          }
+        },
+        "single": {
+          "body": {
+            "early_dead_rate": 0.35185185185185186,
+            "explosive_rate": 0.24074074074074073,
+            "frequency": 0.9818181818181818,
+            "n": 54,
+            "win_rate": 0.4444444444444444
+          },
+          "breakout": {
+            "early_dead_rate": 0.2857142857142857,
+            "explosive_rate": 0.2857142857142857,
+            "frequency": 0.2545454545454545,
+            "n": 14,
+            "win_rate": 0.5
+          },
+          "imb": {
+            "early_dead_rate": 0.38636363636363635,
+            "explosive_rate": 0.20454545454545456,
+            "frequency": 0.8,
+            "n": 44,
+            "win_rate": 0.4090909090909091
+          },
+          "impulse": {
+            "early_dead_rate": 0.35294117647058826,
+            "explosive_rate": 0.23529411764705882,
+            "frequency": 0.9272727272727272,
+            "n": 51,
+            "win_rate": 0.45098039215686275
+          },
+          "momentum": {
+            "early_dead_rate": 0.34545454545454546,
+            "explosive_rate": 0.23636363636363636,
+            "frequency": 1.0,
+            "n": 55,
+            "win_rate": 0.45454545454545453
+          },
+          "vol": {
+            "early_dead_rate": 0.2,
+            "explosive_rate": 0.26666666666666666,
+            "frequency": 0.2727272727272727,
+            "n": 15,
+            "win_rate": 0.6666666666666666
+          }
+        }
+      },
+      "earliest_separation": {
+        "bar_3": {
+          "features": [
+            {
+              "cohens_d": 2.769408068842367,
+              "early_dead_mean": -0.3069684210526316,
+              "explosive_mean": 0.534423076923077,
+              "feature": "unrealized_r_b3",
+              "mutual_information": 0.5671708692316795,
+              "univariate_auc": 0.9878542510121457
+            },
+            {
+              "cohens_d": 1.7133483985286848,
+              "early_dead_mean": 0.05161578947368422,
+              "explosive_mean": 0.38249999999999995,
+              "feature": "mfe_b3",
+              "mutual_information": 0.3073683550319126,
+              "univariate_auc": 0.8663967611336033
+            },
+            {
+              "cohens_d": 1.7133483985286848,
+              "early_dead_mean": 0.02580789473684211,
+              "explosive_mean": 0.19124999999999998,
+              "feature": "mfe_velocity_b3",
+              "mutual_information": 0.3177850216985796,
+              "univariate_auc": 0.8663967611336033
+            },
+            {
+              "cohens_d": 1.4906919217671084,
+              "early_dead_mean": -0.2732631578947369,
+              "explosive_mean": -0.016523076923076925,
+              "feature": "mae_b3",
+              "mutual_information": 0.2950796358123209,
+              "univariate_auc": 0.9190283400809717
+            },
+            {
+              "cohens_d": 0.6065379036158014,
+              "early_dead_mean": 0.39599349008226714,
+              "explosive_mean": 1.4278940739252137,
+              "feature": "vol_z",
+              "mutual_information": 0.008111395719081038,
+              "univariate_auc": 0.6680161943319839
+            },
+            {
+              "cohens_d": 0.5358246095545847,
+              "early_dead_mean": 61.63847313546409,
+              "explosive_mean": 65.82021981875265,
+              "feature": "aggression_score",
+              "mutual_information": 0.09848716578235095,
+              "univariate_auc": 0.6477732793522267
+            },
+            {
+              "cohens_d": -0.5192935875815683,
+              "early_dead_mean": 0.8947368421052632,
+              "explosive_mean": 0.6923076923076923,
+              "feature": "confirm_imb",
+              "mutual_information": 0.01313024839418353,
+              "univariate_auc": 0.39878542510121456
+            },
+            {
+              "cohens_d": -0.4855786559942991,
+              "early_dead_mean": 1.4992526315789474,
+              "explosive_mean": 1.1168153846153848,
+              "feature": "imbalance_z",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.28744939271255066
+            },
+            {
+              "cohens_d": 0.35654143065925453,
+              "early_dead_mean": 0.15789473684210525,
+              "explosive_mean": 0.3076923076923077,
+              "feature": "confirm_vol",
+              "mutual_information": 0.17365106438374944,
+              "univariate_auc": 0.5748987854251012
+            },
+            {
+              "cohens_d": 0.2809997597894405,
+              "early_dead_mean": 1.6842105263157894,
+              "explosive_mean": 2.1538461538461537,
+              "feature": "entry_decile",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.6295546558704453
+            },
+            {
+              "cohens_d": -0.24112991272182158,
+              "early_dead_mean": 182.35691005606125,
+              "explosive_mean": 39.59879387814946,
+              "feature": "cascade_strength",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4493927125506073
+            },
+            {
+              "cohens_d": 0.21860135725753496,
+              "early_dead_mean": 0.21052631578947367,
+              "explosive_mean": 0.3076923076923077,
+              "feature": "confirm_breakout",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.548582995951417
+            },
+            {
+              "cohens_d": 0.12860487965983006,
+              "early_dead_mean": -0.7145791793335433,
+              "explosive_mean": -0.6028327325884623,
+              "feature": "bd_distance_pct",
+              "mutual_information": 0.027902975666910912,
+              "univariate_auc": 0.5222672064777328
+            },
+            {
+              "cohens_d": -0.09728422272154771,
+              "early_dead_mean": 0.9473684210526315,
+              "explosive_mean": 0.9230769230769231,
+              "feature": "confirm_impulse",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4878542510121458
+            },
+            {
+              "cohens_d": null,
+              "early_dead_mean": 1.0,
+              "explosive_mean": 1.0,
+              "feature": "confirm_momentum",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5
+            },
+            {
+              "cohens_d": null,
+              "early_dead_mean": 1.0,
+              "explosive_mean": 1.0,
+              "feature": "confirm_body",
+              "mutual_information": 0.03217899478667996,
+              "univariate_auc": 0.5
+            }
+          ],
+          "n": 32
+        },
+        "bar_5": {
+          "features": [
+            {
+              "cohens_d": 3.864297194989054,
+              "early_dead_mean": 0.06791052631578948,
+              "explosive_mean": 0.7700230769230768,
+              "feature": "mfe_b5",
+              "mutual_information": 0.6362735113811964,
+              "univariate_auc": 1.0
+            },
+            {
+              "cohens_d": 3.0058467666125446,
+              "early_dead_mean": 0.015294736842105264,
+              "explosive_mean": 0.18515384615384609,
+              "feature": "mfe_velocity_b5",
+              "mutual_information": 0.6467769836034186,
+              "univariate_auc": 1.0
+            },
+            {
+              "cohens_d": 2.8343168888162134,
+              "early_dead_mean": -0.4523736842105263,
+              "explosive_mean": 0.6828615384615385,
+              "feature": "unrealized_r_b5",
+              "mutual_information": 0.5844133923335775,
+              "univariate_auc": 0.9919028340080972
+            },
+            {
+              "cohens_d": 1.9514531629235548,
+              "early_dead_mean": -0.43482631578947367,
+              "explosive_mean": -0.016523076923076925,
+              "feature": "mae_b5",
+              "mutual_information": 0.49881149423167903,
+              "univariate_auc": 0.9635627530364372
+            },
+            {
+              "cohens_d": 0.6065379036158014,
+              "early_dead_mean": 0.39599349008226714,
+              "explosive_mean": 1.4278940739252137,
+              "feature": "vol_z",
+              "mutual_information": 0.008111395719081038,
+              "univariate_auc": 0.6680161943319839
+            },
+            {
+              "cohens_d": 0.5358246095545847,
+              "early_dead_mean": 61.63847313546409,
+              "explosive_mean": 65.82021981875265,
+              "feature": "aggression_score",
+              "mutual_information": 0.09848716578235095,
+              "univariate_auc": 0.6477732793522267
+            },
+            {
+              "cohens_d": -0.5192935875815683,
+              "early_dead_mean": 0.8947368421052632,
+              "explosive_mean": 0.6923076923076923,
+              "feature": "confirm_imb",
+              "mutual_information": 0.01313024839418353,
+              "univariate_auc": 0.39878542510121456
+            },
+            {
+              "cohens_d": -0.4855786559942991,
+              "early_dead_mean": 1.4992526315789474,
+              "explosive_mean": 1.1168153846153848,
+              "feature": "imbalance_z",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.28744939271255066
+            },
+            {
+              "cohens_d": 0.35654143065925453,
+              "early_dead_mean": 0.15789473684210525,
+              "explosive_mean": 0.3076923076923077,
+              "feature": "confirm_vol",
+              "mutual_information": 0.17365106438374944,
+              "univariate_auc": 0.5748987854251012
+            },
+            {
+              "cohens_d": 0.2809997597894405,
+              "early_dead_mean": 1.6842105263157894,
+              "explosive_mean": 2.1538461538461537,
+              "feature": "entry_decile",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.6295546558704453
+            },
+            {
+              "cohens_d": -0.24112991272182158,
+              "early_dead_mean": 182.35691005606125,
+              "explosive_mean": 39.59879387814946,
+              "feature": "cascade_strength",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4493927125506073
+            },
+            {
+              "cohens_d": 0.21860135725753496,
+              "early_dead_mean": 0.21052631578947367,
+              "explosive_mean": 0.3076923076923077,
+              "feature": "confirm_breakout",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.548582995951417
+            },
+            {
+              "cohens_d": 0.12860487965983006,
+              "early_dead_mean": -0.7145791793335433,
+              "explosive_mean": -0.6028327325884623,
+              "feature": "bd_distance_pct",
+              "mutual_information": 0.027902975666910912,
+              "univariate_auc": 0.5222672064777328
+            },
+            {
+              "cohens_d": -0.09728422272154771,
+              "early_dead_mean": 0.9473684210526315,
+              "explosive_mean": 0.9230769230769231,
+              "feature": "confirm_impulse",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4878542510121458
+            },
+            {
+              "cohens_d": null,
+              "early_dead_mean": 1.0,
+              "explosive_mean": 1.0,
+              "feature": "confirm_momentum",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5
+            },
+            {
+              "cohens_d": null,
+              "early_dead_mean": 1.0,
+              "explosive_mean": 1.0,
+              "feature": "confirm_body",
+              "mutual_information": 0.03217899478667996,
+              "univariate_auc": 0.5
+            }
+          ],
+          "n": 32
+        },
+        "entry": {
+          "features": [
+            {
+              "cohens_d": 0.6065379036158014,
+              "early_dead_mean": 0.39599349008226714,
+              "explosive_mean": 1.4278940739252137,
+              "feature": "vol_z",
+              "mutual_information": 0.008111395719081038,
+              "univariate_auc": 0.6680161943319839
+            },
+            {
+              "cohens_d": 0.5358246095545847,
+              "early_dead_mean": 61.63847313546409,
+              "explosive_mean": 65.82021981875265,
+              "feature": "aggression_score",
+              "mutual_information": 0.09848716578235095,
+              "univariate_auc": 0.6477732793522267
+            },
+            {
+              "cohens_d": -0.5192935875815683,
+              "early_dead_mean": 0.8947368421052632,
+              "explosive_mean": 0.6923076923076923,
+              "feature": "confirm_imb",
+              "mutual_information": 0.07212273160541671,
+              "univariate_auc": 0.39878542510121456
+            },
+            {
+              "cohens_d": -0.4855786559942991,
+              "early_dead_mean": 1.4992526315789474,
+              "explosive_mean": 1.1168153846153848,
+              "feature": "imbalance_z",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.28744939271255066
+            },
+            {
+              "cohens_d": 0.35654143065925453,
+              "early_dead_mean": 0.15789473684210525,
+              "explosive_mean": 0.3076923076923077,
+              "feature": "confirm_vol",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5748987854251012
+            },
+            {
+              "cohens_d": 0.2809997597894405,
+              "early_dead_mean": 1.6842105263157894,
+              "explosive_mean": 2.1538461538461537,
+              "feature": "entry_decile",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.6295546558704453
+            },
+            {
+              "cohens_d": -0.24112991272182158,
+              "early_dead_mean": 182.35691005606125,
+              "explosive_mean": 39.59879387814946,
+              "feature": "cascade_strength",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4493927125506073
+            },
+            {
+              "cohens_d": 0.21860135725753496,
+              "early_dead_mean": 0.21052631578947367,
+              "explosive_mean": 0.3076923076923077,
+              "feature": "confirm_breakout",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.548582995951417
+            },
+            {
+              "cohens_d": 0.12860487965983006,
+              "early_dead_mean": -0.7145791793335433,
+              "explosive_mean": -0.6028327325884623,
+              "feature": "bd_distance_pct",
+              "mutual_information": 0.027902975666910912,
+              "univariate_auc": 0.5222672064777328
+            },
+            {
+              "cohens_d": -0.09728422272154771,
+              "early_dead_mean": 0.9473684210526315,
+              "explosive_mean": 0.9230769230769231,
+              "feature": "confirm_impulse",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.4878542510121458
+            },
+            {
+              "cohens_d": null,
+              "early_dead_mean": 1.0,
+              "explosive_mean": 1.0,
+              "feature": "confirm_momentum",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5
+            },
+            {
+              "cohens_d": null,
+              "early_dead_mean": 1.0,
+              "explosive_mean": 1.0,
+              "feature": "confirm_body",
+              "mutual_information": 0.0,
+              "univariate_auc": 0.5
+            }
+          ],
+          "n": 32
+        }
+      },
+      "feature_comparison": {
+        "aggression_score": {
+          "cohens_d": 0.5358246095545847,
+          "early_dead_mean": 61.63847313546409,
+          "early_dead_median": 58.893088168520556,
+          "early_dead_n": 19,
+          "explosive_mean": 65.82021981875265,
+          "explosive_median": 67.58551401265322,
+          "explosive_n": 13
+        },
+        "breakout_distance_pct": {
+          "cohens_d": 0.12860487965983006,
+          "early_dead_mean": -0.7145791793335433,
+          "early_dead_median": -0.8088950276242987,
+          "early_dead_n": 19,
+          "explosive_mean": -0.6028327325884623,
+          "explosive_median": -0.3977337933539074,
+          "explosive_n": 13
+        },
+        "cascade_strength": {
+          "cohens_d": -0.24112991272182158,
+          "early_dead_mean": 182.35691005606125,
+          "early_dead_median": 1.4584354872865193,
+          "early_dead_n": 19,
+          "explosive_mean": 39.59879387814946,
+          "explosive_median": 1.1385588516341776,
+          "explosive_n": 13
+        },
+        "confirm_body": {
+          "early_dead_rate": 1.0,
+          "explosive_rate": 1.0
+        },
+        "confirm_breakout": {
+          "early_dead_rate": 0.21052631578947367,
+          "explosive_rate": 0.3076923076923077
+        },
+        "confirm_imb": {
+          "early_dead_rate": 0.8947368421052632,
+          "explosive_rate": 0.6923076923076923
+        },
+        "confirm_impulse": {
+          "early_dead_rate": 0.9473684210526315,
+          "explosive_rate": 0.9230769230769231
+        },
+        "confirm_momentum": {
+          "early_dead_rate": 1.0,
+          "explosive_rate": 1.0
+        },
+        "confirm_vol": {
+          "early_dead_rate": 0.15789473684210525,
+          "explosive_rate": 0.3076923076923077
+        },
+        "decile": {
+          "cohens_d": 0.2809997597894405,
+          "early_dead_mean": 1.6842105263157894,
+          "early_dead_median": 1.0,
+          "early_dead_n": 19,
+          "explosive_mean": 2.1538461538461537,
+          "explosive_median": 2.0,
+          "explosive_n": 13
+        },
+        "imbalance_z": {
+          "cohens_d": -0.4855786559942991,
+          "early_dead_mean": 1.4992526315789474,
+          "early_dead_median": 1.5219,
+          "early_dead_n": 19,
+          "explosive_mean": 1.1168153846153848,
+          "explosive_median": 1.0863,
+          "explosive_n": 13
+        },
+        "is_experimental": {
+          "by_class": [
+            {
+              "class": "EXPLOSIVE",
+              "distribution": {
+                "0": 0.3076923076923077,
+                "1": 0.6923076923076923
+              },
+              "n": 13
+            },
+            {
+              "class": "EARLY_DEAD",
+              "distribution": {
+                "0": 0.47368421052631576,
+                "1": 0.5263157894736842
+              },
+              "n": 19
+            }
+          ]
+        },
+        "session": {
+          "by_class": [
+            {
+              "class": "EXPLOSIVE",
+              "distribution": {
+                "asia": 0.3076923076923077,
+                "london": 0.46153846153846156,
+                "ny": 0.07692307692307693,
+                "off": 0.15384615384615385
+              },
+              "n": 13
+            },
+            {
+              "class": "EARLY_DEAD",
+              "distribution": {
+                "asia": 0.42105263157894735,
+                "london": 0.3157894736842105,
+                "ny": 0.10526315789473684,
+                "off": 0.15789473684210525
+              },
+              "n": 19
+            }
+          ]
+        },
+        "tier_group": {
+          "by_class": [
+            {
+              "class": "EXPLOSIVE",
+              "distribution": {
+                "experimental": 0.6923076923076923,
+                "proven": 0.3076923076923077
+              },
+              "n": 13
+            },
+            {
+              "class": "EARLY_DEAD",
+              "distribution": {
+                "experimental": 0.5263157894736842,
+                "proven": 0.47368421052631576
+              },
+              "n": 19
+            }
+          ]
+        },
+        "vol_z": {
+          "cohens_d": 0.6065379036158014,
+          "early_dead_mean": 0.39599349008226714,
+          "early_dead_median": -0.2868938133659369,
+          "early_dead_n": 19,
+          "explosive_mean": 1.4278940739252137,
+          "explosive_median": 0.9239713383957381,
+          "explosive_n": 13
+        }
+      },
+      "n": 55,
+      "symbol_tier_confound": {
+        "by_symbol": [
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "AAVEUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "APTUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 1,
+            "symbol": "AVAXUSDT"
+          },
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "BNBUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "DEXEUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "DOTUSDT"
+          },
+          {
+            "EARLY_DEAD": 3,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "ETHUSDT"
+          },
+          {
+            "EARLY_DEAD": 2,
+            "EXPLOSIVE": 2,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "FILUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 3,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "INJUSDT"
+          },
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "KAITOUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "LINKUSDT"
+          },
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 3,
+            "SURVIVOR": 0,
+            "symbol": "LTCUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 2,
+            "symbol": "NEARUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "NMRUSDT"
+          },
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 3,
+            "symbol": "SOLUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "TONUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 1,
+            "symbol": "TRUMPUSDT"
+          },
+          {
+            "EARLY_DEAD": 0,
+            "EXPLOSIVE": 1,
+            "LATE_DEAD": 0,
+            "SURVIVOR": 0,
+            "symbol": "VIRTUALUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "WLDUSDT"
+          },
+          {
+            "EARLY_DEAD": 1,
+            "EXPLOSIVE": 0,
+            "LATE_DEAD": 1,
+            "SURVIVOR": 0,
+            "symbol": "XRPUSDT"
+          }
+        ],
+        "by_tier": [
+          {
+            "EARLY_DEAD": 10,
+            "EXPLOSIVE": 9,
+            "LATE_DEAD": 5,
+            "SURVIVOR": 5,
+            "tier_group": "experimental"
+          },
+          {
+            "EARLY_DEAD": 9,
+            "EXPLOSIVE": 4,
+            "LATE_DEAD": 6,
+            "SURVIVOR": 7,
+            "tier_group": "proven"
+          }
+        ]
+      }
+    }
+  },
+  "label_definitions": {
+    "EARLY_DEAD": "pnl_r <= 0 AND max mfe in bars 1-10 <= 0.3R",
+    "EXPLOSIVE": "pnl_r > 0 AND mfe >= 1.0R within 15 bars",
+    "LATE_DEAD": "pnl_r <= 0 AND max mfe in bars 1-10 > 0.3R",
+    "SURVIVOR": "pnl_r > 0 AND NOT EXPLOSIVE"
+  }
+}

@@ -1,0 +1,29 @@
+# Frozen OOS split definitions for Phase 4 validation.
+# Referenced by pipeline.yaml phase4 section; do not edit without bumping pipeline_version.
+
+split_method: expanding_walk_forward
+order_by: entry_time
+no_random_shuffle: true
+
+walk_forward:
+  min_train_trades: 30
+  validation_chunk: 10
+  final_holdout_trades: 15
+
+underpowered_thresholds:
+  min_validation_n: 8
+  min_pathway_n: 5
+
+pathways:
+  - id: mfe_0_3r_within_10
+    threshold_r: 0.3
+    max_bars: 10
+  - id: mfe_0_5r_within_10
+    threshold_r: 0.5
+    max_bars: 10
+
+early_separability_bars: [3, 5, 7, 10]
+
+primary_oos_question: >
+  Does MFE >= 0.3R within 10 bars retain positive expectancy on unseen trades
+  when evaluated strictly by entry_time order?

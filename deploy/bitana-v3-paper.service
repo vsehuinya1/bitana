@@ -1,0 +1,15 @@
+[Unit]
+Description=Bitana V3 Liq-Cluster Paper Trading
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+ExecStart=/usr/bin/python3 -u tools/v3_forward_test.py
+Restart=always
+RestartSec=30
+StandardOutput=append:/var/log/bitana-v3.log
+StandardError=append:/var/log/bitana-v3.log
+
+[Install]
+WantedBy=multi-user.target

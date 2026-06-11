@@ -151,7 +151,24 @@ class TelemetryDB:
                     total_symbols INTEGER,
                     equity REAL
                 );
+
+                -- Hypothetical entry filters (shadow — never blocks live)
+                CREATE TABLE IF NOT EXISTS shadow_entry_filters (
+                    trade_uuid TEXT NOT NULL,
+                    filter_name TEXT NOT NULL,
+                    would_take INTEGER NOT NULL,
+                    PRIMARY KEY (trade_uuid, filter_name)
+                );
             """)
+            for col, typ in (
+                ("strategy_version", "TEXT DEFAULT ''"),
+                ("entry_hour", "INTEGER"),
+                ("breakout_distance_pct", "REAL"),
+            ):
+                try:
+                    conn.execute(f"ALTER TABLE trade_entries ADD COLUMN {col} {typ}")
+                except sqlite3.OperationalError:
+                    pass
             conn.commit()
         finally:
             conn.close()
@@ -208,14 +225,19 @@ class TelemetryDB:
                 atr = sig_data.get("atr", 0)
                 atr_pct = (atr / data["entry_price"] * 100) if data["entry_price"] > 0 else 0
 
+                entry_hour = _parse_hour(data["entry_time"])
+                bd_pct = sig_data.get("breakout_distance_pct", 0)
+                strat_ver = sig_data.get("strategy_version", "")
+
                 cursor.execute("""
                     INSERT OR REPLACE INTO trade_entries (
                         trade_uuid, symbol, side, entry_time, entry_price, stop_price,
                         risk_per_unit, decile, aggression, cascade_strength, cascade_active,
                         liq_direction_imb, ret_5d, confirmations, n_confirmations, vol_z,
                         imb_z, atr, atr_pct, risk_pct, range_high, ema_value, session,
-                        equity_at_entry, open_positions_at_entry, btc_price, is_experimental
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        equity_at_entry, open_positions_at_entry, btc_price, is_experimental,
+                        strategy_version, entry_hour, breakout_distance_pct
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     data["trade_uuid"], data["symbol"], data["side"], data["entry_time"],
                     data["entry_price"], data["stop_price"], risk_per_unit,
@@ -227,8 +249,17 @@ class TelemetryDB:
                     sig_data.get("vol_z", 0), sig_data.get("imb_z", 0), atr, atr_pct,
                     sig_data.get("risk_pct", 0), sig_data.get("range_high", 0),
                     sig_data.get("ema_value", 0), session, data["equity"],
-                    data["open_count"], data["btc_price"], 1 if data.get("is_experimental") else 0
+                    data["open_count"], data["btc_price"], 1 if data.get("is_experimental") else 0,
+                    strat_ver, entry_hour, bd_pct,
                 ))
+
+            elif action == "log_shadow_filters":
+                for name, would_take in data["filters"].items():
+                    cursor.execute(
+                        "INSERT OR REPLACE INTO shadow_entry_filters "
+                        "(trade_uuid, filter_name, would_take) VALUES (?, ?, ?)",
+                        (data["trade_uuid"], name, 1 if would_take else 0),
+                    )
                 
             elif action == "log_r_point":
                 cursor.execute("""
@@ -511,12 +542,31 @@ class TelemetryDB:
         except Exception as e:
             logger.error("Telemetry API call failed (non-fatal)", error=str(e))
 
+    def log_shadow_filters(self, trade_uuid: str, filters: dict[str, bool]):
+        try:
+            self.enqueue_write("log_shadow_filters", {
+                "trade_uuid": trade_uuid,
+                "filters": filters,
+            })
+        except Exception as e:
+            logger.error("Telemetry API call failed (non-fatal)", error=str(e))
+
     def commit(self):
         """No-op wrapper (handled implicitly on the background worker)."""
         pass
 
 
 # ── Helpers ──
+
+def _parse_hour(timestamp_str: str) -> int:
+    try:
+        if isinstance(timestamp_str, datetime):
+            return timestamp_str.hour
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        return dt.hour
+    except (ValueError, TypeError):
+        return -1
+
 
 def _get_session(timestamp_str: str) -> str:
     """Classify UTC timestamp into trading session."""

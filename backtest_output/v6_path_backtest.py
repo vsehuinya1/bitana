@@ -19,6 +19,7 @@ FIDELITY (be honest):
 """
 from __future__ import annotations
 
+import bisect
 import csv
 import os
 import sqlite3
@@ -28,6 +29,10 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import yaml
+
+# v645 entry research replays v6.4.3 runner exits unless overridden.
+if os.environ.get("LEGACY_RUNNER_EXITS", "") == "":
+    os.environ["LEGACY_RUNNER_EXITS"] = "1"
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
@@ -45,6 +50,7 @@ class _Silent:
 eng.logger = _Silent()
 
 CAPTURE_ALL = os.environ.get("CAPTURE_ALL", "0") == "1"
+ENTRY_THESIS = os.environ.get("ENTRY_THESIS", "v645")  # v645 | exhaustion | squeeze
 if CAPTURE_ALL:
     eng.SNIPER_ALLOWED_HOURS = frozenset(range(24))
     eng.SNIPER_MAX_ATR_PCT = 1e9
@@ -59,6 +65,9 @@ CFG_PATH = REPO / "config" / "v5_forward_test.yaml"
 OUT_DIR = REPO / "backtest_output"
 # coinalyze | binance_force (REST dead) | ws_cache (live WS daily aggregates from forward-test DB)
 LIQ_SOURCE = os.environ.get("LIQ_SOURCE", "coinalyze")
+# LIQ_INTRADAY=1 → cascade context from completed days + rolling-24h hourly liq
+# (live-computable: identical to WS force-order accumulation; no same-day lookahead)
+LIQ_INTRADAY = os.environ.get("LIQ_INTRADAY", "0") == "1"
 
 WARMUP_DAYS = 30
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -189,6 +198,22 @@ def load_liq(sym):
     return load_liq_coinalyze(sym)
 
 
+def load_liq_hourly(sym):
+    """Hourly coinalyze liq as (ts_list, long_cumsum, short_cumsum) for rolling-24h sums."""
+    c = sqlite3.connect(str(LIQ_DB))
+    rows = c.execute(
+        "select ts, long_liq, short_liq from liq_hourly where symbol=? order by ts",
+        (sym,),
+    ).fetchall()
+    c.close()
+    ts_list, llc, slc = [], [0.0], [0.0]
+    for ts, ll, sl in rows:
+        ts_list.append(ts)
+        llc.append(llc[-1] + ll)
+        slc.append(slc[-1] + sl)
+    return ts_list, llc, slc
+
+
 def load_closes(sym):
     c = sqlite3.connect(str(LIQ_DB))
     try:
@@ -215,20 +240,31 @@ def run_capture():
     cfg = yaml.safe_load(open(CFG_PATH))
     configured = cfg["symbols"]["tier_a"] + cfg["symbols"]["tier_b"] + cfg["symbols"].get("tier_c_experimental", [])
     avail = klines_symbols()
-    syms = [s for s in configured if s in avail]
+    override = os.environ.get("SYMBOL_OVERRIDE", "").strip()
+    if override:
+        syms = [s.strip() for s in override.split(",") if s.strip() in avail]
+    else:
+        syms = [s for s in configured if s in avail]
     mode = "CAPTURE_ALL" if CAPTURE_ALL else "V6.4.5_DEPLOYED"
-    print(f"mode: {mode} | liq_source: {LIQ_SOURCE}", flush=True)
+    print(f"mode: {mode} | entry: {ENTRY_THESIS} | liq_source: {LIQ_SOURCE}", flush=True)
     print(f"symbols: {len(syms)} usable of {len(configured)} configured", flush=True)
 
     engine = LiqClusterEngineV5()
     trades, rpath = [], []
     s_ms, e_ms = int(START.timestamp() * 1000), int(END.timestamp() * 1000)
+    # LIQ_LAG_DAYS=1 → only completed liq days visible (live-realistic, no same-day lookahead)
+    liq_lag_s = int(os.environ.get("LIQ_LAG_DAYS", "0")) * 86400
+    if liq_lag_s:
+        print(f"liq_lag_days: {liq_lag_s // 86400} (completed days only)", flush=True)
 
     for si, sym in enumerate(syms):
         kl = load_klines(sym, s_ms, e_ms)
         if not kl:
             continue
         liq, closes = load_liq(sym), load_closes(sym)
+        if LIQ_INTRADAY:
+            h_ts, h_llc, h_slc = load_liq_hourly(sym)
+            last_hour = -1
         st = engine._get_state(sym)
         pos = None
         seen_days = set()
@@ -236,9 +272,24 @@ def run_capture():
         for i, c in enumerate(kl):
             buf = kl[max(0, i - 199):i + 1]
             day = c.close_time.strftime("%Y-%m-%d")
-            if day not in seen_days:
+            if LIQ_INTRADAY:
+                cur_hour = int(c.close_time.timestamp()) // 3600
+                if cur_hour != last_hour:
+                    last_hour = cur_hour
+                    day_start = int(c.close_time.replace(
+                        hour=0, minute=0, second=0, microsecond=0).timestamp())
+                    rows = build_liq_rows(liq, closes, day_start - 1)
+                    h_end = cur_hour * 3600
+                    lo = bisect.bisect_left(h_ts, h_end - 86400)
+                    hi = bisect.bisect_left(h_ts, h_end)
+                    rl, rs = h_llc[hi] - h_llc[lo], h_slc[hi] - h_slc[lo]
+                    rows.append({"date": "rolling24h", "total_liq": rl + rs,
+                                 "long_liq": rl, "short_liq": rs, "close": c.close})
+                    engine._cascades[sym] = eng.CascadeTracker()
+                    engine.update_daily_liq(sym, rows)
+            elif day not in seen_days:
                 seen_days.add(day)
-                rows = build_liq_rows(liq, closes, int(c.close_time.timestamp()))
+                rows = build_liq_rows(liq, closes, int(c.close_time.timestamp()) - liq_lag_s)
                 if rows:
                     engine.update_daily_liq(sym, rows)
 
@@ -255,7 +306,20 @@ def run_capture():
                     st.in_trade = False
                     pos = None
             elif c.close_time >= WARMUP_END:
-                sig = engine.evaluate(sym, buf)
+                if ENTRY_THESIS == "v645":
+                    sig = engine.evaluate(sym, buf)
+                elif ENTRY_THESIS in ("exhaustion", "squeeze"):
+                    from backtest_output.v7_entry_theses import evaluate_thesis as _ev7
+                    sig = _ev7(ENTRY_THESIS, engine, sym, buf)
+                elif ENTRY_THESIS in ("bar3_proof", "liq_spring", "fail_reclaim"):
+                    from backtest_output.v8_entry_theses import evaluate_thesis as _ev8
+                    sig = _ev8(ENTRY_THESIS, engine, sym, buf)
+                elif ENTRY_THESIS in ("dip_absorption", "squeeze_flow"):
+                    from backtest_output.v10_entry_theses import evaluate_thesis as _ev10
+                    sig = _ev10(ENTRY_THESIS, engine, sym, buf)
+                else:
+                    from backtest_output.v8_entry_theses import evaluate_thesis as _ev8
+                    sig = _ev8(ENTRY_THESIS, engine, sym, buf)
                 if sig is not None:
                     entry, stop = sig.entry_price, sig.stop_price
                     rpu = abs(entry - stop)
@@ -286,7 +350,9 @@ def run_capture():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     liq_tag = {"binance_force": "_binance", "ws_cache": "_ws", "ws_merged": "_ws_merged"}.get(LIQ_SOURCE, "")
     mode_tag = "_capture_all" if CAPTURE_ALL else "_v645"
-    tag = f"{mode_tag}{liq_tag}"
+    thesis_tag = f"_{ENTRY_THESIS}" if ENTRY_THESIS != "v645" else ""
+    out_tag = os.environ.get("OUT_TAG", "")
+    tag = f"{mode_tag}{thesis_tag}{liq_tag}{out_tag}"
     trades_path = OUT_DIR / f"v6_bt_trades{tag}.csv"
     rpath_path = OUT_DIR / f"v6_bt_rpath{tag}.csv"
     if not trades:

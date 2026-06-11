@@ -1,0 +1,102 @@
+# Research Duo pipeline configuration
+pipeline_version: "0.5.0"
+random_seed: 42
+
+paths:
+  v5_db: storage/v5_forward_test.db
+  v6_db: storage/v6_telemetry.db
+  symbol_config: config/v5_forward_test.yaml
+  datasets_dir: research_duo/datasets
+  tensors_dir: research_duo/tensors
+  features_dir: research_duo/features
+  clustering_dir: research_duo/clustering
+  states_dir: research_duo/states
+  experiments_dir: research_duo/experiments
+  reports_dir: research_duo/reports
+  manifests_dir: research_duo/manifests
+
+phase2:
+  r_path:
+    lag_correction: false
+    velocity_window: 3
+  tensor:
+    max_bars: 512
+    optional_trail_channels: true
+  features:
+    stale_epsilon_r: 0.001
+    early_slope_end_bar: 5
+    threshold_rs: [0.1, 0.3, 0.5]
+
+phase3:
+  random_seed: 42
+  cluster_k: [3, 5, 7]
+  explosive:
+    mfe_threshold_r: 1.0
+    max_bars_to_mfe: 15
+  early_classifier:
+    feature_cutoff_bar: 10
+  pathways:
+    confirmed_mfe_r: 0.3
+    confirmed_max_bars: 10
+    recovery_min_r: 1.0
+
+phase4:
+  random_seed: 42
+  post_gate_only: false
+  min_train_trades: 30
+  validation_chunk: 10
+  final_holdout_trades: 15
+  min_fold_validation_n: 8
+  min_pathway_n: 5
+  bootstrap_samples: 1000
+  pathways:
+    thresholds: [0.3, 0.5]
+    max_bars: 10
+    primary_threshold_r: 0.3
+  early_bars: [3, 5, 7, 10]
+
+phase5:
+  random_seed: 42
+  explosive_mfe_r: 1.0
+  explosive_max_bars: 15
+  early_dead_max_mfe_r: 0.3
+  early_dead_window_bars: 10
+  bd_buckets: [-999, -2, 0, 2, 999]
+  mfe10_buckets: [0, 0.1, 0.3, 0.5, 999]
+
+cohorts:
+  post_gate:
+    name: bd_gate_live
+    description: >
+      Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).
+    rule: "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+    field: entry_time
+    cutoff: "2026-05-27T21:00:00+00:00"
+    reference: "BITANA_CURRENT_STATE handoff; report §4 Change B deployment time"
+
+  post_gate_audit_v2_aligned:
+    name: audit_report_v2_post_gate
+    description: >
+      Reverse-engineered cutoff that reproduces audit report §5 post-gate count (63 at report time).
+    rule: "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+    field: entry_time
+    cutoff: "2026-05-27T10:00:00+00:00"
+    reference: "BITANA_V6_AUDIT_REPORT_v2.md §5"
+    note: >
+      Audit count matches entry >= May 27 10:00 UTC, not the 21:00 BD gate deployment time.
+
+expected_tables:
+  v5:
+    - trades
+    - open_positions
+    - state
+    - duplicate_keys
+    - equity_snapshots
+    - liq_cache
+  v6:
+    - trade_entries
+    - r_path
+    - shadow_exits
+    - exit_attribution
+    - post_exit
+    - regime_snapshots

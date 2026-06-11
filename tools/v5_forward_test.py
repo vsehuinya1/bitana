@@ -36,7 +36,17 @@ from core.logging_setup import setup_logging, get_logger
 from core.models import AlertTier, Candle, EngineType, Side, Signal
 from data.binance_rest import BinanceRestClient
 from data.rate_limiter import RateLimiterGroup
-from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES, RUNNER_CONFIRM_R
+from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES
+import engines.liq_cluster_engine_v5 as eng_mod
+from research.v65_monitoring import (
+    STRATEGY_VERSION,
+    ASIA_SHADOW_HOURS,
+    build_asia_shadow_report,
+    build_session_report,
+    evaluate_entry_shadow_filters,
+    evaluate_promotion_status,
+    parse_entry_hour,
+)
 from tg_bot.alerts import TelegramAlerts
 
 # Research telemetry — purely observational, never affects trading
@@ -71,6 +81,9 @@ DB_PATH = Path("storage/v5_forward_test.db")
 FORCE_ORDER_DB_PATH = Path("storage/force_orders.db")
 DAILY_REPORT_HOUR = 8
 DAILY_REPORT_MINUTE = 5
+NY_SESSION_REPORT_HOUR = 22
+NY_SESSION_REPORT_MINUTE = 0
+PAPER_EQUITY_TARGET = 9861.0
 
 # Binance liq fetch config
 LIQ_FETCH_DAYS = 7          # Binance allForceOrders default window
@@ -181,7 +194,46 @@ class V5Database:
                 updated_at TEXT,
                 PRIMARY KEY (symbol, date)
             );
+
+            CREATE TABLE IF NOT EXISTS shadow_trades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trade_uuid TEXT UNIQUE,
+                session_tag TEXT NOT NULL DEFAULT 'asia',
+                symbol TEXT,
+                side TEXT,
+                entry_time TEXT,
+                exit_time TEXT,
+                entry_price REAL,
+                exit_price REAL,
+                pnl_r REAL,
+                exit_reason TEXT,
+                hold_candles INTEGER,
+                decile INTEGER,
+                aggression REAL,
+                mae REAL,
+                mfe REAL,
+                strategy_version TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS shadow_positions (
+                trade_uuid TEXT PRIMARY KEY,
+                symbol TEXT,
+                side TEXT,
+                entry_price REAL,
+                init_stop REAL,
+                candles_held INTEGER DEFAULT 0,
+                entry_time TEXT,
+                decile INTEGER,
+                aggression REAL,
+                mae REAL DEFAULT 0,
+                mfe REAL DEFAULT 0
+            );
         """)
+        for col, typ in [("strategy_version", "TEXT DEFAULT ''")]:
+            try:
+                self.conn.execute(f"ALTER TABLE trades ADD COLUMN {col} {typ}")
+            except sqlite3.OperationalError:
+                pass
         self.conn.commit()
 
         # Surgical schema upgrade safety check: Ensure the is_experimental column exists in trades
@@ -235,6 +287,12 @@ class V5Database:
     def get_all_trades(self):
         return [dict(r) for r in self.conn.execute("SELECT * FROM trades ORDER BY id").fetchall()]
 
+    def get_trades_on_date(self, date_prefix: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM trades WHERE entry_time LIKE ? ORDER BY id",
+            (f"{date_prefix}%",),
+        ).fetchall()]
+
     def get_trades_since(self, since):
         return [dict(r) for r in self.conn.execute(
             "SELECT * FROM trades WHERE entry_time >= ? ORDER BY id", (since,)
@@ -247,6 +305,56 @@ class V5Database:
             (since_iso,),
         ).fetchone()
         return float(row[0]) if row else 0.0
+
+    def save_shadow_trade(self, t: dict):
+        cols = list(t.keys())
+        vals = [t[c] for c in cols]
+        ph = ",".join(["?"] * len(cols))
+        cs = ",".join(cols)
+        self.conn.execute(f"INSERT OR REPLACE INTO shadow_trades({cs}) VALUES({ph})", vals)
+        self.conn.commit()
+
+    def save_shadow_position(self, p: dict):
+        self.conn.execute(
+            """INSERT OR REPLACE INTO shadow_positions
+               (trade_uuid, symbol, side, entry_price, init_stop, candles_held,
+                entry_time, decile, aggression, mae, mfe)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                p["trade_uuid"], p["symbol"], p["side"], p["entry_price"], p["init_stop"],
+                p.get("candles_held", 0), p["entry_time"], p.get("decile", 5),
+                p.get("aggression", 0), p.get("mae", 0), p.get("mfe", 0),
+            ),
+        )
+        self.conn.commit()
+
+    def get_shadow_positions(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM shadow_positions").fetchall()]
+
+    def remove_shadow_position(self, trade_uuid: str):
+        self.conn.execute("DELETE FROM shadow_positions WHERE trade_uuid=?", (trade_uuid,))
+        self.conn.commit()
+
+    def get_all_shadow_trades(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM shadow_trades ORDER BY id"
+        ).fetchall()]
+
+    def sum_shadow_pnl_r(self) -> float:
+        row = self.conn.execute("SELECT COALESCE(SUM(pnl_r), 0) FROM shadow_trades").fetchone()
+        return float(row[0]) if row else 0.0
+
+    def has_shadow_dup(self, key: str) -> bool:
+        return self.conn.execute(
+            "SELECT 1 FROM duplicate_keys WHERE dup_key=?", (f"asia_{key}",)
+        ).fetchone() is not None
+
+    def mark_shadow_dup(self, key: str):
+        self.conn.execute(
+            "INSERT OR IGNORE INTO duplicate_keys(dup_key,created_at) VALUES(?,?)",
+            (f"asia_{key}", datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
 
     def save_equity_snapshot(self, equity, n_open, unrealized_r):
         self.conn.execute(
@@ -400,7 +508,18 @@ class V5ForwardTest:
         self.max_risk_pct = float(gates.get("max_risk_pct", 0.005))
         self.daily_loss_stop_r = float(gates.get("daily_loss_stop_r", -2.0))
         self.weekly_loss_stop_r = float(gates.get("weekly_loss_stop_r", -5.0))
-        self._entries_halted = False
+        promotion_halt = self.db.get_state("promotion_halt", "0") == "1"
+        self._entries_halted = promotion_halt
+        self._promotion_alert_sent = self.db.get_state("promotion_alert_status", "")
+
+        asia_cfg = self.v5_cfg.get("asia_shadow", {})
+        self.asia_shadow_enabled = bool(asia_cfg.get("enabled", False))
+        cfg_hours = asia_cfg.get("hours")
+        self.asia_shadow_hours = frozenset(cfg_hours) if cfg_hours else ASIA_SHADOW_HOURS
+        self.asia_shadow_max_positions = int(asia_cfg.get("max_positions", self.max_positions))
+        self.asia_report_hour = int(asia_cfg.get("report_hour_utc", 8))
+        self.shadow_engine = LiqClusterEngineV5() if self.asia_shadow_enabled else None
+        self.shadow_positions: list[dict] = []
 
         # State
         saved_eq = self.db.get_state("equity")
@@ -415,6 +534,8 @@ class V5ForwardTest:
         self._shutdown = asyncio.Event()
         self._engine_lock = asyncio.Lock()  # V6: protects engine state between WS and candle loops
         self._last_report_date = self.db.get_state("last_report_date", "")
+        self._last_session_report_date = self.db.get_state("last_session_report_date", "")
+        self._last_asia_report_date = self.db.get_state("last_asia_report_date", "")
         self._last_liq_date = self.db.get_state("last_liq_date", "")
         self._ws_dirty_symbols: set = set()  # V6: symbols with pending WS liq updates
         self._ws_last_flush: float = 0.0     # V6: last time WS flushed to engine
@@ -458,11 +579,32 @@ class V5ForwardTest:
                 st.bars_held = p.get("candles_held", 0)
                 st.aggression_score = p.get("aggression", 0)
                 st.decile = p.get("decile", 5)
-                # V6.4.3: restore mfe/confirmation so two-stage mgmt doesn't mis-cut a runner on restart
                 st.mfe = float(p.get("mfe") or 0.0)
                 st.mae = float(p.get("mae") or 0.0)
                 st.best_price = max(float(p["entry_price"]), float(p["entry_price"]) + st.mfe * st.risk_per_unit)
-                st.confirmed = st.mfe >= RUNNER_CONFIRM_R
+                st.vol_trail = 0.0
+                st.struct_trail = 0.0
+                st.consecutive_red = 0
+
+        if self.asia_shadow_enabled:
+            self.shadow_positions = self.db.get_shadow_positions()
+            if self.shadow_positions:
+                logger.info("Recovered shadow positions", count=len(self.shadow_positions))
+                for p in self.shadow_positions:
+                    sym = p["symbol"]
+                    st = self.shadow_engine._get_state(sym)
+                    st.in_trade = True
+                    st.entry_price = p["entry_price"]
+                    st.risk_per_unit = abs(p["entry_price"] - p["init_stop"]) if p.get("init_stop") else 0
+                    st.bars_held = p.get("candles_held", 0)
+                    st.aggression_score = p.get("aggression", 0)
+                    st.decile = p.get("decile", 5)
+                    st.mfe = float(p.get("mfe") or 0.0)
+                    st.mae = float(p.get("mae") or 0.0)
+                    st.best_price = max(float(p["entry_price"]), float(p["entry_price"]) + st.mfe * st.risk_per_unit)
+                    st.vol_trail = 0.0
+                    st.struct_trail = 0.0
+                    st.consecutive_red = 0
 
         # Startup self-test
         self._self_test()
@@ -480,14 +622,21 @@ class V5ForwardTest:
         if recovered_lines:
             recovered_block = "\n🔄 Recovered positions:\n" + "\n".join(recovered_lines)
 
+        shadow_r = self.db.sum_shadow_pnl_r()
+        asia_line = ""
+        if self.asia_shadow_enabled:
+            asia_line = (
+                f"\n🌏 Asia shadow: hours {sorted(self.asia_shadow_hours)} UTC | "
+                f"open {len(self.shadow_positions)} | cumR {shadow_r:+.2f}"
+            )
+
         await self.alerts.send(
-            f"🧪 Liq-Cluster v6.4.2 (gates active)\n"
-            f"Symbols: {len(self.symbols)} | Blocked: {len(self.blocked_symbols)}\n"
+            f"🧪 Liq-Cluster v6.5-revert (V5 entry + vol_trail exits)\n"
+            f"Symbols: {len(self.symbols)} proven | Live session: NY 14–22 UTC\n"
             f"Risk cap: {self.max_risk_pct*100:.2f}%/trade | Stops: {self.daily_loss_stop_r:+.0f}R day / {self.weekly_loss_stop_r:+.0f}R week\n"
             f"Cascades active: {n_cascade}\n"
             f"Equity: {self.executor.equity:.2f}\n"
-            f"Open positions: {len(self.open_positions)}\n"
-            f"Data: Binance WS forceOrder + local cache{recovered_block}",
+            f"Open positions: {len(self.open_positions)}{asia_line}{recovered_block}",
             AlertTier.INFO,
         )
 
@@ -497,13 +646,15 @@ class V5ForwardTest:
             results = await asyncio.gather(
                 self._candle_loop(),
                 self._daily_report_loop(),
+                self._ny_session_report_loop(),
+                self._asia_session_report_loop(),
                 self._liq_refresh_loop(),
                 self._liq_websocket_loop(),
                 return_exceptions=True,
             )
             for i, r in enumerate(results):
                 if isinstance(r, Exception):
-                    names = ["candle_loop", "daily_report", "liq_refresh", "liq_websocket"]
+                    names = ["candle_loop", "daily_report", "ny_session_report", "asia_session_report", "liq_refresh", "liq_websocket"]
                     name = names[i] if i < len(names) else f"task_{i}"
                     logger.critical("Task died", task=name, error=str(r))
                     await self.alerts.critical(f"V5.1 task crashed: {name}: {r}")
@@ -698,9 +849,9 @@ class V5ForwardTest:
                 # Fetch full history from local cache and feed it to the trading engine
                 cached = self.db.get_liq_cache(sym, min_date)
                 if cached:
-                    # Reset the engine's CascadeTracker to avoid duplicates or stale metrics
-                    self.engine._cascades[sym] = CascadeTracker()
-                    self.engine.update_daily_liq(sym, cached)
+                    self._feed_engine_liq(self.engine, sym)
+                    if self.shadow_engine:
+                        self._feed_engine_liq(self.shadow_engine, sym)
 
                 logger.debug("Liq data updated from local cache", symbol=sym, cached_days=len(cached))
 
@@ -863,8 +1014,9 @@ class V5ForwardTest:
             for symbol in dirty:
                 cached = self.db.get_liq_cache(symbol, min_date)
                 if cached:
-                    self.engine._cascades[symbol] = CascadeTracker()
-                    self.engine.update_daily_liq(symbol, cached)
+                    self._feed_engine_liq(self.engine, symbol)
+                    if self.shadow_engine:
+                        self._feed_engine_liq(self.shadow_engine, symbol)
 
         n_flushed = len(dirty)
         n_active = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
@@ -990,8 +1142,17 @@ class V5ForwardTest:
 
         await self._manage_positions(symbol, candle)
         await self._check_entry(symbol, candle)
+        if self.asia_shadow_enabled:
+            await self._manage_shadow_positions(symbol, candle)
+            await self._check_shadow_entry(symbol, candle)
 
-    # ── Position Management ──────────────────────────────────────
+    def _feed_engine_liq(self, engine: LiqClusterEngineV5, symbol: str):
+        from engines.liq_cluster_engine_v5 import CascadeTracker
+        min_date = (datetime.now(timezone.utc) - timedelta(days=LIQ_CACHE_MAX_DAYS)).strftime("%Y-%m-%d")
+        cached = self.db.get_liq_cache(symbol, min_date)
+        if cached:
+            engine._cascades[symbol] = CascadeTracker()
+            engine.update_daily_liq(symbol, cached)
 
     async def _manage_positions(self, symbol: str, candle: Candle):
         sym_positions = [p for p in self.open_positions if p["symbol"] == symbol]
@@ -1121,6 +1282,7 @@ class V5ForwardTest:
             "aggression": float(p.get("aggression", 0)),
             "decile": p.get("decile", 0),
             "duplicate_key": "",
+            "strategy_version": STRATEGY_VERSION,
         }
 
         self.db.save_trade(trade)
@@ -1158,6 +1320,8 @@ class V5ForwardTest:
         logger.info("Position closed", symbol=p["symbol"], pnl_r=round(float(pnl_r), 4),
                      reason=reason, equity=round(float(self.executor.equity), 2))
 
+        await self._check_promotion_rules()
+
         # ── Telemetry: exit attribution + shadow finalization ──
         if self._telemetry:
             try:
@@ -1189,10 +1353,171 @@ class V5ForwardTest:
             except Exception as e:
                 logger.debug("Telemetry exit logging error (non-fatal)", error=str(e))
 
+    # ── Asia Paper Shadow ────────────────────────────────────────
+
+    async def _manage_shadow_positions(self, symbol: str, candle: Candle):
+        sym_positions = [p for p in self.shadow_positions if p["symbol"] == symbol]
+        if not sym_positions:
+            return
+
+        candles_5m = list(self.candle_buffers.get(symbol, []))
+        for p in sym_positions:
+            p["candles_held"] += 1
+            st = self.shadow_engine._get_state(symbol)
+            st.bars_held = p["candles_held"]
+
+            try:
+                result = self.shadow_engine.manage_position(symbol, candles_5m)
+            except Exception as e:
+                logger.error("shadow manage_position error", symbol=symbol, error=str(e))
+                self.db.save_shadow_position(p)
+                continue
+
+            if result and result.get("action") == "close":
+                p["mae"] = result.get("mae", p.get("mae", 0))
+                p["mfe"] = result.get("mfe", p.get("mfe", 0))
+                await self._close_shadow_position(p, result.get("exit_price", candle.close),
+                                                  result["reason"], candle.close_time)
+                continue
+
+            self.db.save_shadow_position(p)
+
+        self.shadow_positions = [p for p in self.shadow_positions if not p.get("_closed")]
+
+    async def _close_shadow_position(self, p, price, reason, ct):
+        sd = abs(p["entry_price"] - p["init_stop"])
+        pnl_r = (price - p["entry_price"]) / sd if sd > 0 else 0.0
+        p["_closed"] = True
+
+        trade = {
+            "trade_uuid": p["trade_uuid"],
+            "session_tag": "asia",
+            "symbol": p["symbol"],
+            "side": p["side"],
+            "entry_time": p["entry_time"],
+            "exit_time": ct.isoformat() if isinstance(ct, datetime) else str(ct),
+            "entry_price": round(p["entry_price"], 6),
+            "exit_price": round(price, 6),
+            "pnl_r": round(float(pnl_r), 4),
+            "exit_reason": reason,
+            "hold_candles": p["candles_held"],
+            "decile": p.get("decile", 0),
+            "aggression": float(p.get("aggression", 0)),
+            "mae": round(float(p.get("mae", 0)), 4),
+            "mfe": round(float(p.get("mfe", 0)), 4),
+            "strategy_version": STRATEGY_VERSION,
+        }
+        self.db.save_shadow_trade(trade)
+        self.db.remove_shadow_position(p["trade_uuid"])
+        st = self.shadow_engine._get_state(p["symbol"])
+        st.in_trade = False
+
+        cum_r = self.db.sum_shadow_pnl_r()
+        emoji = "🌏✅" if pnl_r >= 0 else "🌏❌"
+        await self.alerts.send(
+            f"{emoji} SHADOW EXIT {p['symbol']}\n"
+            f"R: {pnl_r:+.3f} | Reason: {reason} | Bars: {p['candles_held']}\n"
+            f"Shadow cumR: {cum_r:+.2f}",
+            AlertTier.INFO,
+        )
+        logger.info("Shadow closed", symbol=p["symbol"], pnl_r=round(float(pnl_r), 4), reason=reason)
+
+    async def _check_shadow_entry(self, symbol: str, candle: Candle):
+        hour = candle.close_time.hour
+        if hour not in self.asia_shadow_hours:
+            return
+
+        if any(p["symbol"] == symbol and not p.get("_closed") for p in self.shadow_positions):
+            return
+        if any(p["symbol"] == symbol and not p.get("_closed") for p in self.open_positions):
+            return
+
+        active = [p for p in self.shadow_positions if not p.get("_closed")]
+        if len(active) >= self.asia_shadow_max_positions:
+            return
+
+        dup_key = f"{symbol}_{candle.close_time.isoformat()}"
+        if self.db.has_shadow_dup(dup_key):
+            return
+
+        candles_5m = list(self.candle_buffers.get(symbol, []))
+        async with self._engine_lock:
+            old_hours = eng_mod.SNIPER_ALLOWED_HOURS
+            eng_mod.SNIPER_ALLOWED_HOURS = self.asia_shadow_hours
+            try:
+                sig = self.shadow_engine.evaluate(symbol, candles_5m)
+            except Exception as e:
+                logger.error("shadow evaluate() error", symbol=symbol, error=str(e))
+                eng_mod.SNIPER_ALLOWED_HOURS = old_hours
+                return
+            eng_mod.SNIPER_ALLOWED_HOURS = old_hours
+
+        if sig is None:
+            return
+
+        self.db.mark_shadow_dup(dup_key)
+        st = self.shadow_engine._get_state(symbol)
+        decile = st.decile
+
+        pos = {
+            "trade_uuid": sig.trade_uuid,
+            "symbol": symbol,
+            "side": sig.side.value,
+            "entry_price": round(sig.entry_price, 6),
+            "init_stop": round(sig.stop_price, 6),
+            "candles_held": 0,
+            "entry_time": candle.close_time.isoformat(),
+            "decile": decile,
+            "aggression": float(st.aggression_score),
+            "mae": 0.0,
+            "mfe": 0.0,
+        }
+        self.shadow_positions.append(pos)
+        self.db.save_shadow_position(pos)
+
+        await self.alerts.send(
+            f"🌏 SHADOW ENTRY LONG {symbol}\n"
+            f"Price: {sig.entry_price:.6f} | Stop: {sig.stop_price:.6f}\n"
+            f"D{decile} | Hour: {hour:02d} UTC | Shadow open: {len(self.shadow_positions)}",
+            AlertTier.INFO,
+        )
+        logger.info("Shadow entry", symbol=symbol, hour=hour, decile=decile)
+
+    async def _asia_session_report_loop(self):
+        if not self.asia_shadow_enabled:
+            return
+        while not self._shutdown.is_set():
+            for _ in range(60):
+                if self._shutdown.is_set():
+                    break
+                await asyncio.sleep(1)
+            if self._shutdown.is_set():
+                break
+
+            now = datetime.now(timezone.utc)
+            today = now.strftime("%Y-%m-%d")
+            if today == self._last_asia_report_date:
+                continue
+            if now.hour != self.asia_report_hour or now.minute > 5:
+                continue
+
+            await self._send_asia_session_report(today)
+            self._last_asia_report_date = today
+            self.db.set_state("last_asia_report_date", today)
+
+    async def _send_asia_session_report(self, session_date: str):
+        trades = self.db.get_all_shadow_trades()
+        open_pos = [p for p in self.shadow_positions if not p.get("_closed")]
+        cum_r = self.db.sum_shadow_pnl_r()
+        report = build_asia_shadow_report(trades, session_date, cum_r, open_pos)
+        await self.alerts.send(report, AlertTier.INFO)
+
     # ── Entry Logic ──────────────────────────────────────────────
 
     def _entry_halt_reason(self) -> str | None:
         if self._entries_halted:
+            if self.db.get_state("promotion_halt", "0") == "1":
+                return "promotion_kill_halt"
             return "entries_halted_manual"
         now = datetime.now(timezone.utc)
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
@@ -1242,6 +1567,10 @@ class V5ForwardTest:
 
         if sig is None:
             return
+
+        sig.signal_data["strategy_version"] = STRATEGY_VERSION
+        entry_hour = parse_entry_hour(candle.close_time.isoformat())
+        confirms = sig.signal_data.get("confirmations", {})
 
         self.db.mark_dup(dup_key)
         
@@ -1307,12 +1636,22 @@ class V5ForwardTest:
         )
 
         logger.info("Entry", symbol=symbol, price=round(fill, 6),
-                     risk=float(risk_pct), aggression=round(agg, 1), decile=decile)
+                     risk=float(risk_pct), aggression=round(agg, 1), decile=decile,
+                     vol_z=round(float(sig.signal_data.get("vol_z", 0)), 2),
+                     imb_z=round(float(sig.signal_data.get("imb_z", 0)), 2),
+                     bd_pct=round(float(sig.signal_data.get("breakout_distance_pct", 0)), 2),
+                     hour=entry_hour, cascade=round(float(st.cascade_strength), 2))
 
         # ── Telemetry: log entry snapshot ──
         if self._telemetry:
             try:
-                st = self.engine._get_state(symbol)
+                shadow_filters = evaluate_entry_shadow_filters(
+                    symbol=symbol,
+                    decile=decile,
+                    entry_hour=entry_hour,
+                    confirmations=confirms,
+                )
+                self._telemetry.log_shadow_filters(sig.trade_uuid, shadow_filters)
                 # Store entry context on position for shadow exits
                 entry_ctx = {
                     "range_high": sig.signal_data.get("range_high", 0),
@@ -1345,6 +1684,52 @@ class V5ForwardTest:
                 )
             except Exception as e:
                 logger.debug("Telemetry entry logging error (non-fatal)", error=str(e))
+
+    async def _check_promotion_rules(self):
+        status = evaluate_promotion_status(self.db.get_all_trades())
+        key = f"{status['status']}:{status['n']}:{status.get('total_r', 0)}"
+        if status.get("message") and key != self._promotion_alert_sent:
+            tier = AlertTier.INFO
+            if status.get("alert_tier") == "warning":
+                tier = AlertTier.WARNING
+            elif status.get("alert_tier") == "critical":
+                tier = AlertTier.CRITICAL
+            await self.alerts.send(status["message"], tier)
+            self._promotion_alert_sent = key
+            self.db.set_state("promotion_alert_status", key)
+        if status.get("halt_entries"):
+            self._entries_halted = True
+            self.db.set_state("promotion_halt", "1")
+
+    # ── NY Session Close Report ───────────────────────────────────
+
+    async def _ny_session_report_loop(self):
+        while not self._shutdown.is_set():
+            for _ in range(60):
+                if self._shutdown.is_set():
+                    break
+                await asyncio.sleep(1)
+            if self._shutdown.is_set():
+                break
+
+            now = datetime.now(timezone.utc)
+            today = now.strftime("%Y-%m-%d")
+            if today == self._last_session_report_date:
+                continue
+            if now.hour != NY_SESSION_REPORT_HOUR or now.minute < NY_SESSION_REPORT_MINUTE:
+                continue
+
+            await self._send_ny_session_report(today)
+            self._last_session_report_date = today
+            self.db.set_state("last_session_report_date", today)
+
+    async def _send_ny_session_report(self, session_date: str):
+        trades = self.db.get_trades_on_date(session_date)
+        open_pos = [p for p in self.open_positions if not p.get("_closed")]
+        report = build_session_report(
+            trades, session_date, float(self.executor.equity), open_pos,
+        )
+        await self.alerts.send(report, AlertTier.INFO)
 
     # ── Daily Report ─────────────────────────────────────────────
 
@@ -1406,7 +1791,7 @@ class V5ForwardTest:
         n_cascade = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
 
         report = (
-            f"📊 V5.1 DAILY REPORT\n\n"
+            f"📊 {STRATEGY_VERSION} DAILY REPORT\n\n"
             f"Today: {n} trades | WR: {wr:.0f}% | R: {total_r:+.2f}\n\n"
             f"Open: {len(self.open_positions)} positions\n"
             f"  Unrealized: {unrealized_r:+.2f}R\n\n"
