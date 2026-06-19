@@ -67,11 +67,17 @@ class SignalShadow:
         self.conn.row_factory = sqlite3.Row
         self._init_db()
         self._last_snap_bar: dict[str, datetime] = {}
+        self._last_burst_bar: dict[str, datetime] = {}
         self._writes = 0
         # Forward windows of snapshots still open at shutdown last run never get a
         # final bar; mark them so analysis can exclude truncated paths.
         self.conn.execute(
             "UPDATE snapshots SET status='orphaned' WHERE status='open' "
+            "AND created_at < ?",
+            ((datetime.now(timezone.utc).timestamp() - MAX_H * 300),),
+        )
+        self.conn.execute(
+            "UPDATE burst_snapshots SET status='orphaned' WHERE status='open' "
             "AND created_at < ?",
             ((datetime.now(timezone.utc).timestamp() - MAX_H * 300),),
         )
@@ -99,6 +105,31 @@ class SignalShadow:
         )
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_sym_status ON snapshots(symbol, status)"
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS burst_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bar_time TEXT, symbol TEXT, hour INT, session TEXT,
+                close REAL, atr REAL, atr_pct REAL,
+                burst_volume_15m REAL, burst_volume_30m REAL, burst_volume_60m REAL,
+                burst_events_15m INT, burst_events_30m INT, burst_events_60m INT,
+                long_liq_30m REAL, short_liq_30m REAL, liq_imbalance_30m REAL,
+                max_order_usd_30m REAL,
+                cascade_strength REAL, liq_direction_imb REAL, ret_5d REAL,
+                vol_z REAL, imb_z REAL, breakout_distance_pct REAL,
+                body_ratio REAL, impulse_pct REAL, above_ema INT, breakout INT,
+                n_confirms INT, decile INT, aggression REAL,
+                status TEXT DEFAULT 'open', bars_tracked INT DEFAULT 0,
+                fwd_atr_3 REAL, fwd_atr_6 REAL, fwd_atr_12 REAL,
+                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL,
+                mfe_atr REAL DEFAULT 0, mae_atr REAL DEFAULT 0,
+                created_at REAL
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_burst_sym_status ON burst_snapshots(symbol, status)"
         )
         self.conn.commit()
 
@@ -189,26 +220,19 @@ class SignalShadow:
             "v_loose": int(n_confirms >= LOOSE_MIN_CONFIRMS),
         }
 
-    def on_bar(self, symbol: str, candles_5m: list, st: SymbolState):
-        """Advance open forward-windows for this symbol, then maybe snapshot.
-
-        Must stay synchronous and exception-light; caller wraps in try/except.
-        """
-        if not candles_5m:
-            return
-        bar = candles_5m[-1]
-        high, low, close = bar.high, bar.low, bar.close
-
-        # 1) Advance forward windows of already-open snapshots for this symbol.
+    def _advance_open(self, table: str, symbol: str, high: float, low: float, close: float):
+        """Advance forward windows for one shadow table."""
+        if table not in {"snapshots", "burst_snapshots"}:
+            raise ValueError(f"unsupported shadow table: {table}")
         rows = self.conn.execute(
             "SELECT id, close, atr, bars_tracked, mfe_atr, mae_atr "
-            "FROM snapshots WHERE symbol=? AND status='open'",
+            f"FROM {table} WHERE symbol=? AND status='open'",
             (symbol,),
         ).fetchall()
         for r in rows:
             atr = r["atr"]
             if atr <= 0:
-                self.conn.execute("UPDATE snapshots SET status='done' WHERE id=?", (r["id"],))
+                self.conn.execute(f"UPDATE {table} SET status='done' WHERE id=?", (r["id"],))
                 continue
             entry = r["close"]
             nb = r["bars_tracked"] + 1
@@ -224,7 +248,17 @@ class SignalShadow:
             if nb >= MAX_H:
                 sets.append("status='done'")
             vals.append(r["id"])
-            self.conn.execute(f"UPDATE snapshots SET {', '.join(sets)} WHERE id=?", vals)
+            self.conn.execute(f"UPDATE {table} SET {', '.join(sets)} WHERE id=?", vals)
+
+    def on_bar(self, symbol: str, candles_5m: list, st: SymbolState):
+        """Advance open forward-windows for this symbol, then maybe snapshot.
+
+        Must stay synchronous and exception-light; caller wraps in try/except.
+        """
+        if not candles_5m:
+            return
+        bar = candles_5m[-1]
+        self._advance_open("snapshots", symbol, bar.high, bar.low, bar.close)
 
         # 2) Snapshot every cascade-active bar. We deliberately do NOT apply the
         #    strategy's confirmation OR cascade-strength floors here — those are the
@@ -266,6 +300,77 @@ class SignalShadow:
                 f["body_ratio"], f["impulse_pct"], f["above_ema"], f["breakout"],
                 f["n_confirms"], f["decile"], f["aggression"],
                 f["v_strict"], f["v_allhours"], f["v_confirms3"], f["v_loose"],
+                datetime.now(timezone.utc).timestamp(),
+            ),
+        )
+        self._writes += 1
+        self._maybe_commit(force=True)
+
+    def on_intraday_burst(
+        self,
+        symbol: str,
+        candles_5m: list,
+        st: SymbolState,
+        burst: dict,
+        *,
+        min_volume_usd: float = 20_000.0,
+        min_events: int = 3,
+        dedup_bars: int = DEDUP_BARS,
+    ):
+        """Snapshot force-order intraday bursts, independent of daily cascade state."""
+        if not candles_5m:
+            return
+        bar = candles_5m[-1]
+        self._advance_open("burst_snapshots", symbol, bar.high, bar.low, bar.close)
+
+        vol_30m = float(burst.get("volume_30m", 0.0))
+        events_30m = int(burst.get("events_30m", 0))
+        if vol_30m < min_volume_usd or events_30m < min_events:
+            self._maybe_commit()
+            return
+
+        f = self._features(candles_5m, st)
+        if f is None:
+            self._maybe_commit()
+            return
+
+        last = self._last_burst_bar.get(symbol)
+        if last is not None and (f["bar_time"] - last).total_seconds() < dedup_bars * 300:
+            self._maybe_commit()
+            return
+        self._last_burst_bar[symbol] = f["bar_time"]
+
+        self.conn.execute(
+            """
+            INSERT INTO burst_snapshots (
+                bar_time, symbol, hour, session, close, atr, atr_pct,
+                burst_volume_15m, burst_volume_30m, burst_volume_60m,
+                burst_events_15m, burst_events_30m, burst_events_60m,
+                long_liq_30m, short_liq_30m, liq_imbalance_30m, max_order_usd_30m,
+                cascade_strength, liq_direction_imb, ret_5d,
+                vol_z, imb_z, breakout_distance_pct,
+                body_ratio, impulse_pct, above_ema, breakout,
+                n_confirms, decile, aggression,
+                created_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                f["bar_time"].isoformat(), symbol, f["hour"], _session(f["hour"]),
+                f["close"], f["atr"], f["atr_pct"],
+                float(burst.get("volume_15m", 0.0)),
+                vol_30m,
+                float(burst.get("volume_60m", 0.0)),
+                int(burst.get("events_15m", 0)),
+                events_30m,
+                int(burst.get("events_60m", 0)),
+                float(burst.get("long_liq_30m", 0.0)),
+                float(burst.get("short_liq_30m", 0.0)),
+                float(burst.get("imbalance_30m", 0.0)),
+                float(burst.get("max_order_usd_30m", 0.0)),
+                f["cascade_strength"], f["liq_direction_imb"], f["ret_5d"],
+                f["vol_z"], f["imb_z"], f["breakout_distance_pct"],
+                f["body_ratio"], f["impulse_pct"], f["above_ema"], f["breakout"],
+                f["n_confirms"], f["decile"], f["aggression"],
                 datetime.now(timezone.utc).timestamp(),
             ),
         )

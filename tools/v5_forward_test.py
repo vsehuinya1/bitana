@@ -18,6 +18,7 @@ import asyncio
 import json
 import os
 import signal
+import shutil
 import sqlite3
 import sys
 import time
@@ -531,15 +532,25 @@ class V5ForwardTest:
 
         # Logging-only signal shadow (no equity impact; pure research collector)
         sig_cfg = self.v5_cfg.get("signal_shadow", {})
+        burst_cfg = sig_cfg.get("intraday_burst_shadow", {})
+        self.intraday_burst_shadow_enabled = bool(burst_cfg.get("enabled", False))
+        self.intraday_burst_min_volume_usd = float(burst_cfg.get("min_volume_usd_30m", 20_000.0))
+        self.intraday_burst_min_events = int(burst_cfg.get("min_events_30m", 3))
+        self.intraday_burst_dedup_bars = int(burst_cfg.get("dedup_bars", 3))
         self.signal_shadow = None
         if _HAS_SIGNAL_SHADOW and bool(sig_cfg.get("enabled", False)):
             try:
                 self.signal_shadow = SignalShadow()
-                logger.info("Signal shadow enabled (logging-only)")
+                logger.info("Signal shadow enabled (logging-only)",
+                            intraday_burst=self.intraday_burst_shadow_enabled,
+                            burst_min_volume_30m=self.intraday_burst_min_volume_usd,
+                            burst_min_events_30m=self.intraday_burst_min_events)
             except Exception as e:
                 logger.error("Signal shadow init failed (non-fatal)", error=str(e))
+                self.intraday_burst_shadow_enabled = False
 
         # State
+        self._started_at = datetime.now(timezone.utc)
         saved_eq = self.db.get_state("equity")
         eq = float(saved_eq) if saved_eq else self.v5_cfg.get("initial_equity", 10000.0)
         self.executor = PaperFill(eq)
@@ -649,13 +660,15 @@ class V5ForwardTest:
                 f"open {len(self.shadow_positions)} | cumR {shadow_r:+.2f}"
             )
 
+        data_health = self._build_data_health_block()
         await self.alerts.send(
             f"🧪 Liq-Cluster v6.5-revert (V5 entry + vol_trail exits)\n"
             f"Symbols: {len(self.symbols)} proven | Live session: NY 14–22 UTC\n"
             f"Risk cap: {self.max_risk_pct*100:.2f}%/trade | Stops: {self.daily_loss_stop_r:+.0f}R day / {self.weekly_loss_stop_r:+.0f}R week\n"
             f"Cascades active: {n_cascade}\n"
             f"Equity: {self.executor.equity:.2f}\n"
-            f"Open positions: {len(self.open_positions)}{asia_line}{recovered_block}",
+            f"Open positions: {len(self.open_positions)}{asia_line}{recovered_block}\n\n"
+            f"{data_health}",
             AlertTier.INFO,
         )
 
@@ -698,6 +711,185 @@ class V5ForwardTest:
         logger.info("Self-test passed", symbols=len(self.symbols),
                     proven=len(self.symbols) - n_exp, experimental=n_exp,
                      total_candles=sum(len(v) for v in self.candle_buffers.values()))
+
+    @staticmethod
+    def _fmt_age(seconds: float | None) -> str:
+        if seconds is None:
+            return "n/a"
+        seconds = max(0, int(seconds))
+        if seconds < 120:
+            return f"{seconds}s"
+        minutes = seconds // 60
+        if minutes < 120:
+            return f"{minutes}m"
+        hours = minutes // 60
+        if hours < 72:
+            return f"{hours}h"
+        return f"{hours // 24}d"
+
+    @staticmethod
+    def _age_from_iso(ts: str | None) -> float | None:
+        if not ts:
+            return None
+        try:
+            dt = datetime.fromisoformat(ts)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - dt).total_seconds()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        ).fetchone()
+        return row is not None
+
+    def _force_order_window_count(self, since_ms: int) -> int:
+        row = self.force_order_db.conn.execute(
+            "SELECT COUNT(*) FROM force_order_events WHERE event_time_ms > ?",
+            (since_ms,),
+        ).fetchone()
+        return int(row[0] or 0)
+
+    def _build_data_health_block(self) -> str:
+        """Short Telegram block proving live data is fresh and research samples advance."""
+        now = datetime.now(timezone.utc)
+        now_ms = int(now.timestamp() * 1000)
+        lines = ["🩺 DATA HEALTH"]
+
+        try:
+            row = self.force_order_db.conn.execute(
+                "SELECT COUNT(*), MAX(event_time_ms) FROM force_order_events"
+            ).fetchone()
+            total = int(row[0] or 0)
+            last_ms = row[1]
+            last_age = ((now_ms - int(last_ms)) / 1000) if last_ms else None
+            last_10m = self._force_order_window_count(now_ms - 10 * 60 * 1000)
+            last_1h = self._force_order_window_count(now_ms - 60 * 60 * 1000)
+            last_24h = self._force_order_window_count(now_ms - 24 * 60 * 60 * 1000)
+            distinct_24h = self.force_order_db.conn.execute(
+                "SELECT COUNT(DISTINCT symbol) FROM force_order_events WHERE event_time_ms > ?",
+                (now_ms - 24 * 60 * 60 * 1000,),
+            ).fetchone()[0]
+            lines.append(
+                f"Force orders: {last_10m}/10m {last_1h}/1h {last_24h}/24h "
+                f"| symbols24h {int(distinct_24h or 0)} | last {self._fmt_age(last_age)} | total {total}"
+            )
+        except Exception as e:
+            lines.append(f"Force orders: ERR {e}")
+
+        try:
+            heartbeat_age = self._age_from_iso(self.db.get_state("heartbeat"))
+            ws_age = time.monotonic() - self._ws_last_message_mono
+            uptime = (now - self._started_at).total_seconds()
+            lines.append(
+                f"Liveness: heartbeat {self._fmt_age(heartbeat_age)} | "
+                f"ws {self._fmt_age(ws_age)} | uptime {self._fmt_age(uptime)}"
+            )
+        except Exception as e:
+            lines.append(f"Liveness: ERR {e}")
+
+        if self.signal_shadow is not None:
+            try:
+                conn = self.signal_shadow.conn
+                since_ts = now.timestamp() - 24 * 60 * 60
+                snap_total = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
+                snap_24h = conn.execute(
+                    "SELECT COUNT(*) FROM snapshots WHERE created_at > ?",
+                    (since_ts,),
+                ).fetchone()[0]
+                snap_open = conn.execute(
+                    "SELECT COUNT(*) FROM snapshots WHERE status='open'"
+                ).fetchone()[0]
+                snap_symbols = conn.execute(
+                    "SELECT COUNT(DISTINCT symbol) FROM snapshots WHERE created_at > ?",
+                    (since_ts,),
+                ).fetchone()[0]
+                bad = conn.execute(
+                    "SELECT COUNT(*) FROM snapshots "
+                    "WHERE atr IS NULL OR atr<=0 OR close IS NULL OR close<=0"
+                ).fetchone()[0]
+                lines.append(
+                    f"Cascade shadow: {int(snap_24h)}/24h | open {int(snap_open)} "
+                    f"| symbols24h {int(snap_symbols)} | bad {int(bad)} | total {int(snap_total)}"
+                )
+
+                if self._table_exists(conn, "burst_snapshots"):
+                    burst_total = conn.execute("SELECT COUNT(*) FROM burst_snapshots").fetchone()[0]
+                    burst_24h = conn.execute(
+                        "SELECT COUNT(*) FROM burst_snapshots WHERE created_at > ?",
+                        (since_ts,),
+                    ).fetchone()[0]
+                    burst_open = conn.execute(
+                        "SELECT COUNT(*) FROM burst_snapshots WHERE status='open'"
+                    ).fetchone()[0]
+                    burst_symbols = conn.execute(
+                        "SELECT COUNT(DISTINCT symbol) FROM burst_snapshots WHERE created_at > ?",
+                        (since_ts,),
+                    ).fetchone()[0]
+                    burst_bad = conn.execute(
+                        "SELECT COUNT(*) FROM burst_snapshots "
+                        "WHERE atr IS NULL OR atr<=0 OR close IS NULL OR close<=0"
+                    ).fetchone()[0]
+                    lines.append(
+                        f"Burst shadow: {int(burst_24h)}/24h | open {int(burst_open)} "
+                        f"| symbols24h {int(burst_symbols)} | bad {int(burst_bad)} | total {int(burst_total)}"
+                    )
+            except Exception as e:
+                lines.append(f"Signal shadow: ERR {e}")
+        else:
+            lines.append("Signal shadow: disabled")
+
+        try:
+            disk = shutil.disk_usage(Path.cwd())
+            free_pct = disk.free / disk.total * 100 if disk.total else 0.0
+            lines.append(f"Disk: {free_pct:.1f}% free ({disk.free / 1e9:.1f}GB)")
+        except Exception as e:
+            lines.append(f"Disk: ERR {e}")
+
+        return "\n".join(lines)
+
+    def _intraday_burst_stats(self, symbol: str, candle: Candle) -> dict:
+        """Rolling force-order stats ending at the candle close."""
+        bar_time = getattr(candle, "close_time", None) or datetime.now(timezone.utc)
+        if bar_time.tzinfo is None:
+            bar_time = bar_time.replace(tzinfo=timezone.utc)
+        end_ms = int(bar_time.timestamp() * 1000)
+        stats: dict[str, float | int] = {}
+        for minutes in (15, 30, 60):
+            start_ms = end_ms - minutes * 60 * 1000
+            row = self.force_order_db.conn.execute(
+                "SELECT COALESCE(SUM(volume_usd),0), COUNT(*), COALESCE(MAX(volume_usd),0) "
+                "FROM force_order_events WHERE symbol=? AND event_time_ms>? AND event_time_ms<=?",
+                (symbol, start_ms, end_ms),
+            ).fetchone()
+            stats[f"volume_{minutes}m"] = float(row[0] or 0.0)
+            stats[f"events_{minutes}m"] = int(row[1] or 0)
+            stats[f"max_order_usd_{minutes}m"] = float(row[2] or 0.0)
+
+        start_30m = end_ms - 30 * 60 * 1000
+        long_liq = self.force_order_db.conn.execute(
+            "SELECT COALESCE(SUM(volume_usd),0) FROM force_order_events "
+            "WHERE symbol=? AND event_time_ms>? AND event_time_ms<=? AND side='SELL'",
+            (symbol, start_30m, end_ms),
+        ).fetchone()[0]
+        short_liq = self.force_order_db.conn.execute(
+            "SELECT COALESCE(SUM(volume_usd),0) FROM force_order_events "
+            "WHERE symbol=? AND event_time_ms>? AND event_time_ms<=? AND side='BUY'",
+            (symbol, start_30m, end_ms),
+        ).fetchone()[0]
+        total_30m = float(long_liq or 0.0) + float(short_liq or 0.0)
+        stats["long_liq_30m"] = float(long_liq or 0.0)
+        stats["short_liq_30m"] = float(short_liq or 0.0)
+        stats["imbalance_30m"] = (
+            (stats["long_liq_30m"] - stats["short_liq_30m"]) / total_30m
+            if total_30m > 0 else 0.0
+        )
+        stats["max_order_usd_30m"] = stats.get("max_order_usd_30m", 0.0)
+        return stats
 
     async def _cleanup(self):
         logger.info("Shutting down...")
@@ -1283,10 +1475,22 @@ class V5ForwardTest:
         # Logging-only research collector — synchronous, exception-isolated, no locks.
         if self.signal_shadow is not None:
             try:
+                candles_5m = list(self.candle_buffers.get(symbol, []))
+                st = self.engine._get_state(symbol)
                 self.signal_shadow.on_bar(
-                    symbol, list(self.candle_buffers.get(symbol, [])),
-                    self.engine._get_state(symbol),
+                    symbol, candles_5m,
+                    st,
                 )
+                if self.intraday_burst_shadow_enabled:
+                    burst = self._intraday_burst_stats(symbol, candle)
+                    self.signal_shadow.on_intraday_burst(
+                        symbol, candles_5m,
+                        st,
+                        burst,
+                        min_volume_usd=self.intraday_burst_min_volume_usd,
+                        min_events=self.intraday_burst_min_events,
+                        dedup_bars=self.intraday_burst_dedup_bars,
+                    )
             except Exception as e:
                 logger.error("Signal shadow on_bar error (non-fatal)", symbol=symbol,
                              error=str(e), exc_info=True)
@@ -1657,6 +1861,7 @@ class V5ForwardTest:
         open_pos = [p for p in self.shadow_positions if not p.get("_closed")]
         cum_r = self.db.sum_shadow_pnl_r()
         report = build_asia_shadow_report(trades, session_date, cum_r, open_pos)
+        report += "\n\n" + self._build_data_health_block()
         await self.alerts.send(report, AlertTier.INFO)
 
     # ── Entry Logic ──────────────────────────────────────────────
@@ -1876,6 +2081,7 @@ class V5ForwardTest:
         report = build_session_report(
             trades, session_date, float(self.executor.equity), open_pos,
         )
+        report += "\n\n" + self._build_data_health_block()
         await self.alerts.send(report, AlertTier.INFO)
 
     # ── Daily Report ─────────────────────────────────────────────
@@ -1984,6 +2190,7 @@ class V5ForwardTest:
             f"  • All-Time Proven: {all_n_core}t ({all_r_core:+.2f}R) | Experimental: {all_n_exp}t ({all_r_exp:+.2f}R)\n"
             f"  • Unrealized Proven: {unrealized_core:+.2f}R | Experimental: {unrealized_exp:+.2f}R\n"
         )
+        report += "\n" + self._build_data_health_block()
 
         await self.alerts.send(report, AlertTier.INFO)
 

@@ -71,3 +71,8 @@ asia_shadow:
 # Signal shadow (logging-only — snapshots every cascade bar + forward R-paths)
 signal_shadow:
   enabled: true
+  intraday_burst_shadow:
+    enabled: true
+    min_volume_usd_30m: 20000
+    min_events_30m: 3
+    dedup_bars: 3
