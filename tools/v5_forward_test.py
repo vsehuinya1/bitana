@@ -58,6 +58,13 @@ try:
 except ImportError:
     _HAS_TELEMETRY = False
 
+# Signal shadow — logging-only candidate-signal + forward-path collector
+try:
+    from research.signal_shadow import SignalShadow
+    _HAS_SIGNAL_SHADOW = True
+except ImportError:
+    _HAS_SIGNAL_SHADOW = False
+
 logger = get_logger("v5_forward_test")
 
 # ═══════════════════════════════════════════════════
@@ -522,6 +529,16 @@ class V5ForwardTest:
         self.shadow_engine = LiqClusterEngineV5() if self.asia_shadow_enabled else None
         self.shadow_positions: list[dict] = []
 
+        # Logging-only signal shadow (no equity impact; pure research collector)
+        sig_cfg = self.v5_cfg.get("signal_shadow", {})
+        self.signal_shadow = None
+        if _HAS_SIGNAL_SHADOW and bool(sig_cfg.get("enabled", False)):
+            try:
+                self.signal_shadow = SignalShadow()
+                logger.info("Signal shadow enabled (logging-only)")
+            except Exception as e:
+                logger.error("Signal shadow init failed (non-fatal)", error=str(e))
+
         # State
         saved_eq = self.db.get_state("equity")
         eq = float(saved_eq) if saved_eq else self.v5_cfg.get("initial_equity", 10000.0)
@@ -540,6 +557,7 @@ class V5ForwardTest:
         self._last_liq_date = self.db.get_state("last_liq_date", "")
         self._ws_dirty_symbols: set = set()  # V6: symbols with pending WS liq updates
         self._ws_last_flush: float = 0.0     # V6: last time WS flushed to engine
+        self._ws_last_message_mono: float = time.monotonic()  # WS liveness heartbeat
 
         # V6.2 Research telemetry — purely observational
         self._telemetry = None
@@ -685,6 +703,11 @@ class V5ForwardTest:
         logger.info("Shutting down...")
         self.db.set_state("equity", str(round(self.executor.equity, 4)))
         self.db.set_state("peak_equity", str(round(self.executor.peak, 4)))
+        if self.signal_shadow is not None:
+            try:
+                self.signal_shadow.close()
+            except Exception:
+                pass
         try:
             self.force_order_db.conn.commit()
             self.force_order_db.close()
@@ -886,14 +909,16 @@ class V5ForwardTest:
     async def _watchdog_loop(self):
         """Independent liveness monitor.
 
-        The candle loop writes a 'heartbeat' timestamp each poll cycle. If it goes
-        stale (deadlock on the engine lock, silent task death, network hang), this
-        loop force-exits so systemd (Restart=always) revives a clean process.
+        The candle loop writes a 'heartbeat' timestamp each poll cycle and the WS
+        loop updates an in-memory message heartbeat on every received frame. If
+        either goes stale (deadlock, silent task death, network hang), this loop
+        force-exits so systemd (Restart=always) revives a clean process.
 
         Uses its own short-lived SQLite connection so it can never be blocked by a
         hang elsewhere in the runner.
         """
         STALE_S = 300
+        WS_STALE_S = 900
         CHECK_S = 30
         # Grace period for startup (history load + liq seeding can take minutes).
         for _ in range(180):
@@ -906,6 +931,17 @@ class V5ForwardTest:
                 if self._shutdown.is_set():
                     return
                 await asyncio.sleep(1)
+
+            ws_age = time.monotonic() - self._ws_last_message_mono
+            if ws_age > WS_STALE_S:
+                logger.critical("Watchdog: websocket heartbeat stale; exiting for restart",
+                                age_s=round(ws_age))
+                try:
+                    await self.alerts.critical(
+                        f"⚠️ v65 watchdog: ws stream stale {ws_age:.0f}s — forcing restart")
+                except Exception:
+                    pass
+                os._exit(1)
 
             hb = None
             try:
@@ -964,10 +1000,13 @@ class V5ForwardTest:
             try:
                 async with websockets.connect(url, ping_interval=20, ping_timeout=20) as ws:
                     logger.info("Liquidation WebSocket connected successfully")
+                    self._ws_last_message_mono = time.monotonic()
 
                     async for message in ws:
                         if self._shutdown.is_set():
                             break
+                        # Any frame received from the stream counts as WS liveness.
+                        self._ws_last_message_mono = time.monotonic()
 
                         try:
                             msg = json.loads(message)
@@ -1240,6 +1279,17 @@ class V5ForwardTest:
         if self.asia_shadow_enabled:
             await self._manage_shadow_positions(symbol, candle)
             await self._check_shadow_entry(symbol, candle)
+
+        # Logging-only research collector — synchronous, exception-isolated, no locks.
+        if self.signal_shadow is not None:
+            try:
+                self.signal_shadow.on_bar(
+                    symbol, list(self.candle_buffers.get(symbol, [])),
+                    self.engine._get_state(symbol),
+                )
+            except Exception as e:
+                logger.error("Signal shadow on_bar error (non-fatal)", symbol=symbol,
+                             error=str(e), exc_info=True)
 
     def _feed_engine_liq(self, engine: LiqClusterEngineV5, symbol: str):
         from engines.liq_cluster_engine_v5 import CascadeTracker
