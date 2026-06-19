@@ -38,7 +38,19 @@ FORCE_ORDER_DB = Path("storage/force_orders.db")
 CANDLE_HISTORY = 200
 POLL_S = 15
 TAKER_BPS = 4.5
-SLIP_BPS = 2.0
+FEE_RT = 0.0013  # unused in runner; documented for backtest parity
+
+
+def _kline_to_candle(symbol: str, k: list) -> Candle:
+    return Candle(
+        symbol=symbol, timeframe="5m",
+        open_time=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
+        close_time=datetime.fromtimestamp(k[6] / 1000, tz=timezone.utc),
+        open=float(k[1]), high=float(k[2]), low=float(k[3]), close=float(k[4]),
+        volume=float(k[5]),
+        taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
+        is_closed=True,
+    )
 
 
 def load_cfg() -> dict:

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import signal
 import sqlite3
 import sys
@@ -650,11 +651,12 @@ class V5ForwardTest:
                 self._asia_session_report_loop(),
                 self._liq_refresh_loop(),
                 self._liq_websocket_loop(),
+                self._watchdog_loop(),
                 return_exceptions=True,
             )
             for i, r in enumerate(results):
                 if isinstance(r, Exception):
-                    names = ["candle_loop", "daily_report", "ny_session_report", "asia_session_report", "liq_refresh", "liq_websocket"]
+                    names = ["candle_loop", "daily_report", "ny_session_report", "asia_session_report", "liq_refresh", "liq_websocket", "watchdog"]
                     name = names[i] if i < len(names) else f"task_{i}"
                     logger.critical("Task died", task=name, error=str(r))
                     await self.alerts.critical(f"V5.1 task crashed: {name}: {r}")
@@ -881,6 +883,58 @@ class V5ForwardTest:
             logger.error("Daily closes error", symbol=symbol, error=str(e))
         return closes
 
+    async def _watchdog_loop(self):
+        """Independent liveness monitor.
+
+        The candle loop writes a 'heartbeat' timestamp each poll cycle. If it goes
+        stale (deadlock on the engine lock, silent task death, network hang), this
+        loop force-exits so systemd (Restart=always) revives a clean process.
+
+        Uses its own short-lived SQLite connection so it can never be blocked by a
+        hang elsewhere in the runner.
+        """
+        STALE_S = 300
+        CHECK_S = 30
+        # Grace period for startup (history load + liq seeding can take minutes).
+        for _ in range(180):
+            if self._shutdown.is_set():
+                return
+            await asyncio.sleep(1)
+
+        while not self._shutdown.is_set():
+            for _ in range(CHECK_S):
+                if self._shutdown.is_set():
+                    return
+                await asyncio.sleep(1)
+
+            hb = None
+            try:
+                wconn = sqlite3.connect(str(DB_PATH))
+                row = wconn.execute(
+                    "SELECT value FROM state WHERE key='heartbeat'").fetchone()
+                wconn.close()
+                hb = row[0] if row else None
+            except Exception as e:
+                logger.warning("Watchdog read failed (non-fatal)", error=str(e))
+                continue
+
+            if not hb:
+                continue
+            try:
+                last = datetime.fromisoformat(hb)
+            except ValueError:
+                continue
+            age = (datetime.now(timezone.utc) - last).total_seconds()
+            if age > STALE_S:
+                logger.critical("Watchdog: candle heartbeat stale; exiting for restart",
+                                age_s=round(age))
+                try:
+                    await self.alerts.critical(
+                        f"⚠️ v65 watchdog: candle loop stalled {age:.0f}s — forcing restart")
+                except Exception:
+                    pass
+                os._exit(1)
+
     async def _liq_refresh_loop(self):
         while not self._shutdown.is_set():
             # Sleep in 1-second chunks to exit promptly on shutdown
@@ -1010,13 +1064,23 @@ class V5ForwardTest:
         dirty = list(self._ws_dirty_symbols)
         self._ws_dirty_symbols.clear()
 
-        async with self._engine_lock:
+        # Bound the lock wait so WS force-order capture cannot freeze behind a
+        # stuck candle-loop holder; re-queue dirty symbols for the next flush.
+        try:
+            await asyncio.wait_for(self._engine_lock.acquire(), timeout=30)
+        except asyncio.TimeoutError:
+            logger.error("engine_lock acquire timed out in WS flush; re-queueing", n=len(dirty))
+            self._ws_dirty_symbols.update(dirty)
+            return
+        try:
             for symbol in dirty:
                 cached = self.db.get_liq_cache(symbol, min_date)
                 if cached:
                     self._feed_engine_liq(self.engine, symbol)
                     if self.shadow_engine:
                         self._feed_engine_liq(self.shadow_engine, symbol)
+        finally:
+            self._engine_lock.release()
 
         n_flushed = len(dirty)
         n_active = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
@@ -1037,43 +1101,74 @@ class V5ForwardTest:
                 last_processed[sym] = datetime.min.replace(tzinfo=timezone.utc)
 
         logger.info("Candle loop started", symbols=len(self.all_symbols))
+        # Fresh heartbeat on entry so a restart doesn't read a stale stamp and
+        # trip the watchdog before the first poll cycle completes.
+        self.db.set_state("heartbeat", datetime.now(timezone.utc).isoformat())
 
         while not self._shutdown.is_set():
             try:
                 for sym in self.all_symbols:
-                    raw = await self.rest.get_klines(symbol=sym, interval="5m", limit=3)
-                    if not raw:
-                        continue
-
-                    for k in raw:
-                        close_time = datetime.fromtimestamp(k[6] / 1000, tz=timezone.utc)
-                        now = datetime.now(timezone.utc)
-                        if close_time > now:
+                    # Per-symbol guard: a single bad symbol/API error must not abort
+                    # the whole poll cycle (and must never bubble out of the loop).
+                    try:
+                        raw = await self.rest.get_klines(symbol=sym, interval="5m", limit=3)
+                        # Defensive: get_klines may return a non-list error payload
+                        # (e.g. {'code': -1122, 'msg': 'Invalid symbol status.'}).
+                        if not raw or not isinstance(raw, list):
                             continue
 
-                        if close_time <= last_processed[sym]:
-                            continue
+                        for k in raw:
+                            if not isinstance(k, (list, tuple)) or len(k) < 7:
+                                continue
+                            close_time = datetime.fromtimestamp(k[6] / 1000, tz=timezone.utc)
+                            now = datetime.now(timezone.utc)
+                            if close_time > now:
+                                continue
 
-                        candle = Candle(
-                            symbol=sym, timeframe="5m",
-                            open_time=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
-                            close_time=close_time,
-                            open=float(k[1]), high=float(k[2]),
-                            low=float(k[3]), close=float(k[4]),
-                            volume=float(k[5]),
-                            taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
-                            is_closed=True,
-                        )
+                            if close_time <= last_processed[sym]:
+                                continue
 
-                        self.candle_buffers[sym].append(candle)
-                        self.last_prices[sym] = candle.close
+                            candle = Candle(
+                                symbol=sym, timeframe="5m",
+                                open_time=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
+                                close_time=close_time,
+                                open=float(k[1]), high=float(k[2]),
+                                low=float(k[3]), close=float(k[4]),
+                                volume=float(k[5]),
+                                taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
+                                is_closed=True,
+                            )
 
-                        if sym in self.symbols:
-                            async with self._engine_lock:
-                                await self._on_5m_close(sym, candle)
+                            self.candle_buffers[sym].append(candle)
+                            self.last_prices[sym] = candle.close
 
-                        last_processed[sym] = close_time
+                            if sym in self.symbols:
+                                # Bound the lock wait: if a stuck holder (e.g. WS flush)
+                                # never releases, skip rather than freeze forever. The
+                                # watchdog escalates to a restart if heartbeats go stale.
+                                try:
+                                    await asyncio.wait_for(self._engine_lock.acquire(), timeout=30)
+                                except asyncio.TimeoutError:
+                                    logger.error("engine_lock acquire timed out; skipping candle", symbol=sym)
+                                else:
+                                    try:
+                                        # Bound per-candle processing so a single hung
+                                        # network await cannot freeze the loop or hold
+                                        # the lock indefinitely. Logs the culprit symbol.
+                                        await asyncio.wait_for(
+                                            self._on_5m_close(sym, candle), timeout=25)
+                                    except asyncio.TimeoutError:
+                                        logger.error("on_5m_close timed out; skipping", symbol=sym)
+                                    finally:
+                                        self._engine_lock.release()
 
+                            last_processed[sym] = close_time
+                    except Exception as e:
+                        logger.error("Candle per-symbol error", symbol=sym, error=str(e))
+
+                    # Per-symbol heartbeat: reflects real progress so a slow (not hung)
+                    # cycle never trips the watchdog; a true wedge still goes stale.
+                    self.db.set_state("heartbeat", datetime.now(timezone.utc).isoformat())
                     await asyncio.sleep(0.02)
 
                 # V6: batch commit all state updates per poll cycle
@@ -1441,15 +1536,17 @@ class V5ForwardTest:
             return
 
         candles_5m = list(self.candle_buffers.get(symbol, []))
-        async with self._engine_lock:
-            old_hours = eng_mod.SNIPER_ALLOWED_HOURS
-            eng_mod.SNIPER_ALLOWED_HOURS = self.asia_shadow_hours
-            try:
-                sig = self.shadow_engine.evaluate(symbol, candles_5m)
-            except Exception as e:
-                logger.error("shadow evaluate() error", symbol=symbol, error=str(e))
-                eng_mod.SNIPER_ALLOWED_HOURS = old_hours
-                return
+        # NOTE: caller (_on_5m_close) already holds self._engine_lock. asyncio.Lock
+        # is non-reentrant, so re-acquiring here self-deadlocks the candle loop.
+        # The SNIPER_ALLOWED_HOURS swap is already protected by the held lock.
+        old_hours = eng_mod.SNIPER_ALLOWED_HOURS
+        eng_mod.SNIPER_ALLOWED_HOURS = self.asia_shadow_hours
+        try:
+            sig = self.shadow_engine.evaluate(symbol, candles_5m)
+        except Exception as e:
+            logger.error("shadow evaluate() error", symbol=symbol, error=str(e))
+            return
+        finally:
             eng_mod.SNIPER_ALLOWED_HOURS = old_hours
 
         if sig is None:
