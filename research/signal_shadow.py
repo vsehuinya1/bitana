@@ -68,6 +68,7 @@ class SignalShadow:
         self._init_db()
         self._last_snap_bar: dict[str, datetime] = {}
         self._last_burst_bar: dict[str, datetime] = {}
+        self._last_setup_bar: dict[str, datetime] = {}
         self._writes = 0
         # Forward windows of snapshots still open at shutdown last run never get a
         # final bar; mark them so analysis can exclude truncated paths.
@@ -78,6 +79,11 @@ class SignalShadow:
         )
         self.conn.execute(
             "UPDATE burst_snapshots SET status='orphaned' WHERE status='open' "
+            "AND created_at < ?",
+            ((datetime.now(timezone.utc).timestamp() - MAX_H * 300),),
+        )
+        self.conn.execute(
+            "UPDATE setup_snapshots SET status='orphaned' WHERE status='open' "
             "AND created_at < ?",
             ((datetime.now(timezone.utc).timestamp() - MAX_H * 300),),
         )
@@ -130,6 +136,71 @@ class SignalShadow:
         )
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_burst_sym_status ON burst_snapshots(symbol, status)"
+        )
+        # Unconditional v_strict setup logger — no cascade gate required.
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS setup_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bar_time TEXT, symbol TEXT, hour INT, session TEXT,
+                close REAL, atr REAL, atr_pct REAL,
+                cascade_strength REAL, liq_direction_imb REAL, ret_5d REAL,
+                vol_z REAL, imb_z REAL, breakout_distance_pct REAL,
+                body_ratio REAL, impulse_pct REAL, above_ema INT, breakout INT,
+                n_confirms INT, decile INT, aggression REAL,
+                cascade_active INT,
+                v_strict INT, v_allhours INT, v_confirms3 INT, v_loose INT,
+                status TEXT DEFAULT 'open', bars_tracked INT DEFAULT 0,
+                fwd_atr_3 REAL, fwd_atr_6 REAL, fwd_atr_12 REAL,
+                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL,
+                mfe_atr REAL DEFAULT 0, mae_atr REAL DEFAULT 0,
+                created_at REAL
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_setup_sym_status ON setup_snapshots(symbol, status)"
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS shadow_trades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                strategy TEXT,
+                symbol TEXT,
+                side TEXT,
+                entry_time TEXT,
+                entry_price REAL,
+                stop_price REAL,
+                tp_price REAL,
+                atr REAL,
+                status TEXT DEFAULT 'open',
+                pnl_atr REAL DEFAULT 0,
+                exit_time TEXT,
+                exit_price REAL,
+                exit_reason TEXT,
+                bars_held INT DEFAULT 0,
+                created_at REAL
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_shadow_trades_status ON shadow_trades(status)"
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS setup_r_path (
+                setup_id INTEGER NOT NULL,
+                bar_num  INTEGER NOT NULL,
+                r_close  REAL,
+                r_high   REAL,
+                r_low    REAL,
+                PRIMARY KEY (setup_id, bar_num),
+                FOREIGN KEY (setup_id) REFERENCES setup_snapshots(id)
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_setup_r_path_setup ON setup_r_path(setup_id)"
         )
         self.conn.commit()
 
@@ -196,6 +267,7 @@ class SignalShadow:
         return {
             "bar_time": bar_time,
             "hour": hour,
+            "session": _session(hour),
             "close": close,
             "atr": atr,
             "atr_pct": (atr / close * 100) if close > 0 else 0.0,
@@ -222,7 +294,7 @@ class SignalShadow:
 
     def _advance_open(self, table: str, symbol: str, high: float, low: float, close: float):
         """Advance forward windows for one shadow table."""
-        if table not in {"snapshots", "burst_snapshots"}:
+        if table not in {"snapshots", "burst_snapshots", "setup_snapshots"}:
             raise ValueError(f"unsupported shadow table: {table}")
         rows = self.conn.execute(
             "SELECT id, close, atr, bars_tracked, mfe_atr, mae_atr "
@@ -250,6 +322,22 @@ class SignalShadow:
             vals.append(r["id"])
             self.conn.execute(f"UPDATE {table} SET {', '.join(sets)} WHERE id=?", vals)
 
+            if table == "setup_snapshots":
+                self.conn.execute(
+                    """
+                    INSERT OR REPLACE INTO setup_r_path (setup_id, bar_num, r_close, r_high, r_low)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        r["id"],
+                        nb,
+                        (close - entry) / atr,
+                        (high - entry) / atr,
+                        (low - entry) / atr,
+                    ),
+                )
+                self._writes += 1
+
     def on_bar(self, symbol: str, candles_5m: list, st: SymbolState):
         """Advance open forward-windows for this symbol, then maybe snapshot.
 
@@ -259,17 +347,49 @@ class SignalShadow:
             return
         bar = candles_5m[-1]
         self._advance_open("snapshots", symbol, bar.high, bar.low, bar.close)
+        self._advance_open("setup_snapshots", symbol, bar.high, bar.low, bar.close)
+        self._manage_shadow_trades(symbol, bar)
 
-        # 2) Snapshot every cascade-active bar. We deliberately do NOT apply the
-        #    strategy's confirmation OR cascade-strength floors here — those are the
-        #    very thresholds we want to evaluate. cascade_strength and confirm-count
-        #    are stored as features/flags so any threshold is testable offline.
-        if not st.cascade_active:
-            self._maybe_commit()
-            return
-
+        # Always compute features so we can log unconditional v_strict setups.
         f = self._features(candles_5m, st)
-        if f is None:
+
+        # Branch A: setup logger — fires on v_confirms3 (3/6 confirms, any hour, no cascade gate).
+        # v_strict (4 confirms + NY-only + decile) is stored as a column for offline filtering.
+        # Using v_confirms3 here so we accumulate enough rows to actually analyse.
+        if f is not None and f["v_confirms3"] == 1:
+            last_setup = self._last_setup_bar.get(symbol)
+            if last_setup is None or (f["bar_time"] - last_setup).total_seconds() >= DEDUP_BARS * 300:
+                self._last_setup_bar[symbol] = f["bar_time"]
+                self.conn.execute(
+                    """
+                    INSERT INTO setup_snapshots (
+                        bar_time, symbol, hour, session, close, atr, atr_pct,
+                        cascade_strength, liq_direction_imb, ret_5d,
+                        vol_z, imb_z, breakout_distance_pct,
+                        body_ratio, impulse_pct, above_ema, breakout,
+                        n_confirms, decile, aggression,
+                        cascade_active,
+                        v_strict, v_allhours, v_confirms3, v_loose,
+                        created_at
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        f["bar_time"].isoformat(), symbol, f["hour"], _session(f["hour"]),
+                        f["close"], f["atr"], f["atr_pct"],
+                        f["cascade_strength"], f["liq_direction_imb"], f["ret_5d"],
+                        f["vol_z"], f["imb_z"], f["breakout_distance_pct"],
+                        f["body_ratio"], f["impulse_pct"], f["above_ema"], f["breakout"],
+                        f["n_confirms"], f["decile"], f["aggression"],
+                        int(st.cascade_active),
+                        f["v_strict"], f["v_allhours"], f["v_confirms3"], f["v_loose"],
+                        datetime.now(timezone.utc).timestamp(),
+                    ),
+                )
+                self._writes += 1
+                self._maybe_commit(force=True)
+
+        # Branch B: existing cascade-gated snapshot path.
+        if not st.cascade_active or f is None:
             self._maybe_commit()
             return
 
@@ -377,11 +497,155 @@ class SignalShadow:
         self._writes += 1
         self._maybe_commit(force=True)
 
+        # Shadow profit entry evaluation
+        imb_30m = float(burst.get("imbalance_30m", 0.0))
+        is_late_fade = (
+            f["session"] == "late" and
+            abs(imb_30m) >= 0.5
+        )
+        is_nony_momentum = (
+            f["session"] != "ny" and
+            vol_30m >= 20000 and
+            events_30m >= 10 and
+            abs(imb_30m) >= 0.9 and
+            f["above_ema"] == 0
+        )
+        if is_late_fade:
+            side = "LONG" if imb_30m > 0 else "SHORT"
+            self._maybe_open_shadow_trade("late_fade", symbol, f, side, stop_atr=12.0, tp_atr=3.0)
+        if is_nony_momentum:
+            side = "SHORT" if imb_30m > 0 else "LONG"
+            self._maybe_open_shadow_trade("nony_momentum", symbol, f, side, stop_atr=10.0, tp_atr=3.0)
+
     def _maybe_commit(self, force: bool = False):
         self._writes += 1
         if force or self._writes >= 20:
             self.conn.commit()
             self._writes = 0
+
+    def _manage_shadow_trades(self, symbol: str, bar):
+        """Manage open shadow trades for this symbol on bar close."""
+        high = float(bar.high)
+        low = float(bar.low)
+        close = float(bar.close)
+        close_time_str = bar.close_time.isoformat() if hasattr(bar, 'close_time') else datetime.now(timezone.utc).isoformat()
+        
+        rows = self.conn.execute(
+            "SELECT id, strategy, side, entry_price, stop_price, tp_price, atr, bars_held "
+            "FROM shadow_trades WHERE symbol=? AND status='open'",
+            (symbol,),
+        ).fetchall()
+        
+        for r in rows:
+            tid = r["id"]
+            strategy = r["strategy"]
+            side = r["side"]
+            entry = r["entry_price"]
+            sl = r["stop_price"]
+            tp = r["tp_price"]
+            atr = r["atr"]
+            bars_held = r["bars_held"] + 1
+            
+            pnl_atr = 0.0
+            exit_price = 0.0
+            exit_reason = None
+            
+            if side == "LONG":
+                if low <= sl:
+                    exit_price = sl
+                    pnl_atr = (sl - entry) / atr
+                    exit_reason = "stop"
+                elif high >= tp:
+                    exit_price = tp
+                    pnl_atr = (tp - entry) / atr
+                    exit_reason = "tp"
+            else:  # SHORT
+                if high >= sl:
+                    exit_price = sl
+                    pnl_atr = (entry - sl) / atr
+                    exit_reason = "stop"
+                elif low <= tp:
+                    exit_price = tp
+                    pnl_atr = (entry - tp) / atr
+                    exit_reason = "tp"
+                    
+            if exit_reason is None and bars_held >= 6:
+                exit_price = close
+                pnl_atr = (close - entry) / atr if side == "LONG" else (entry - close) / atr
+                exit_reason = "time"
+                
+            if exit_reason is not None:
+                self.conn.execute(
+                    """
+                    UPDATE shadow_trades 
+                    SET status='closed', pnl_atr=?, exit_time=?, exit_price=?, exit_reason=?, bars_held=?
+                    WHERE id=?
+                    """,
+                    (pnl_atr, close_time_str, exit_price, exit_reason, bars_held, tid),
+                )
+                self.conn.commit()
+                logger.info(
+                    "💰 [SHADOW TRADE CLOSED] Strategy=%s Symbol=%s Side=%s Entry=%.6f Exit=%.6f PnL=%.3f ATR (%s)",
+                    strategy, symbol, side, entry, exit_price, pnl_atr, exit_reason
+                )
+                print(
+                    f"💰 [SHADOW TRADE CLOSED] {strategy} {symbol} {side} at {exit_price:.6f} "
+                    f"PnL: {pnl_atr:+.3f} ATR ({exit_reason})"
+                )
+            else:
+                self.conn.execute(
+                    "UPDATE shadow_trades SET bars_held=? WHERE id=?",
+                    (bars_held, tid),
+                )
+
+    def _maybe_open_shadow_trade(
+        self, strategy: str, symbol: str, f: dict, side: str, stop_atr: float, tp_atr: float
+    ):
+        """Evaluate opening a new shadow trade if one isn't already active."""
+        existing = self.conn.execute(
+            "SELECT COUNT(*) FROM shadow_trades WHERE symbol=? AND strategy=? AND status='open'",
+            (symbol, strategy),
+        ).fetchone()[0]
+        
+        if existing > 0:
+            return
+            
+        entry_price = f["close"]
+        atr = f["atr"]
+        if atr <= 0:
+            return
+            
+        if side == "LONG":
+            stop_price = entry_price - stop_atr * atr
+            tp_price = entry_price + tp_atr * atr
+        else:
+            stop_price = entry_price + stop_atr * atr
+            tp_price = entry_price - tp_atr * atr
+            
+        bar_time_str = f["bar_time"].isoformat() if hasattr(f["bar_time"], 'isoformat') else str(f["bar_time"])
+        
+        self.conn.execute(
+            """
+            INSERT INTO shadow_trades (
+                strategy, symbol, side, entry_time, entry_price, stop_price, tp_price, atr,
+                status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+            """,
+            (
+                strategy, symbol, side, bar_time_str, entry_price, stop_price, tp_price, atr,
+                datetime.now(timezone.utc).timestamp()
+            ),
+        )
+        self.conn.commit()
+        
+        logger.info(
+            "🚀 [SHADOW TRADE OPENED] Strategy=%s Symbol=%s Side=%s Entry=%.6f TP=%.6f SL=%.6f ATR=%.6f",
+            strategy, symbol, side, entry_price, tp_price, stop_price, atr
+        )
+        print(
+            f"🚀 [SHADOW TRADE OPENED] {strategy} {symbol} {side} at {entry_price:.6f} "
+            f"TP: {tp_price:.6f}, SL: {stop_price:.6f} (ATR: {atr:.6f})"
+        )
 
     def close(self):
         """Best-effort flush for graceful runner shutdown."""
