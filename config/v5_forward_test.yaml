@@ -71,6 +71,12 @@ asia_shadow:
 # Signal shadow (logging-only — snapshots every cascade bar + forward R-paths)
 signal_shadow:
   enabled: true
+  # Portfolio caps: null max_concurrent = log everything (50+ parallel).
+  # Set max_concurrent to 5-10 to rehearse live transition sizing in shadow.
+  portfolio:
+    max_concurrent: null
+    max_per_symbol_session: 1
+    max_net_delta: null
   intraday_burst_shadow:
     enabled: true
     min_volume_usd_30m: 20000

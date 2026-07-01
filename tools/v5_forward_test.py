@@ -61,7 +61,7 @@ except ImportError:
 
 # Signal shadow — logging-only candidate-signal + forward-path collector
 try:
-    from research.signal_shadow import SignalShadow
+    from research.signal_shadow import ShadowPortfolioConfig, SignalShadow
     _HAS_SIGNAL_SHADOW = True
 except ImportError:
     _HAS_SIGNAL_SHADOW = False
@@ -537,14 +537,24 @@ class V5ForwardTest:
         self.intraday_burst_min_volume_usd = float(burst_cfg.get("min_volume_usd_30m", 20_000.0))
         self.intraday_burst_min_events = int(burst_cfg.get("min_events_30m", 3))
         self.intraday_burst_dedup_bars = int(burst_cfg.get("dedup_bars", 3))
+        port_cfg = sig_cfg.get("portfolio", {})
+        shadow_portfolio = ShadowPortfolioConfig(
+            max_concurrent=port_cfg.get("max_concurrent"),
+            max_per_symbol_session=int(port_cfg.get("max_per_symbol_session", 1)),
+            max_net_delta=port_cfg.get("max_net_delta"),
+        )
         self.signal_shadow = None
         if _HAS_SIGNAL_SHADOW and bool(sig_cfg.get("enabled", False)):
             try:
-                self.signal_shadow = SignalShadow()
-                logger.info("Signal shadow enabled (logging-only)",
-                            intraday_burst=self.intraday_burst_shadow_enabled,
-                            burst_min_volume_30m=self.intraday_burst_min_volume_usd,
-                            burst_min_events_30m=self.intraday_burst_min_events)
+                self.signal_shadow = SignalShadow(portfolio=shadow_portfolio)
+                logger.info(
+                    "Signal shadow enabled (logging-only)",
+                    intraday_burst=self.intraday_burst_shadow_enabled,
+                    burst_min_volume_30m=self.intraday_burst_min_volume_usd,
+                    burst_min_events_30m=self.intraday_burst_min_events,
+                    shadow_max_concurrent=shadow_portfolio.max_concurrent,
+                    shadow_max_net_delta=shadow_portfolio.max_net_delta,
+                )
             except Exception as e:
                 logger.error("Signal shadow init failed (non-fatal)", error=str(e))
                 self.intraday_burst_shadow_enabled = False

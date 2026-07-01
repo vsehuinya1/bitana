@@ -57,6 +57,21 @@ DEDUP_BARS = 3
 
 SideMode = Literal["fade", "fade_short_only", "follow", "long"]
 
+# Checkpoint bars for per-horizon MAE/MFE snapshots (5m bars).
+MAE_CHECKPOINT_BARS: dict[int, str] = {36: "3h", 72: "6h", 144: "12h", 288: "24h"}
+
+
+@dataclass
+class ShadowPortfolioConfig:
+    """Portfolio caps — disabled by default so shadow logs everything in parallel."""
+
+    max_concurrent: int | None = None
+    max_per_symbol_session: int = 1
+    max_net_delta: int | None = None  # |open longs - open shorts|
+
+
+DEFAULT_PORTFOLIO = ShadowPortfolioConfig()
+
 
 @dataclass(frozen=True)
 class ShadowStrategy:
@@ -76,6 +91,9 @@ class ShadowStrategy:
     require_cascade: bool = False
     require_above_ema_zero: bool = False
     exclude_ny: bool = False
+    pos_imb_only: bool = False
+    neg_imb_only: bool = False
+    time_exit_only: bool = False  # skip TP — pure horizon study
 
 
 # Every candidate rule family — logged in parallel; pick winners offline.
@@ -100,6 +118,78 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy(
         "nony_momentum", "burst", "follow", 10.0, 3.0,
         min_imb=0.9, min_burst_events=10, require_above_ema_zero=True, exclude_ny=True,
+    ),
+    # ── 3h / 6h follow variants (pos_imb only, no TP — pure time exit) ──
+    # These test Nemo's finding: burst follow edge lives at 3-6h, not 30min.
+    # pos_imb_only=True means only fire when liq_imbalance > 0 (long-liq dominated = bear pressure).
+    ShadowStrategy(
+        "follow_3h_all", "burst", "follow", 10.0, 999.0, time_bars=36,
+        pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_6h_all", "burst", "follow", 10.0, 999.0, time_bars=72,
+        pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_3h_asia", "burst", "follow", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"asia"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_6h_asia", "burst", "follow", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"asia"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_3h_ny", "burst", "follow", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
+        pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_6h_ny", "burst", "follow", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
+        pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_3h_late", "burst", "follow", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_6h_late", "burst", "follow", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    # neg_imb fade for Asia/London; pos_imb fade for NY/Late (historical split).
+    ShadowStrategy(
+        "fade_3h_asia", "burst", "fade", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"asia"}), neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_6h_asia", "burst", "fade", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"asia"}), neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_3h_london", "burst", "fade", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"london"}), neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_6h_london", "burst", "fade", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"london"}), neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_3h_ny", "burst", "fade", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
+        pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_6h_ny", "burst", "fade", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
+        pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_3h_late", "burst", "fade", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "fade_6h_late", "burst", "fade", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
     ),
     # ── Setup / bar-close (on_bar, v_confirms3 snapshot) ──
     ShadowStrategy(
@@ -175,6 +265,10 @@ def _matches_strategy(
 ) -> bool:
     if abs(imb) < spec.min_imb:
         return False
+    if spec.pos_imb_only and imb <= 0:
+        return False
+    if spec.neg_imb_only and imb >= 0:
+        return False
     if spec.sessions is not None and f["session"] not in spec.sessions:
         return False
     if spec.hours is not None and f["hour"] not in spec.hours:
@@ -196,7 +290,12 @@ def _matches_strategy(
 
 
 class SignalShadow:
-    def __init__(self, db_path: Path = DB_PATH):
+    def __init__(
+        self,
+        db_path: Path = DB_PATH,
+        portfolio: ShadowPortfolioConfig | None = None,
+    ):
+        self.portfolio = portfolio or DEFAULT_PORTFOLIO
         self.conn = sqlite3.connect(str(db_path))
         self.conn.row_factory = sqlite3.Row
         self._init_db()
@@ -322,7 +421,18 @@ class SignalShadow:
                 v_confirms3 INT,
                 v_strict INT,
                 cascade_active INT,
-                trigger TEXT
+                trigger TEXT,
+                time_exit_only INT DEFAULT 0,
+                run_mae_atr REAL DEFAULT 0,
+                run_mfe_atr REAL DEFAULT 0,
+                mae_3h REAL,
+                mae_6h REAL,
+                mae_12h REAL,
+                mae_24h REAL,
+                mfe_3h REAL,
+                mfe_6h REAL,
+                mfe_12h REAL,
+                mfe_24h REAL
             )
             """
         )
@@ -367,6 +477,17 @@ class SignalShadow:
             ("v_strict", "INTEGER"),
             ("cascade_active", "INTEGER"),
             ("trigger", "TEXT"),
+            ("time_exit_only", "INTEGER DEFAULT 0"),
+            ("run_mae_atr", "REAL DEFAULT 0"),
+            ("run_mfe_atr", "REAL DEFAULT 0"),
+            ("mae_3h", "REAL"),
+            ("mae_6h", "REAL"),
+            ("mae_12h", "REAL"),
+            ("mae_24h", "REAL"),
+            ("mfe_3h", "REAL"),
+            ("mfe_6h", "REAL"),
+            ("mfe_12h", "REAL"),
+            ("mfe_24h", "REAL"),
         ):
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
@@ -700,6 +821,43 @@ class SignalShadow:
             self.conn.commit()
             self._writes = 0
 
+    def _trade_path_atr(self, side: str, entry: float, atr: float, high: float, low: float) -> tuple[float, float]:
+        """Return (favorable, adverse) in signed ATR units for this bar."""
+        if side == "LONG":
+            return (high - entry) / atr, (low - entry) / atr
+        return (entry - low) / atr, (entry - high) / atr
+
+    def _portfolio_allows_open(self, symbol: str, session: str, side: str) -> bool:
+        cfg = self.portfolio
+        if cfg.max_concurrent is None:
+            return True
+
+        total_open = self.conn.execute(
+            "SELECT COUNT(*) FROM shadow_trades WHERE status='open'",
+        ).fetchone()[0]
+        if total_open >= cfg.max_concurrent:
+            return False
+
+        sym_sess = self.conn.execute(
+            "SELECT COUNT(*) FROM shadow_trades WHERE symbol=? AND session=? AND status='open'",
+            (symbol, session),
+        ).fetchone()[0]
+        if sym_sess >= cfg.max_per_symbol_session:
+            return False
+
+        if cfg.max_net_delta is not None:
+            rows = self.conn.execute(
+                "SELECT side FROM shadow_trades WHERE status='open'",
+            ).fetchall()
+            n_long = sum(1 for r in rows if r["side"] == "LONG")
+            n_short = sum(1 for r in rows if r["side"] == "SHORT")
+            delta = n_long - n_short
+            if side == "LONG" and delta + 1 > cfg.max_net_delta:
+                return False
+            if side == "SHORT" and delta - 1 < -cfg.max_net_delta:
+                return False
+        return True
+
     def _manage_shadow_trades(self, symbol: str, bar):
         """Manage open shadow trades for this symbol on bar close."""
         high = float(bar.high)
@@ -714,7 +872,7 @@ class SignalShadow:
         rows = self.conn.execute(
             """
             SELECT id, strategy, side, entry_price, stop_price, tp_price, atr,
-                   bars_held, time_bars
+                   bars_held, time_bars, time_exit_only, run_mae_atr, run_mfe_atr
             FROM shadow_trades WHERE symbol=? AND status='open'
             """,
             (symbol,),
@@ -730,6 +888,11 @@ class SignalShadow:
             atr = r["atr"]
             bars_held = r["bars_held"] + 1
             max_bars = int(r["time_bars"] or 6)
+            skip_tp = bool(r["time_exit_only"])
+
+            fav, adv = self._trade_path_atr(side, entry, atr, high, low)
+            run_mfe = max(float(r["run_mfe_atr"] or 0.0), fav)
+            run_mae = min(float(r["run_mae_atr"] or 0.0), adv)
 
             pnl_atr = 0.0
             exit_price = 0.0
@@ -740,7 +903,7 @@ class SignalShadow:
                     exit_price = sl
                     pnl_atr = (sl - entry) / atr
                     exit_reason = "stop"
-                elif high >= tp:
+                elif not skip_tp and high >= tp:
                     exit_price = tp
                     pnl_atr = (tp - entry) / atr
                     exit_reason = "tp"
@@ -749,7 +912,7 @@ class SignalShadow:
                     exit_price = sl
                     pnl_atr = (entry - sl) / atr
                     exit_reason = "stop"
-                elif low <= tp:
+                elif not skip_tp and low <= tp:
                     exit_price = tp
                     pnl_atr = (entry - tp) / atr
                     exit_reason = "tp"
@@ -759,26 +922,44 @@ class SignalShadow:
                 pnl_atr = (close - entry) / atr if side == "LONG" else (entry - close) / atr
                 exit_reason = "time"
 
+            horizon_updates: list[str] = []
+            horizon_vals: list[float] = []
+            if bars_held in MAE_CHECKPOINT_BARS:
+                label = MAE_CHECKPOINT_BARS[bars_held]
+                horizon_updates.extend([f"mae_{label}=?", f"mfe_{label}=?"])
+                horizon_vals.extend([run_mae, run_mfe])
+
             if exit_reason is not None:
+                sets = [
+                    "status='closed'", "pnl_atr=?", "exit_time=?", "exit_price=?",
+                    "exit_reason=?", "bars_held=?", "run_mae_atr=?", "run_mfe_atr=?",
+                ]
+                vals: list = [
+                    pnl_atr, close_time_str, exit_price, exit_reason, bars_held,
+                    run_mae, run_mfe,
+                ]
+                sets.extend(horizon_updates)
+                vals.extend(horizon_vals)
+                vals.append(tid)
                 self.conn.execute(
-                    """
-                    UPDATE shadow_trades
-                    SET status='closed', pnl_atr=?, exit_time=?, exit_price=?,
-                        exit_reason=?, bars_held=?
-                    WHERE id=?
-                    """,
-                    (pnl_atr, close_time_str, exit_price, exit_reason, bars_held, tid),
+                    f"UPDATE shadow_trades SET {', '.join(sets)} WHERE id=?",
+                    vals,
                 )
                 self.conn.commit()
                 logger.info(
                     "💰 [SHADOW TRADE CLOSED] Strategy=%s Symbol=%s Side=%s "
-                    "Entry=%.6f Exit=%.6f PnL=%.3f ATR (%s)",
-                    strategy, symbol, side, entry, exit_price, pnl_atr, exit_reason,
+                    "Entry=%.6f Exit=%.6f PnL=%.3f ATR (%s) MAE=%.3f",
+                    strategy, symbol, side, entry, exit_price, pnl_atr, exit_reason, run_mae,
                 )
             else:
+                sets = ["bars_held=?", "run_mae_atr=?", "run_mfe_atr=?"]
+                vals = [bars_held, run_mae, run_mfe]
+                sets.extend(horizon_updates)
+                vals.extend(horizon_vals)
+                vals.append(tid)
                 self.conn.execute(
-                    "UPDATE shadow_trades SET bars_held=? WHERE id=?",
-                    (bars_held, tid),
+                    f"UPDATE shadow_trades SET {', '.join(sets)} WHERE id=?",
+                    vals,
                 )
 
     def _maybe_open_shadow_trade(
@@ -798,6 +979,9 @@ class SignalShadow:
             (symbol, spec.name),
         ).fetchone()[0]
         if existing > 0:
+            return
+
+        if not self._portfolio_allows_open(symbol, f["session"], side):
             return
 
         entry_price = f["close"]
@@ -824,8 +1008,9 @@ class SignalShadow:
                 strategy, symbol, side, entry_time, entry_price, stop_price, tp_price, atr,
                 status, created_at,
                 session, hour, decile, stop_atr, tp_atr, time_bars,
-                liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
+                time_exit_only
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 spec.name, symbol, side, bar_time_str, entry_price, stop_price, tp_price, atr,
@@ -834,6 +1019,7 @@ class SignalShadow:
                 spec.stop_atr, spec.tp_atr, spec.time_bars,
                 imb, burst_vol or None,
                 f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
+                int(spec.time_exit_only),
             ),
         )
         self.conn.commit()
