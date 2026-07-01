@@ -139,6 +139,14 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         sessions=frozenset({"asia"}), pos_imb_only=True, time_exit_only=True,
     ),
     ShadowStrategy(
+        "follow_3h_london", "burst", "follow", 10.0, 999.0, time_bars=36,
+        sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "follow_6h_london", "burst", "follow", 10.0, 999.0, time_bars=72,
+        sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
         "follow_3h_ny", "burst", "follow", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
         pos_imb_only=True, time_exit_only=True,
