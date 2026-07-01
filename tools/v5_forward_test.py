@@ -61,7 +61,7 @@ except ImportError:
 
 # Signal shadow — logging-only candidate-signal + forward-path collector
 try:
-    from research.signal_shadow import ShadowPortfolioConfig, SignalShadow
+    from research.signal_shadow import MarketContext, ShadowPortfolioConfig, SignalShadow
     _HAS_SIGNAL_SHADOW = True
 except ImportError:
     _HAS_SIGNAL_SHADOW = False
@@ -568,6 +568,9 @@ class V5ForwardTest:
 
         self.candle_buffers: dict[str, deque] = defaultdict(lambda: deque(maxlen=CANDLE_HISTORY_5M))
         self.last_prices: dict[str, float] = {}
+        self._btc_4h_candles: list = []
+        self._funding_cache: dict[str, tuple[float, float]] = {}  # symbol -> (rate, monotonic_ts)
+        self._last_btc_4h_fetch: float = 0.0
         self.open_positions: list[dict] = self.db.get_open_positions()
         self._running = False
         self._shutdown = asyncio.Event()
@@ -941,6 +944,73 @@ class V5ForwardTest:
 
         total = sum(len(v) for v in self.candle_buffers.values())
         logger.info(f"History loaded: {total} candles across {len(self.all_symbols)} symbols")
+        await self._refresh_btc_4h_history()
+
+    async def _refresh_btc_4h_history(self):
+        """Load BTC 4h bars for regime tagging (200 EMA + ADX)."""
+        try:
+            end = datetime.now(timezone.utc)
+            start = end - timedelta(days=45)
+            self._btc_4h_candles = await self._fetch_klines("BTCUSDT", "4h", start, end)
+            self._last_btc_4h_fetch = time.monotonic()
+            if self._btc_4h_candles:
+                self.last_prices["BTCUSDT"] = self._btc_4h_candles[-1].close
+            logger.info("BTC 4h history loaded", bars=len(self._btc_4h_candles))
+        except Exception as e:
+            logger.warning("BTC 4h history load failed (non-fatal)", error=str(e))
+
+    async def _refresh_funding_rates(self, symbols: list[str]):
+        """Cache latest funding rates from premiumIndex."""
+        now = time.monotonic()
+        for sym in symbols:
+            cached = self._funding_cache.get(sym)
+            if cached and now - cached[1] < 1800:
+                continue
+            try:
+                resp = await self.rest.get_mark_price(sym)
+                rate = float(resp.get("lastFundingRate", 0))
+                self._funding_cache[sym] = (rate, now)
+            except Exception as e:
+                logger.debug("Funding fetch failed", symbol=sym, error=str(e))
+
+    def _btc_regime(self) -> tuple[str | None, float | None]:
+        """BTC bull/bear/neutral from 4h 200EMA + ADX>25."""
+        import numpy as np
+        from engines.liq_cluster_engine_v5 import _ema
+        from engines.swing_break_engine import _adx_series
+
+        candles = self._btc_4h_candles
+        if len(candles) < 200:
+            return None, None
+        closes = np.array([c.close for c in candles], dtype=float)
+        ema200 = _ema(closes, 200)
+        price = float(closes[-1])
+        if ema200 <= 0:
+            return None, None
+        dist_pct = (price - ema200) / ema200 * 100.0
+        adx_vals = _adx_series(candles, 14)
+        adx = float(adx_vals[-1]) if adx_vals else 0.0
+        if adx <= 25:
+            state = "neutral"
+        elif price > ema200:
+            state = "bull"
+        else:
+            state = "bear"
+        return state, round(dist_pct, 4)
+
+    def _shadow_market_context(self, symbol: str) -> MarketContext:
+        n_cascade = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
+        breadth = 100.0 * n_cascade / len(self.symbols) if self.symbols else 0.0
+        btc_trend, btc_dist = self._btc_regime()
+        btc_fund = self._funding_cache.get("BTCUSDT")
+        sym_fund = self._funding_cache.get(symbol)
+        return MarketContext(
+            btc_trend_state=btc_trend,
+            btc_distance_from_ema_pct=btc_dist,
+            market_breadth_pct=round(breadth, 2),
+            funding_rate_btc=btc_fund[0] if btc_fund else None,
+            funding_rate_symbol=sym_fund[0] if sym_fund else None,
+        )
 
     async def _fetch_klines(self, symbol, interval, start, end):
         out = []
@@ -1424,8 +1494,20 @@ class V5ForwardTest:
 
                 self.db.set_state("heartbeat", datetime.now(timezone.utc).isoformat())
 
-                # V6.2: Log regime snapshot periodically (every 5 minutes / 300s)
                 now_mono = time.monotonic()
+
+                # Shadow regime + funding cache refresh (~5 min)
+                if not hasattr(self, "_last_shadow_regime_refresh"):
+                    self._last_shadow_regime_refresh = 0.0
+                if now_mono - self._last_shadow_regime_refresh >= 300:
+                    self._last_shadow_regime_refresh = now_mono
+                    if now_mono - self._last_btc_4h_fetch >= 3600:
+                        asyncio.create_task(self._refresh_btc_4h_history())
+                    asyncio.create_task(
+                        self._refresh_funding_rates(["BTCUSDT"] + self.symbols[:10])
+                    )
+
+                # V6.2: Log regime snapshot periodically (every 5 minutes / 300s)
                 if not hasattr(self, "_last_regime_log") or now_mono - self._last_regime_log >= 300:
                     if self._telemetry:
                         try:
@@ -1487,9 +1569,12 @@ class V5ForwardTest:
             try:
                 candles_5m = list(self.candle_buffers.get(symbol, []))
                 st = self.engine._get_state(symbol)
+                asyncio.create_task(self._refresh_funding_rates(["BTCUSDT", symbol]))
+                mkt_ctx = self._shadow_market_context(symbol)
                 self.signal_shadow.on_bar(
                     symbol, candles_5m,
                     st,
+                    market_ctx=mkt_ctx,
                 )
                 if self.intraday_burst_shadow_enabled:
                     burst = self._intraday_burst_stats(symbol, candle)
@@ -1500,6 +1585,7 @@ class V5ForwardTest:
                         min_volume_usd=self.intraday_burst_min_volume_usd,
                         min_events=self.intraday_burst_min_events,
                         dedup_bars=self.intraday_burst_dedup_bars,
+                        market_ctx=mkt_ctx,
                     )
             except Exception as e:
                 logger.error("Signal shadow on_bar error (non-fatal)", symbol=symbol,

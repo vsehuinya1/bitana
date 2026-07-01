@@ -73,6 +73,26 @@ class ShadowPortfolioConfig:
 DEFAULT_PORTFOLIO = ShadowPortfolioConfig()
 
 
+@dataclass
+class MarketContext:
+    """Regime snapshot supplied by the runner at bar time."""
+
+    btc_trend_state: str | None = None
+    btc_distance_from_ema_pct: float | None = None
+    market_breadth_pct: float | None = None
+    funding_rate_btc: float | None = None
+    funding_rate_symbol: float | None = None
+
+
+@dataclass
+class PortfolioSnapshot:
+    concurrent_positions_total: int
+    concurrent_positions_same_side: int
+    net_delta_at_entry: int
+    gross_exposure_at_entry: float
+    symbols_active_count: int
+
+
 @dataclass(frozen=True)
 class ShadowStrategy:
     name: str
@@ -310,6 +330,7 @@ class SignalShadow:
         self._last_snap_bar: dict[str, datetime] = {}
         self._last_burst_bar: dict[str, datetime] = {}
         self._last_setup_bar: dict[str, datetime] = {}
+        self._market_ctx = MarketContext()
         self._writes = 0
         # Forward windows of snapshots still open at shutdown last run never get a
         # final bar; mark them so analysis can exclude truncated paths.
@@ -440,7 +461,17 @@ class SignalShadow:
                 mfe_3h REAL,
                 mfe_6h REAL,
                 mfe_12h REAL,
-                mfe_24h REAL
+                mfe_24h REAL,
+                concurrent_positions_total INT,
+                concurrent_positions_same_side INT,
+                net_delta_at_entry INT,
+                gross_exposure_at_entry REAL,
+                symbols_active_count INT,
+                btc_trend_state TEXT,
+                btc_distance_from_ema_pct REAL,
+                market_breadth_pct REAL,
+                funding_rate_btc REAL,
+                funding_rate_symbol REAL
             )
             """
         )
@@ -496,6 +527,16 @@ class SignalShadow:
             ("mfe_6h", "REAL"),
             ("mfe_12h", "REAL"),
             ("mfe_24h", "REAL"),
+            ("concurrent_positions_total", "INTEGER"),
+            ("concurrent_positions_same_side", "INTEGER"),
+            ("net_delta_at_entry", "INTEGER"),
+            ("gross_exposure_at_entry", "REAL"),
+            ("symbols_active_count", "INTEGER"),
+            ("btc_trend_state", "TEXT"),
+            ("btc_distance_from_ema_pct", "REAL"),
+            ("market_breadth_pct", "REAL"),
+            ("funding_rate_btc", "REAL"),
+            ("funding_rate_symbol", "REAL"),
         ):
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
@@ -658,8 +699,34 @@ class SignalShadow:
                 imb=imb, cascade_active=cascade_active, burst_vol=burst_vol,
             )
 
-    def on_bar(self, symbol: str, candles_5m: list, st: SymbolState):
+    def set_market_context(self, ctx: MarketContext | None):
+        self._market_ctx = ctx or MarketContext()
+
+    def _portfolio_at_entry(self, symbol: str, side: str, stop_atr: float) -> PortfolioSnapshot:
+        """Snapshot open-book state excluding the trade about to open."""
+        rows = self.conn.execute(
+            "SELECT symbol, side, stop_atr FROM shadow_trades WHERE status='open'",
+        ).fetchall()
+        n_long = sum(1 for r in rows if r["side"] == "LONG")
+        n_short = sum(1 for r in rows if r["side"] == "SHORT")
+        same_side = n_long if side == "LONG" else n_short
+        symbols = {r["symbol"] for r in rows}
+        gross = sum(1.0 / max(float(r["stop_atr"] or 1.0), 0.1) for r in rows)
+        gross += 1.0 / max(stop_atr, 0.1)
+        delta = n_long - n_short + (1 if side == "LONG" else -1)
+        sym_count = len(symbols | {symbol})
+        return PortfolioSnapshot(
+            concurrent_positions_total=len(rows),
+            concurrent_positions_same_side=same_side,
+            net_delta_at_entry=delta,
+            gross_exposure_at_entry=gross,
+            symbols_active_count=sym_count,
+        )
+
+    def on_bar(self, symbol: str, candles_5m: list, st: SymbolState, *, market_ctx: MarketContext | None = None):
         """Advance open forward-windows for this symbol, then maybe snapshot."""
+        if market_ctx is not None:
+            self._market_ctx = market_ctx
         if not candles_5m:
             return
         bar = candles_5m[-1]
@@ -754,8 +821,11 @@ class SignalShadow:
         min_volume_usd: float = 20_000.0,
         min_events: int = 3,
         dedup_bars: int = DEDUP_BARS,
+        market_ctx: MarketContext | None = None,
     ):
         """Snapshot force-order intraday bursts, independent of daily cascade state."""
+        if market_ctx is not None:
+            self._market_ctx = market_ctx
         if not candles_5m:
             return
         bar = candles_5m[-1]
@@ -1010,6 +1080,9 @@ class SignalShadow:
             else str(f["bar_time"])
         )
 
+        port = self._portfolio_at_entry(symbol, side, spec.stop_atr)
+        mkt = self._market_ctx
+
         self.conn.execute(
             """
             INSERT INTO shadow_trades (
@@ -1017,8 +1090,13 @@ class SignalShadow:
                 status, created_at,
                 session, hour, decile, stop_atr, tp_atr, time_bars,
                 liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
-                time_exit_only
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                time_exit_only,
+                concurrent_positions_total, concurrent_positions_same_side,
+                net_delta_at_entry, gross_exposure_at_entry, symbols_active_count,
+                btc_trend_state, btc_distance_from_ema_pct, market_breadth_pct,
+                funding_rate_btc, funding_rate_symbol
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 spec.name, symbol, side, bar_time_str, entry_price, stop_price, tp_price, atr,
@@ -1028,6 +1106,10 @@ class SignalShadow:
                 imb, burst_vol or None,
                 f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
                 int(spec.time_exit_only),
+                port.concurrent_positions_total, port.concurrent_positions_same_side,
+                port.net_delta_at_entry, port.gross_exposure_at_entry, port.symbols_active_count,
+                mkt.btc_trend_state, mkt.btc_distance_from_ema_pct, mkt.market_breadth_pct,
+                mkt.funding_rate_btc, mkt.funding_rate_symbol,
             ),
         )
         self.conn.commit()
