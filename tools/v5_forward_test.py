@@ -1569,7 +1569,7 @@ class V5ForwardTest:
             try:
                 candles_5m = list(self.candle_buffers.get(symbol, []))
                 st = self.engine._get_state(symbol)
-                asyncio.create_task(self._refresh_funding_rates(["BTCUSDT", symbol]))
+                await self._refresh_funding_rates(["BTCUSDT", symbol])
                 mkt_ctx = self._shadow_market_context(symbol)
                 self.signal_shadow.on_bar(
                     symbol, candles_5m,
