@@ -14,6 +14,7 @@ FILES=(
   engines/liq_cluster_engine_v5.py
   config/v5_forward_test.yaml
   tools/v5_forward_test.py
+  research/signal_shadow.py
   research/v65_monitoring.py
   research/v6_telemetry.py
   backtest_output/v6_path_backtest.py

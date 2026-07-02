@@ -114,27 +114,30 @@ class ShadowStrategy:
     pos_imb_only: bool = False
     neg_imb_only: bool = False
     time_exit_only: bool = False  # skip TP — pure horizon study
+    min_cascade_strength: float = 0.0
+    min_vol_z: float | None = None
+    min_n_confirms: int = 0
+    min_decile: int = 0
+    trail_atr: float | None = None
+    trail_trigger_r: float | None = None
+
+
+# Quality floor for 3h/6h follow/fade shadow variants (blocks WLD-style noise).
+_FOLLOW_QUALITY = dict(
+    min_cascade_strength=0.5,
+    min_vol_z=0.0,
+    min_n_confirms=1,
+    min_decile=2,
+)
 
 
 # Every candidate rule family — logged in parallel; pick winners offline.
 SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     # ── Burst / intraday liq (on_intraday_burst) ──
     ShadowStrategy("late_fade", "burst", "fade", 12.0, 3.0, sessions=frozenset({"late"})),
-    ShadowStrategy(
-        "ny_burst_fade", "burst", "fade", 4.0, 3.0,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-    ),
-    ShadowStrategy(
-        "ny_burst_fade_short", "burst", "fade_short_only", 4.0, 3.0,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-    ),
     ShadowStrategy("asia_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"asia"})),
     ShadowStrategy("london_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"london"})),
     ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0),
-    ShadowStrategy(
-        "ny_burst_follow", "burst", "follow", 10.0, 3.0,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-    ),
     ShadowStrategy(
         "nony_momentum", "burst", "follow", 10.0, 3.0,
         min_imb=0.9, min_burst_events=10, require_above_ema_zero=True, exclude_ny=True,
@@ -144,92 +147,87 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     # pos_imb_only=True means only fire when liq_imbalance > 0 (long-liq dominated = bear pressure).
     ShadowStrategy(
         "follow_3h_all", "burst", "follow", 10.0, 999.0, time_bars=36,
-        pos_imb_only=True, time_exit_only=True,
+        pos_imb_only=True, time_exit_only=True, **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "follow_6h_all", "burst", "follow", 10.0, 999.0, time_bars=72,
-        pos_imb_only=True, time_exit_only=True,
+        pos_imb_only=True, time_exit_only=True, **_FOLLOW_QUALITY,
+    ),
+    ShadowStrategy(
+        "follow_3h_tsl_1_5_1", "burst", "follow", 10.0, 999.0, time_bars=36,
+        pos_imb_only=True, trail_atr=1.5, trail_trigger_r=1.0, time_exit_only=True,
+        **_FOLLOW_QUALITY,
+    ),
+    ShadowStrategy(
+        "follow_3h_tsl_1_0_05", "burst", "follow", 10.0, 999.0, time_bars=36,
+        pos_imb_only=True, trail_atr=1.0, trail_trigger_r=0.5, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "follow_3h_asia", "burst", "follow", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"asia"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "follow_6h_asia", "burst", "follow", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"asia"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "follow_3h_london", "burst", "follow", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "follow_6h_london", "burst", "follow", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
-    ShadowStrategy(
-        "follow_3h_ny", "burst", "follow", 10.0, 999.0, time_bars=36,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-        pos_imb_only=True, time_exit_only=True,
-    ),
-    ShadowStrategy(
-        "follow_6h_ny", "burst", "follow", 10.0, 999.0, time_bars=72,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-        pos_imb_only=True, time_exit_only=True,
-    ),
+    # NY hour-filter variants disabled — hour filter killed edge (kept in git history).
     ShadowStrategy(
         "follow_3h_late", "burst", "follow", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "follow_6h_late", "burst", "follow", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     # neg_imb fade for Asia/London; pos_imb fade for NY/Late (historical split).
     ShadowStrategy(
         "fade_3h_asia", "burst", "fade", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"asia"}), neg_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "fade_6h_asia", "burst", "fade", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"asia"}), neg_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "fade_3h_london", "burst", "fade", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"london"}), neg_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "fade_6h_london", "burst", "fade", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"london"}), neg_imb_only=True, time_exit_only=True,
-    ),
-    ShadowStrategy(
-        "fade_3h_ny", "burst", "fade", 10.0, 999.0, time_bars=36,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-        pos_imb_only=True, time_exit_only=True,
-    ),
-    ShadowStrategy(
-        "fade_6h_ny", "burst", "fade", 10.0, 999.0, time_bars=72,
-        sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-        pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "fade_3h_late", "burst", "fade", 10.0, 999.0, time_bars=36,
         sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     ShadowStrategy(
         "fade_6h_late", "burst", "fade", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
     ),
     # ── Setup / bar-close (on_bar, v_confirms3 snapshot) ──
     ShadowStrategy(
         "setup_fade", "bar", "fade", 4.0, 3.0, require_v_confirms3=True,
-    ),
-    ShadowStrategy(
-        "setup_fade_ny", "bar", "fade", 4.0, 3.0,
-        require_v_confirms3=True, sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
-    ),
-    ShadowStrategy(
-        "setup_fade_ny_short", "bar", "fade_short_only", 4.0, 3.0,
-        require_v_confirms3=True, sessions=frozenset({"ny"}), hours=frozenset(range(13, 18)),
     ),
     ShadowStrategy(
         "setup_fade_late", "bar", "fade", 12.0, 3.0,
@@ -259,6 +257,7 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
 
 BURST_STRATEGIES = tuple(s for s in SHADOW_STRATEGIES if s.trigger == "burst")
 BAR_STRATEGIES = tuple(s for s in SHADOW_STRATEGIES if s.trigger == "bar")
+_STRATEGY_BY_NAME = {s.name: s for s in SHADOW_STRATEGIES}
 
 
 def _session(hour: int) -> str:
@@ -314,6 +313,14 @@ def _matches_strategy(
     if spec.trigger == "burst":
         if burst_vol < spec.min_burst_vol or burst_events < spec.min_burst_events:
             return False
+    if spec.min_cascade_strength > 0 and f.get("cascade_strength", 0.0) < spec.min_cascade_strength:
+        return False
+    if spec.min_vol_z is not None and f.get("vol_z", 0.0) < spec.min_vol_z:
+        return False
+    if spec.min_n_confirms > 0 and f.get("n_confirms", 0) < spec.min_n_confirms:
+        return False
+    if spec.min_decile > 0 and f.get("decile", 0) < spec.min_decile:
+        return False
     return True
 
 
@@ -471,7 +478,8 @@ class SignalShadow:
                 btc_distance_from_ema_pct REAL,
                 market_breadth_pct REAL,
                 funding_rate_btc REAL,
-                funding_rate_symbol REAL
+                funding_rate_symbol REAL,
+                is_weekend INT
             )
             """
         )
@@ -537,6 +545,7 @@ class SignalShadow:
             ("market_breadth_pct", "REAL"),
             ("funding_rate_btc", "REAL"),
             ("funding_rate_symbol", "REAL"),
+            ("is_weekend", "INTEGER"),
         ):
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
@@ -972,24 +981,41 @@ class SignalShadow:
             run_mfe = max(float(r["run_mfe_atr"] or 0.0), fav)
             run_mae = min(float(r["run_mae_atr"] or 0.0), adv)
 
+            spec = _STRATEGY_BY_NAME.get(strategy)
+            effective_sl = sl
+            trail_active = False
+            if (
+                spec is not None
+                and spec.trail_atr is not None
+                and spec.trail_trigger_r is not None
+                and run_mfe >= spec.trail_trigger_r
+            ):
+                trail_active = True
+                if side == "LONG":
+                    trail_sl = entry + (run_mfe - spec.trail_atr) * atr
+                    effective_sl = max(sl, trail_sl)
+                else:
+                    trail_sl = entry - (run_mfe - spec.trail_atr) * atr
+                    effective_sl = min(sl, trail_sl)
+
             pnl_atr = 0.0
             exit_price = 0.0
             exit_reason = None
 
             if side == "LONG":
-                if low <= sl:
-                    exit_price = sl
-                    pnl_atr = (sl - entry) / atr
-                    exit_reason = "stop"
+                if low <= effective_sl:
+                    exit_price = effective_sl
+                    pnl_atr = (effective_sl - entry) / atr
+                    exit_reason = "trail" if trail_active and effective_sl > sl else "stop"
                 elif not skip_tp and high >= tp:
                     exit_price = tp
                     pnl_atr = (tp - entry) / atr
                     exit_reason = "tp"
             else:
-                if high >= sl:
-                    exit_price = sl
-                    pnl_atr = (entry - sl) / atr
-                    exit_reason = "stop"
+                if high >= effective_sl:
+                    exit_price = effective_sl
+                    pnl_atr = (entry - effective_sl) / atr
+                    exit_reason = "trail" if trail_active and effective_sl < sl else "stop"
                 elif not skip_tp and low <= tp:
                     exit_price = tp
                     pnl_atr = (entry - tp) / atr
@@ -1079,6 +1105,7 @@ class SignalShadow:
             if hasattr(f["bar_time"], "isoformat")
             else str(f["bar_time"])
         )
+        is_weekend = 1 if f["bar_time"].weekday() >= 5 else 0
 
         port = self._portfolio_at_entry(symbol, side, spec.stop_atr)
         mkt = self._market_ctx
@@ -1090,12 +1117,12 @@ class SignalShadow:
                 status, created_at,
                 session, hour, decile, stop_atr, tp_atr, time_bars,
                 liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
-                time_exit_only,
+                time_exit_only, is_weekend,
                 concurrent_positions_total, concurrent_positions_same_side,
                 net_delta_at_entry, gross_exposure_at_entry, symbols_active_count,
                 btc_trend_state, btc_distance_from_ema_pct, market_breadth_pct,
                 funding_rate_btc, funding_rate_symbol
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -1105,7 +1132,7 @@ class SignalShadow:
                 spec.stop_atr, spec.tp_atr, spec.time_bars,
                 imb, burst_vol or None,
                 f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
-                int(spec.time_exit_only),
+                int(spec.time_exit_only), is_weekend,
                 port.concurrent_positions_total, port.concurrent_positions_same_side,
                 port.net_delta_at_entry, port.gross_exposure_at_entry, port.symbols_active_count,
                 mkt.btc_trend_state, mkt.btc_distance_from_ema_pct, mkt.market_breadth_pct,
