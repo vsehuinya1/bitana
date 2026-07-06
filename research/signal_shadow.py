@@ -225,6 +225,23 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         sessions=frozenset({"late"}), pos_imb_only=True, time_exit_only=True,
         **_FOLLOW_QUALITY,
     ),
+    # ── Session-direction edges (shadow_signal.db raw analysis, Jun19-Jul6) ──
+    # NY long-liq flush: after price dumps on long liquidations, buy the flush.
+    # Only stable positive edge across all 3 weeks (4h +0.45, 8h +0.82 ATR).
+    # No quality floor: validated on raw |imb|>=0.5 snapshots, not the follow-quality subset.
+    ShadowStrategy(
+        "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_8h", "burst", "follow", 10.0, 999.0, time_bars=96,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    # Asia short-liq squeeze: after price pumps on short liquidations, short the pump (4h only).
+    ShadowStrategy(
+        "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
     # ── Setup / bar-close (on_bar, v_confirms3 snapshot) ──
     ShadowStrategy(
         "setup_fade", "bar", "fade", 4.0, 3.0, require_v_confirms3=True,
