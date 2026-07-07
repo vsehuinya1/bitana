@@ -47,8 +47,8 @@ logger = get_logger("signal_shadow")
 
 DB_PATH = Path("storage/signal_shadow.db")
 
-# Forward horizons in 5m bars: 15m, 30m, 1h, 2h, 4h, 8h.
-HORIZONS = (3, 6, 12, 24, 48, 96)
+# Forward horizons in 5m bars: 15m, 30m, 1h, 2h, 4h, 8h, 24h.
+HORIZONS = (3, 6, 12, 24, 48, 96, 288)
 MAX_H = HORIZONS[-1]
 
 # Catch-all candidate floor and de-duplication window (bars).
@@ -120,6 +120,8 @@ class ShadowStrategy:
     min_decile: int = 0
     trail_atr: float | None = None
     trail_trigger_r: float | None = None
+    limit_entry_atr: float | None = None  # resting limit offset from signal close (ATR)
+    limit_entry_max_bars: int = 36  # 5m bars to wait for fill (default 3h)
 
 
 # Quality floor for 3h/6h follow/fade shadow variants (blocks WLD-style noise).
@@ -237,10 +239,40 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "ny_flush_buy_8h", "burst", "follow", 10.0, 999.0, time_bars=96,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
     ),
+    ShadowStrategy(
+        "ny_flush_buy_24h", "burst", "follow", 10.0, 999.0, time_bars=288,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
     # Asia short-liq squeeze: after price pumps on short liquidations, short the pump (4h only).
     ShadowStrategy(
         "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "asia_pump_short_24h", "burst", "follow", 10.0, 999.0, time_bars=288,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    # TSL variants: lock profit after +2 ATR MFE, trail 1.5 ATR behind peak.
+    ShadowStrategy(
+        "ny_flush_buy_4h_tsl", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+        trail_atr=1.5, trail_trigger_r=2.0,
+    ),
+    ShadowStrategy(
+        "asia_pump_short_4h_tsl", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+        trail_atr=1.5, trail_trigger_r=2.0,
+    ),
+    # Limit-entry variants: rest 1.5 ATR pullback from burst close, 3h fill window.
+    ShadowStrategy(
+        "ny_flush_buy_4h_limit15", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+        limit_entry_atr=1.5, limit_entry_max_bars=36,
+    ),
+    ShadowStrategy(
+        "asia_pump_short_4h_limit15", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+        limit_entry_atr=1.5, limit_entry_max_bars=36,
     ),
     # ── Setup / bar-close (on_bar, v_confirms3 snapshot) ──
     ShadowStrategy(
@@ -387,7 +419,7 @@ class SignalShadow:
                 v_strict INT, v_allhours INT, v_confirms3 INT, v_loose INT,
                 status TEXT DEFAULT 'open', bars_tracked INT DEFAULT 0,
                 fwd_atr_3 REAL, fwd_atr_6 REAL, fwd_atr_12 REAL,
-                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL,
+                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL, fwd_atr_288 REAL,
                 mfe_atr REAL DEFAULT 0, mae_atr REAL DEFAULT 0,
                 created_at REAL
             )
@@ -412,7 +444,7 @@ class SignalShadow:
                 n_confirms INT, decile INT, aggression REAL,
                 status TEXT DEFAULT 'open', bars_tracked INT DEFAULT 0,
                 fwd_atr_3 REAL, fwd_atr_6 REAL, fwd_atr_12 REAL,
-                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL,
+                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL, fwd_atr_288 REAL,
                 mfe_atr REAL DEFAULT 0, mae_atr REAL DEFAULT 0,
                 created_at REAL
             )
@@ -435,7 +467,7 @@ class SignalShadow:
                 v_strict INT, v_allhours INT, v_confirms3 INT, v_loose INT,
                 status TEXT DEFAULT 'open', bars_tracked INT DEFAULT 0,
                 fwd_atr_3 REAL, fwd_atr_6 REAL, fwd_atr_12 REAL,
-                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL,
+                fwd_atr_24 REAL, fwd_atr_48 REAL, fwd_atr_96 REAL, fwd_atr_288 REAL,
                 mfe_atr REAL DEFAULT 0, mae_atr REAL DEFAULT 0,
                 created_at REAL
             )
@@ -475,6 +507,10 @@ class SignalShadow:
                 v_strict INT,
                 cascade_active INT,
                 trigger TEXT,
+                entry_cascade_strength REAL,
+                entry_impulse_pct REAL,
+                entry_vol_z REAL,
+                entry_atr_pct REAL,
                 time_exit_only INT DEFAULT 0,
                 run_mae_atr REAL DEFAULT 0,
                 run_mfe_atr REAL DEFAULT 0,
@@ -508,6 +544,48 @@ class SignalShadow:
         )
         self.conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS shadow_pending_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                strategy TEXT,
+                symbol TEXT,
+                side TEXT,
+                signal_time TEXT,
+                signal_price REAL,
+                limit_price REAL,
+                atr REAL,
+                limit_offset_atr REAL,
+                max_bars INT,
+                bars_waited INT DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                session TEXT,
+                hour INT,
+                decile INT,
+                stop_atr REAL,
+                tp_atr REAL,
+                time_bars INT,
+                liq_imb REAL,
+                burst_vol_30m REAL,
+                v_confirms3 INT,
+                v_strict INT,
+                cascade_active INT,
+                trigger TEXT,
+                entry_cascade_strength REAL,
+                entry_impulse_pct REAL,
+                entry_vol_z REAL,
+                entry_atr_pct REAL,
+                time_exit_only INT,
+                is_weekend INT,
+                fill_time TEXT,
+                created_at REAL
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_shadow_pending_status "
+            "ON shadow_pending_entries(symbol, strategy, status)"
+        )
+        self.conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS setup_r_path (
                 setup_id INTEGER NOT NULL,
                 bar_num  INTEGER NOT NULL,
@@ -522,8 +600,18 @@ class SignalShadow:
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_setup_r_path_setup ON setup_r_path(setup_id)"
         )
+        self._migrate_forward_horizons()
         self._migrate_shadow_trades()
         self.conn.commit()
+
+    def _migrate_forward_horizons(self):
+        """Ensure forward-return horizon columns exist on all snapshot tables."""
+        for table in ("snapshots", "burst_snapshots", "setup_snapshots"):
+            existing = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+            for h in HORIZONS:
+                col = f"fwd_atr_{h}"
+                if col not in existing:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} REAL")
 
     def _migrate_shadow_trades(self):
         """Add metadata columns to pre-v6.5.5 shadow_trades tables."""
@@ -541,6 +629,10 @@ class SignalShadow:
             ("v_strict", "INTEGER"),
             ("cascade_active", "INTEGER"),
             ("trigger", "TEXT"),
+            ("entry_cascade_strength", "REAL"),
+            ("entry_impulse_pct", "REAL"),
+            ("entry_vol_z", "REAL"),
+            ("entry_atr_pct", "REAL"),
             ("time_exit_only", "INTEGER DEFAULT 0"),
             ("run_mae_atr", "REAL DEFAULT 0"),
             ("run_mfe_atr", "REAL DEFAULT 0"),
@@ -758,6 +850,7 @@ class SignalShadow:
         bar = candles_5m[-1]
         self._advance_open("snapshots", symbol, bar.high, bar.low, bar.close)
         self._advance_open("setup_snapshots", symbol, bar.high, bar.low, bar.close)
+        self._process_pending_entries(symbol, bar)
         self._manage_shadow_trades(symbol, bar)
 
         f = self._features(candles_5m, st)
@@ -1083,6 +1176,171 @@ class SignalShadow:
                     vals,
                 )
 
+    def _shadow_trade_exists(self, symbol: str, strategy: str) -> bool:
+        open_n = self.conn.execute(
+            "SELECT COUNT(*) FROM shadow_trades WHERE symbol=? AND strategy=? AND status='open'",
+            (symbol, strategy),
+        ).fetchone()[0]
+        if open_n > 0:
+            return True
+        pending_n = self.conn.execute(
+            "SELECT COUNT(*) FROM shadow_pending_entries "
+            "WHERE symbol=? AND strategy=? AND status='pending'",
+            (symbol, strategy),
+        ).fetchone()[0]
+        return pending_n > 0
+
+    def _insert_shadow_trade(
+        self,
+        spec: ShadowStrategy,
+        symbol: str,
+        f: dict,
+        side: str,
+        entry_price: float,
+        entry_time_str: str,
+        *,
+        imb: float,
+        cascade_active: bool = False,
+        burst_vol: float = 0.0,
+        signal_price: float | None = None,
+        limit_offset_atr: float | None = None,
+    ):
+        atr = f["atr"]
+        if side == "LONG":
+            stop_price = entry_price - spec.stop_atr * atr
+            tp_price = entry_price + spec.tp_atr * atr
+        else:
+            stop_price = entry_price + spec.stop_atr * atr
+            tp_price = entry_price - spec.tp_atr * atr
+
+        is_weekend = 1 if f["bar_time"].weekday() >= 5 else 0
+        port = self._portfolio_at_entry(symbol, side, spec.stop_atr)
+        mkt = self._market_ctx
+
+        self.conn.execute(
+            """
+            INSERT INTO shadow_trades (
+                strategy, symbol, side, entry_time, entry_price, stop_price, tp_price, atr,
+                status, created_at,
+                session, hour, decile, stop_atr, tp_atr, time_bars,
+                liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
+                entry_cascade_strength, entry_impulse_pct, entry_vol_z, entry_atr_pct,
+                time_exit_only, is_weekend,
+                concurrent_positions_total, concurrent_positions_same_side,
+                net_delta_at_entry, gross_exposure_at_entry, symbols_active_count,
+                btc_trend_state, btc_distance_from_ema_pct, market_breadth_pct,
+                funding_rate_btc, funding_rate_symbol
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                spec.name, symbol, side, entry_time_str, entry_price, stop_price, tp_price, atr,
+                datetime.now(timezone.utc).timestamp(),
+                f["session"], f["hour"], f["decile"],
+                spec.stop_atr, spec.tp_atr, spec.time_bars,
+                imb, burst_vol or None,
+                f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
+                f.get("cascade_strength"), f.get("impulse_pct"), f.get("vol_z"), f.get("atr_pct"),
+                int(spec.time_exit_only), is_weekend,
+                port.concurrent_positions_total, port.concurrent_positions_same_side,
+                port.net_delta_at_entry, port.gross_exposure_at_entry, port.symbols_active_count,
+                mkt.btc_trend_state, mkt.btc_distance_from_ema_pct, mkt.market_breadth_pct,
+                mkt.funding_rate_btc, mkt.funding_rate_symbol,
+            ),
+        )
+        self.conn.commit()
+        if limit_offset_atr is not None and signal_price is not None:
+            logger.info(
+                "🚀 [SHADOW LIMIT FILLED] Strategy=%s Symbol=%s Side=%s "
+                "Signal=%.6f Limit=%.6f Entry=%.6f",
+                spec.name, symbol, side, signal_price, entry_price, entry_price,
+            )
+        else:
+            logger.info(
+                "🚀 [SHADOW TRADE OPENED] Strategy=%s Symbol=%s Side=%s Entry=%.6f",
+                spec.name, symbol, side, entry_price,
+            )
+
+    def _process_pending_entries(self, symbol: str, bar):
+        """Try to fill or expire resting limit entries for this symbol."""
+        high = float(bar.high)
+        low = float(bar.low)
+        close_time_str = (
+            bar.close_time.isoformat()
+            if hasattr(bar, "close_time")
+            else datetime.now(timezone.utc).isoformat()
+        )
+
+        rows = self.conn.execute(
+            """
+            SELECT id, strategy, side, signal_price, limit_price, atr, limit_offset_atr,
+                   max_bars, bars_waited, session, hour, decile, stop_atr, tp_atr, time_bars,
+                   liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
+                   entry_cascade_strength, entry_impulse_pct, entry_vol_z, entry_atr_pct,
+                   time_exit_only, is_weekend
+            FROM shadow_pending_entries
+            WHERE symbol=? AND status='pending'
+            """,
+            (symbol,),
+        ).fetchall()
+
+        for r in rows:
+            spec = _STRATEGY_BY_NAME.get(r["strategy"])
+            if spec is None:
+                continue
+
+            side = r["side"]
+            limit_price = float(r["limit_price"])
+            filled = (side == "LONG" and low <= limit_price) or (side == "SHORT" and high >= limit_price)
+
+            if filled:
+                if not self._portfolio_allows_open(symbol, r["session"], side):
+                    self.conn.execute(
+                        "UPDATE shadow_pending_entries SET status='cancelled', fill_time=? WHERE id=?",
+                        (close_time_str, r["id"]),
+                    )
+                    continue
+
+                f = {
+                    "bar_time": bar.close_time if hasattr(bar, "close_time") else datetime.now(timezone.utc),
+                    "session": r["session"],
+                    "hour": r["hour"],
+                    "decile": r["decile"],
+                    "atr": r["atr"],
+                    "v_confirms3": r["v_confirms3"],
+                    "v_strict": r["v_strict"],
+                    "cascade_strength": r["entry_cascade_strength"],
+                    "impulse_pct": r["entry_impulse_pct"],
+                    "vol_z": r["entry_vol_z"],
+                    "atr_pct": r["entry_atr_pct"],
+                }
+                self._insert_shadow_trade(
+                    spec, symbol, f, side, limit_price, close_time_str,
+                    imb=float(r["liq_imb"] or 0.0),
+                    cascade_active=bool(r["cascade_active"]),
+                    burst_vol=float(r["burst_vol_30m"] or 0.0),
+                    signal_price=float(r["signal_price"]),
+                    limit_offset_atr=float(r["limit_offset_atr"]),
+                )
+                self.conn.execute(
+                    "UPDATE shadow_pending_entries SET status='filled', fill_time=? WHERE id=?",
+                    (close_time_str, r["id"]),
+                )
+                continue
+
+            bars_waited = int(r["bars_waited"] or 0) + 1
+            if bars_waited >= int(r["max_bars"] or 36):
+                self.conn.execute(
+                    "UPDATE shadow_pending_entries SET status='cancelled', "
+                    "bars_waited=?, fill_time=? WHERE id=?",
+                    (bars_waited, close_time_str, r["id"]),
+                )
+            else:
+                self.conn.execute(
+                    "UPDATE shadow_pending_entries SET bars_waited=? WHERE id=?",
+                    (bars_waited, r["id"]),
+                )
+
     def _maybe_open_shadow_trade(
         self,
         spec: ShadowStrategy,
@@ -1094,72 +1352,65 @@ class SignalShadow:
         cascade_active: bool = False,
         burst_vol: float = 0.0,
     ):
-        """Open a paper shadow trade if none active for this symbol+strategy."""
-        existing = self.conn.execute(
-            "SELECT COUNT(*) FROM shadow_trades WHERE symbol=? AND strategy=? AND status='open'",
-            (symbol, spec.name),
-        ).fetchone()[0]
-        if existing > 0:
+        """Open a paper shadow trade, or queue a resting limit entry."""
+        if self._shadow_trade_exists(symbol, spec.name):
             return
 
         if not self._portfolio_allows_open(symbol, f["session"], side):
             return
 
-        entry_price = f["close"]
         atr = f["atr"]
         if atr <= 0:
             return
 
-        if side == "LONG":
-            stop_price = entry_price - spec.stop_atr * atr
-            tp_price = entry_price + spec.tp_atr * atr
-        else:
-            stop_price = entry_price + spec.stop_atr * atr
-            tp_price = entry_price - spec.tp_atr * atr
-
+        signal_price = f["close"]
         bar_time_str = (
             f["bar_time"].isoformat()
             if hasattr(f["bar_time"], "isoformat")
             else str(f["bar_time"])
         )
-        is_weekend = 1 if f["bar_time"].weekday() >= 5 else 0
 
-        port = self._portfolio_at_entry(symbol, side, spec.stop_atr)
-        mkt = self._market_ctx
+        if spec.limit_entry_atr is not None:
+            offset = spec.limit_entry_atr
+            if side == "LONG":
+                limit_price = signal_price - offset * atr
+            else:
+                limit_price = signal_price + offset * atr
 
-        self.conn.execute(
-            """
-            INSERT INTO shadow_trades (
-                strategy, symbol, side, entry_time, entry_price, stop_price, tp_price, atr,
-                status, created_at,
-                session, hour, decile, stop_atr, tp_atr, time_bars,
-                liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
-                time_exit_only, is_weekend,
-                concurrent_positions_total, concurrent_positions_same_side,
-                net_delta_at_entry, gross_exposure_at_entry, symbols_active_count,
-                btc_trend_state, btc_distance_from_ema_pct, market_breadth_pct,
-                funding_rate_btc, funding_rate_symbol
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                spec.name, symbol, side, bar_time_str, entry_price, stop_price, tp_price, atr,
-                datetime.now(timezone.utc).timestamp(),
-                f["session"], f["hour"], f["decile"],
-                spec.stop_atr, spec.tp_atr, spec.time_bars,
-                imb, burst_vol or None,
-                f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
-                int(spec.time_exit_only), is_weekend,
-                port.concurrent_positions_total, port.concurrent_positions_same_side,
-                port.net_delta_at_entry, port.gross_exposure_at_entry, port.symbols_active_count,
-                mkt.btc_trend_state, mkt.btc_distance_from_ema_pct, mkt.market_breadth_pct,
-                mkt.funding_rate_btc, mkt.funding_rate_symbol,
-            ),
-        )
-        self.conn.commit()
-        logger.info(
-            "🚀 [SHADOW TRADE OPENED] Strategy=%s Symbol=%s Side=%s Entry=%.6f",
-            spec.name, symbol, side, entry_price,
+            is_weekend = 1 if f["bar_time"].weekday() >= 5 else 0
+            self.conn.execute(
+                """
+                INSERT INTO shadow_pending_entries (
+                    strategy, symbol, side, signal_time, signal_price, limit_price, atr,
+                    limit_offset_atr, max_bars, session, hour, decile, stop_atr, tp_atr, time_bars,
+                    liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
+                    entry_cascade_strength, entry_impulse_pct, entry_vol_z, entry_atr_pct,
+                    time_exit_only, is_weekend, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    spec.name, symbol, side, bar_time_str, signal_price, limit_price, atr,
+                    offset, spec.limit_entry_max_bars,
+                    f["session"], f["hour"], f["decile"],
+                    spec.stop_atr, spec.tp_atr, spec.time_bars,
+                    imb, burst_vol or None,
+                    f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
+                    f.get("cascade_strength"), f.get("impulse_pct"), f.get("vol_z"), f.get("atr_pct"),
+                    int(spec.time_exit_only), is_weekend,
+                    datetime.now(timezone.utc).timestamp(),
+                ),
+            )
+            self.conn.commit()
+            logger.info(
+                "📋 [SHADOW LIMIT QUEUED] Strategy=%s Symbol=%s Side=%s "
+                "Signal=%.6f Limit=%.6f (%.1f ATR)",
+                spec.name, symbol, side, signal_price, limit_price, offset,
+            )
+            return
+
+        self._insert_shadow_trade(
+            spec, symbol, f, side, signal_price, bar_time_str,
+            imb=imb, cascade_active=cascade_active, burst_vol=burst_vol,
         )
 
     def close(self):
