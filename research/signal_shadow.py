@@ -258,6 +258,18 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
         trail_atr=1.5, trail_trigger_r=2.0,
     ),
+    # NY-open window only (14–17 UTC): skip late-NY flushes that bled in live shadow.
+    ShadowStrategy(
+        "ny_flush_buy_4h_open", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), hours=frozenset({14, 15, 16, 17}),
+        min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_4h_open_tsl", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), hours=frozenset({14, 15, 16, 17}),
+        min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+        trail_atr=1.5, trail_trigger_r=2.0,
+    ),
     ShadowStrategy(
         "asia_pump_short_4h_tsl", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
