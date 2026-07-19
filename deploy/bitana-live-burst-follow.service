@@ -1,0 +1,16 @@
+[Unit]
+Description=Bitana Live Liq Burst Follow NY+Asia (mainnet)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+EnvironmentFile=/root/bitana/.env
+ExecStart=/root/bitana/venv/bin/python3 -u main.py --config config/live_burst_ny_asia.yaml
+Restart=always
+RestartSec=30
+StandardOutput=append:/var/log/bitana-live-burst.log
+StandardError=append:/var/log/bitana-live-burst.log
+
+[Install]
+WantedBy=multi-user.target

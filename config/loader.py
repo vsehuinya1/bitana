@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import copy
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from dotenv import load_dotenv
@@ -41,9 +41,62 @@ class CompressionConfig(BaseModel):
     confirmation_timeout_1m_candles: int = 3
 
 
+class SessionBurstRule(BaseModel):
+    """Per-session burst entry/exit profile (mirrors shadow SHADOW_STRATEGIES winners)."""
+    shadow_strategy: str = ""
+    side_mode: Literal["follow", "fade"] = "follow"
+    pos_imb_only: bool = False
+    neg_imb_only: bool = False
+    hours: list[int] | None = None
+    exclude_weekdays: list[int] | None = None  # 0=Mon .. 6=Sun (UTC bar time)
+    min_imb: float = 0.0
+    min_cascade_strength: float = 0.0
+    min_vol_z: float = 0.0
+    min_n_confirms: int = 1
+    min_decile: int = 2
+    stop_atr: float = 10.0
+    tp_atr: float = 3.0
+    time_bars: int = 6
+    time_exit_only: bool = False
+    trail_atr: float | None = None
+    trail_trigger_r: float | None = None
+
+
+class LiqBurstFollowConfig(BaseModel):
+    enabled: bool = True
+    min_cascade_strength: float = 0.0
+    min_vol_z: float = 0.0
+    min_n_confirms: int = 1
+    min_decile: int = 2
+    pos_imb_only: bool = True
+    min_burst_volume_30m: float = 20_000.0
+    min_burst_events_30m: int = 3
+    dedup_bars: int = 3
+    force_order_db_path: str = "storage/force_orders.db"
+    force_order_read_only: bool = False
+    liq_cache_db_path: str = "storage/v5_forward_test.db"
+    stop_atr: float = 10.0
+    trail_atr: float = 1.5
+    trail_trigger_r: float = 1.0
+    time_bars: int = 36
+    time_exit_only: bool = True
+    sessions: list[str] | None = None
+    risk_pct: float = 0.04
+    btc_regime_gate_enabled: bool = False
+    allowed_btc_regimes: list[str] = Field(default_factory=lambda: ["bear"])
+    session_rules: dict[str, SessionBurstRule] = Field(default_factory=dict)
+
+
+class EnginesConfig(BaseModel):
+    compression_enabled: bool = True
+    squeeze_enabled: bool = True
+    burst_follow_enabled: bool = False
+
+
 class SymbolDefaults(BaseModel):
     compression: CompressionConfig = Field(default_factory=CompressionConfig)
     risk_pct: float = 1.5
+    burst_follow: LiqBurstFollowConfig = Field(default_factory=LiqBurstFollowConfig)
 
 
 class TimeframesConfig(BaseModel):
@@ -97,6 +150,9 @@ class ProfitTakingConfig(BaseModel):
 class PortfolioConfig(BaseModel):
     max_concurrent_positions: int = 2
     max_per_symbol: int = 1
+    max_cluster_positions: int = 0
+    cluster_window_minutes: int = 15
+    limit_by_engine: bool = False
     btc_priority: bool = True
     correlation_require_independent: bool = True
     correlation_sizing_reduction: float = 0.0
@@ -240,6 +296,8 @@ class AppConfig(BaseModel):
     rate_limiter: RateLimiterConfig = Field(default_factory=RateLimiterConfig)
     watchdog: WatchdogConfig = Field(default_factory=WatchdogConfig)
     squeeze: SqueezeConfig = Field(default_factory=SqueezeConfig)
+    engines: EnginesConfig = Field(default_factory=EnginesConfig)
+    burst_follow: LiqBurstFollowConfig = Field(default_factory=LiqBurstFollowConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
 
     secrets: Secrets = Field(default_factory=Secrets)
@@ -254,6 +312,7 @@ class ResolvedSymbolConfig(BaseModel):
     symbol: str
     compression: CompressionConfig
     risk_pct: float
+    burst_follow: LiqBurstFollowConfig
 
 
 # ---------------------------------------------------------------------------
@@ -341,8 +400,14 @@ def resolve_symbol_config(config: AppConfig, symbol: str) -> ResolvedSymbolConfi
     overrides = config.symbols.overrides.get(symbol, {})
     merged = _deep_merge(defaults, overrides)
 
+    burst_merged = _deep_merge(
+        config.burst_follow.model_dump(),
+        merged.get("burst_follow", {}),
+    )
+
     return ResolvedSymbolConfig(
         symbol=symbol,
         compression=CompressionConfig.model_validate(merged.get("compression", {})),
         risk_pct=merged.get("risk_pct", config.risk.default_risk_pct),
+        burst_follow=LiqBurstFollowConfig.model_validate(burst_merged),
     )

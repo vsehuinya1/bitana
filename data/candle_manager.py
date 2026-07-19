@@ -139,53 +139,77 @@ class CandleManager:
             )
 
     async def verify_with_rest(self, rest_client, symbol: str, timeframe: str) -> None:
-        """REST truth check (AD-3): verify last 3 candles match WS data."""
+        """REST truth check (AD-3): sync closed candles and emit close events.
+
+        Testnet WS often omits kline ``x=true``; REST is the authoritative close
+        source in that case.
+        """
         try:
             raw = await rest_client.get_klines(
-                symbol=symbol, interval=timeframe, limit=4,
+                symbol=symbol, interval=timeframe, limit=6,
             )
             if not raw or len(raw) < 2:
                 return
 
+            new_closes: list[Candle] = []
+
             async with self._lock:
                 dq = self._candles[symbol][timeframe]
-                if not dq:
-                    return
+                known_times = {c.open_time for c in dq}
 
-                # Check closed candles (all but last)
                 for k in raw[:-1]:
                     rest_open_time = datetime.fromtimestamp(
                         k[0] / 1000, tz=timezone.utc
                     )
-                    # Find matching WS candle
+                    candle = Candle(
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        open_time=rest_open_time,
+                        close_time=datetime.fromtimestamp(
+                            k[6] / 1000, tz=timezone.utc
+                        ),
+                        open=float(k[1]),
+                        high=float(k[2]),
+                        low=float(k[3]),
+                        close=float(k[4]),
+                        volume=float(k[5]),
+                        taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
+                        is_closed=True,
+                    )
+
+                    if rest_open_time not in known_times:
+                        dq.append(candle)
+                        known_times.add(rest_open_time)
+                        new_closes.append(candle)
+                        continue
+
                     for i, ws_candle in enumerate(dq):
-                        if ws_candle.open_time == rest_open_time:
-                            rest_close = float(k[4])
-                            if abs(ws_candle.close - rest_close) > 1e-10:
-                                logger.warning(
-                                    "Candle mismatch — REST wins",
-                                    symbol=symbol, tf=timeframe,
-                                    time=rest_open_time.isoformat(),
-                                    ws_close=ws_candle.close,
-                                    rest_close=rest_close,
-                                )
-                                corrected = Candle(
-                                    symbol=symbol,
-                                    timeframe=timeframe,
-                                    open_time=rest_open_time,
-                                    close_time=datetime.fromtimestamp(
-                                        k[6] / 1000, tz=timezone.utc
-                                    ),
-                                    open=float(k[1]),
-                                    high=float(k[2]),
-                                    low=float(k[3]),
-                                    close=float(k[4]),
-                                    volume=float(k[5]),
-                                    taker_buy_volume=float(k[9]) if len(k) > 9 else 0.0,
-                                    is_closed=True,
-                                )
-                                dq[i] = corrected
-                            break
+                        if ws_candle.open_time != rest_open_time:
+                            continue
+                        rest_close = float(k[4])
+                        if abs(ws_candle.close - rest_close) > 1e-10:
+                            logger.warning(
+                                "Candle mismatch — REST wins",
+                                symbol=symbol, tf=timeframe,
+                                time=rest_open_time.isoformat(),
+                                ws_close=ws_candle.close,
+                                rest_close=rest_close,
+                            )
+                            dq[i] = candle
+                        break
+
+            for candle in new_closes:
+                logger.info(
+                    "Candle closed (REST)",
+                    symbol=symbol, tf=timeframe,
+                    close=candle.close, vol=candle.volume,
+                )
+                await event_bus.emit(
+                    Events.CANDLE_CLOSED,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    candle=candle,
+                )
 
         except Exception as e:
             logger.error(

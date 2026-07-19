@@ -40,6 +40,11 @@ from data.binance_rest import BinanceRestClient
 from data.rate_limiter import RateLimiterGroup
 from engines.liq_cluster_engine_v5 import LiqClusterEngineV5, BASE_RISK_PCT, TRADE_DECILES
 import engines.liq_cluster_engine_v5 as eng_mod
+from engines.btc_regime import (
+    compute_realized_vol_24h,
+    compute_regime_age_bars,
+    compute_regime_snapshot,
+)
 from research.v65_monitoring import (
     STRATEGY_VERSION,
     ASIA_SHADOW_HOURS,
@@ -542,6 +547,9 @@ class V5ForwardTest:
             max_concurrent=port_cfg.get("max_concurrent"),
             max_per_symbol_session=int(port_cfg.get("max_per_symbol_session", 1)),
             max_net_delta=port_cfg.get("max_net_delta"),
+            live_max_concurrent=int(port_cfg.get("live_max_concurrent", 3)),
+            live_max_per_symbol=int(port_cfg.get("live_max_per_symbol", 1)),
+            live_max_cluster=int(port_cfg.get("live_max_cluster", 3)),
         )
         self.signal_shadow = None
         if _HAS_SIGNAL_SHADOW and bool(sig_cfg.get("enabled", False)):
@@ -569,7 +577,16 @@ class V5ForwardTest:
         self.candle_buffers: dict[str, deque] = defaultdict(lambda: deque(maxlen=CANDLE_HISTORY_5M))
         self.last_prices: dict[str, float] = {}
         self._btc_4h_candles: list = []
+        self._symbol_4h_candles: dict[str, list] = {}
+        self._symbol_4h_fetch_ts: dict[str, float] = {}
         self._funding_cache: dict[str, tuple[float, float]] = {}  # symbol -> (rate, monotonic_ts)
+        self._book_cache: dict[str, tuple[dict, float]] = {}
+        self._depth_cache: dict[str, tuple[dict, float]] = {}
+        self._oi_cache: dict[str, tuple[float, float]] = {}
+        self._oi_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=12))
+        self._burst_vol_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=60))
+        self._burst_bucket_symbols: dict[str, set[str]] = {}
+        self._cascade_active_since: dict[str, datetime] = {}
         self._last_btc_4h_fetch: float = 0.0
         self.open_positions: list[dict] = self.db.get_open_positions()
         self._running = False
@@ -945,6 +962,11 @@ class V5ForwardTest:
         total = sum(len(v) for v in self.candle_buffers.values())
         logger.info(f"History loaded: {total} candles across {len(self.all_symbols)} symbols")
         await self._refresh_btc_4h_history()
+        try:
+            btc_5m = await self._fetch_klines("BTCUSDT", "5m", start, end)
+            self.candle_buffers["BTCUSDT"].extend(btc_5m)
+        except Exception as e:
+            logger.warning("BTC 5m history load failed (non-fatal)", error=str(e))
 
     async def _refresh_btc_4h_history(self):
         """Load BTC 4h bars for regime tagging (200 EMA + ADX)."""
@@ -975,41 +997,207 @@ class V5ForwardTest:
 
     def _btc_regime(self) -> tuple[str | None, float | None]:
         """BTC bull/bear/neutral from 4h 200EMA + ADX>25."""
-        import numpy as np
-        from engines.liq_cluster_engine_v5 import _ema
-        from engines.swing_break_engine import _adx_series
+        snap = compute_regime_snapshot(self._btc_4h_candles)
+        return snap.state, snap.distance_from_ema_pct
 
-        candles = self._btc_4h_candles
-        if len(candles) < 200:
-            return None, None
-        closes = np.array([c.close for c in candles], dtype=float)
-        ema200 = _ema(closes, 200)
-        price = float(closes[-1])
-        if ema200 <= 0:
-            return None, None
-        dist_pct = (price - ema200) / ema200 * 100.0
-        adx_vals = _adx_series(candles, 14)
-        adx = float(adx_vals[-1]) if adx_vals else 0.0
-        if adx <= 25:
-            state = "neutral"
-        elif price > ema200:
-            state = "bull"
+    def _cluster_bucket(self, bar_time: datetime, window_min: int = 15) -> str:
+        minute = (bar_time.minute // window_min) * window_min
+        bt = bar_time.replace(minute=minute, second=0, microsecond=0)
+        if bt.tzinfo is None:
+            bt = bt.replace(tzinfo=timezone.utc)
+        return bt.isoformat()
+
+    def _prune_burst_buckets(self, now: datetime):
+        cutoff = now - timedelta(minutes=30)
+        stale = [
+            b for b, syms in self._burst_bucket_symbols.items()
+            if datetime.fromisoformat(b) < cutoff
+        ]
+        for b in stale:
+            del self._burst_bucket_symbols[b]
+
+    def _record_burst_bucket(self, symbol: str, bar_time: datetime):
+        bucket = self._cluster_bucket(bar_time)
+        self._burst_bucket_symbols.setdefault(bucket, set()).add(symbol)
+        self._prune_burst_buckets(bar_time)
+
+    def _cluster_breadth(self, bar_time: datetime) -> int:
+        bucket = self._cluster_bucket(bar_time)
+        return len(self._burst_bucket_symbols.get(bucket, set()))
+
+    def _market_liq_flow_usd(self, end_ms: int) -> float:
+        start_ms = end_ms - 30 * 60 * 1000
+        long_liq = self.force_order_db.conn.execute(
+            "SELECT COALESCE(SUM(volume_usd),0) FROM force_order_events "
+            "WHERE event_time_ms>? AND event_time_ms<=? AND side='SELL'",
+            (start_ms, end_ms),
+        ).fetchone()[0]
+        short_liq = self.force_order_db.conn.execute(
+            "SELECT COALESCE(SUM(volume_usd),0) FROM force_order_events "
+            "WHERE event_time_ms>? AND event_time_ms<=? AND side='BUY'",
+            (start_ms, end_ms),
+        ).fetchone()[0]
+        return float(long_liq or 0.0) - float(short_liq or 0.0)
+
+    def _burst_vol_zscore(self, symbol: str, vol_30m: float) -> float | None:
+        hist = self._burst_vol_history[symbol]
+        hist.append(vol_30m)
+        if len(hist) < 10:
+            return None
+        arr = list(hist)
+        mean = sum(arr) / len(arr)
+        var = sum((x - mean) ** 2 for x in arr) / len(arr)
+        if var <= 0:
+            return 0.0
+        return round((vol_30m - mean) / (var ** 0.5), 4)
+
+    def _update_cascade_lag(self, symbol: str, st, bar_time: datetime) -> int | None:
+        if st.cascade_active:
+            if symbol not in self._cascade_active_since:
+                self._cascade_active_since[symbol] = bar_time
+            since = self._cascade_active_since[symbol]
+            return int((bar_time - since).total_seconds() / 300)
+        self._cascade_active_since.pop(symbol, None)
+        return None
+
+    async def _refresh_symbol_4h(self, symbol: str):
+        now = time.monotonic()
+        if now - self._symbol_4h_fetch_ts.get(symbol, 0.0) < 4 * 3600:
+            return
+        try:
+            end = datetime.now(timezone.utc)
+            start = end - timedelta(days=45)
+            self._symbol_4h_candles[symbol] = await self._fetch_klines(symbol, "4h", start, end)
+            self._symbol_4h_fetch_ts[symbol] = now
+        except Exception as e:
+            logger.debug("Symbol 4h fetch failed", symbol=symbol, error=str(e))
+
+    async def _refresh_book_depth(self, symbol: str) -> tuple[float | None, float | None]:
+        """Return (spread_bps, book_depth_usd_5bps)."""
+        now = time.monotonic()
+        book_cached = self._book_cache.get(symbol)
+        if not book_cached or now - book_cached[1] > 300:
+            try:
+                book = await self.rest.get_book_ticker(symbol)
+                self._book_cache[symbol] = (book, now)
+            except Exception as e:
+                logger.debug("Book ticker fetch failed", symbol=symbol, error=str(e))
+                book = book_cached[0] if book_cached else None
         else:
-            state = "bear"
-        return state, round(dist_pct, 4)
+            book = book_cached[0]
 
-    def _shadow_market_context(self, symbol: str) -> MarketContext:
+        depth_cached = self._depth_cache.get(symbol)
+        if not depth_cached or now - depth_cached[1] > 300:
+            try:
+                depth = await self.rest.get_depth(symbol, limit=20)
+                self._depth_cache[symbol] = (depth, now)
+            except Exception as e:
+                logger.debug("Depth fetch failed", symbol=symbol, error=str(e))
+                depth = depth_cached[0] if depth_cached else None
+        else:
+            depth = depth_cached[0]
+
+        spread_bps = None
+        depth_usd = None
+        if book:
+            bid = float(book.get("bidPrice", 0))
+            ask = float(book.get("askPrice", 0))
+            if bid > 0 and ask > 0:
+                mid = (bid + ask) / 2.0
+                spread_bps = round((ask - bid) / mid * 10000.0, 4)
+                if depth:
+                    band = mid * 0.0005
+                    lo, hi = mid - band, mid + band
+                    depth_usd = 0.0
+                    for px, qty in depth.get("bids", []):
+                        p = float(px)
+                        if p < lo:
+                            break
+                        depth_usd += p * float(qty)
+                    for px, qty in depth.get("asks", []):
+                        p = float(px)
+                        if p > hi:
+                            break
+                        depth_usd += p * float(qty)
+                    depth_usd = round(depth_usd, 2)
+        return spread_bps, depth_usd
+
+    async def _refresh_oi_delta(self, symbol: str) -> float | None:
+        now = time.monotonic()
+        cached = self._oi_cache.get(symbol)
+        if not cached or now - cached[1] > 300:
+            try:
+                resp = await self.rest.get_open_interest(symbol)
+                oi = float(resp.get("openInterest", 0))
+                self._oi_cache[symbol] = (oi, now)
+                self._oi_history[symbol].append((now, oi))
+            except Exception as e:
+                logger.debug("OI fetch failed", symbol=symbol, error=str(e))
+                return None
+        else:
+            oi = cached[0]
+
+        hist = self._oi_history[symbol]
+        if len(hist) < 2:
+            return None
+        old_oi = hist[0][1]
+        if old_oi <= 0:
+            return None
+        return round((oi - old_oi) / old_oi * 100.0, 4)
+
+    async def _shadow_market_context(
+        self,
+        symbol: str,
+        candle: Candle,
+        *,
+        burst: dict | None = None,
+        st=None,
+    ) -> MarketContext:
+        bar_time = getattr(candle, "close_time", None) or datetime.now(timezone.utc)
+        if bar_time.tzinfo is None:
+            bar_time = bar_time.replace(tzinfo=timezone.utc)
+        end_ms = int(bar_time.timestamp() * 1000)
+
         n_cascade = sum(1 for s in self.symbols if self.engine._get_state(s).cascade_active)
         breadth = 100.0 * n_cascade / len(self.symbols) if self.symbols else 0.0
-        btc_trend, btc_dist = self._btc_regime()
+        btc_snap = compute_regime_snapshot(self._btc_4h_candles)
         btc_fund = self._funding_cache.get("BTCUSDT")
         sym_fund = self._funding_cache.get(symbol)
+
+        btc_5m = list(self.candle_buffers.get("BTCUSDT", []))
+        if not btc_5m:
+            btc_5m = list(self.candle_buffers.get(symbol, []))
+
+        await self._refresh_symbol_4h(symbol)
+        sym_snap = compute_regime_snapshot(self._symbol_4h_candles.get(symbol, []))
+
+        spread_bps, book_depth = await self._refresh_book_depth(symbol)
+        oi_delta = await self._refresh_oi_delta(symbol)
+
+        vol_30m = float(burst.get("volume_30m", 0.0)) if burst else 0.0
+        burst_z = self._burst_vol_zscore(symbol, vol_30m) if burst and vol_30m > 0 else None
+        if burst and vol_30m >= self.intraday_burst_min_volume_usd:
+            self._record_burst_bucket(symbol, bar_time)
+
+        entry_lag = self._update_cascade_lag(symbol, st, bar_time) if st is not None else None
+
         return MarketContext(
-            btc_trend_state=btc_trend,
-            btc_distance_from_ema_pct=btc_dist,
+            btc_trend_state=btc_snap.state,
+            btc_distance_from_ema_pct=btc_snap.distance_from_ema_pct,
+            btc_adx=btc_snap.adx,
+            btc_regime_age_bars=compute_regime_age_bars(self._btc_4h_candles),
+            btc_realized_vol_24h=compute_realized_vol_24h(btc_5m) if btc_5m else None,
             market_breadth_pct=round(breadth, 2),
             funding_rate_btc=btc_fund[0] if btc_fund else None,
             funding_rate_symbol=sym_fund[0] if sym_fund else None,
+            symbol_trend_state=sym_snap.state,
+            spread_bps=spread_bps,
+            book_depth_usd_5bps=book_depth,
+            cluster_breadth=self._cluster_breadth(bar_time),
+            market_liq_flow_usd=self._market_liq_flow_usd(end_ms),
+            burst_vol_zscore=burst_z,
+            entry_lag_bars=entry_lag,
+            oi_delta_30m_pct=oi_delta,
         )
 
     async def _fetch_klines(self, symbol, interval, start, end):
@@ -1570,7 +1758,7 @@ class V5ForwardTest:
                 candles_5m = list(self.candle_buffers.get(symbol, []))
                 st = self.engine._get_state(symbol)
                 await self._refresh_funding_rates(["BTCUSDT", symbol])
-                mkt_ctx = self._shadow_market_context(symbol)
+                mkt_ctx = await self._shadow_market_context(symbol, candle, st=st)
                 self.signal_shadow.on_bar(
                     symbol, candles_5m,
                     st,
@@ -1578,6 +1766,9 @@ class V5ForwardTest:
                 )
                 if self.intraday_burst_shadow_enabled:
                     burst = self._intraday_burst_stats(symbol, candle)
+                    burst_ctx = await self._shadow_market_context(
+                        symbol, candle, burst=burst, st=st,
+                    )
                     self.signal_shadow.on_intraday_burst(
                         symbol, candles_5m,
                         st,
@@ -1585,7 +1776,7 @@ class V5ForwardTest:
                         min_volume_usd=self.intraday_burst_min_volume_usd,
                         min_events=self.intraday_burst_min_events,
                         dedup_bars=self.intraday_burst_dedup_bars,
-                        market_ctx=mkt_ctx,
+                        market_ctx=burst_ctx,
                     )
             except Exception as e:
                 logger.error("Signal shadow on_bar error (non-fatal)", symbol=symbol,

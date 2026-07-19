@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from config.loader import PortfolioConfig
 from core.logging_setup import get_logger
-from core.models import Position, Side, Signal
+from core.models import EngineType, Position, Side, Signal
 
 logger = get_logger("portfolio")
 
@@ -31,15 +31,42 @@ class PortfolioManager:
         if len(active) >= cfg.max_concurrent_positions:
             return False, f"Max positions reached: {len(active)}/{cfg.max_concurrent_positions}"
 
-        # Max per symbol
-        sym_positions = [p for p in active if p.symbol == signal.symbol]
+        engine_scoped = cfg.limit_by_engine
+
+        # Max per symbol (optionally per engine — testnet burst vs legacy positions)
+        sym_positions = [
+            p for p in active
+            if p.symbol == signal.symbol
+            and (not engine_scoped or p.engine == signal.engine)
+        ]
         if len(sym_positions) >= cfg.max_per_symbol:
             return False, f"Max positions for {signal.symbol}: {len(sym_positions)}/{cfg.max_per_symbol}"
 
-        # No duplicate entries
+        # No duplicate entries (same symbol + side + engine)
         for p in active:
-            if p.symbol == signal.symbol and p.side == signal.side:
-                return False, f"Duplicate {signal.side.value} on {signal.symbol}"
+            if p.symbol != signal.symbol or p.side != signal.side:
+                continue
+            if engine_scoped and p.engine != signal.engine:
+                continue
+            return False, f"Duplicate {signal.side.value} on {signal.symbol}"
+
+        if cfg.max_cluster_positions > 0 and signal.engine == EngineType.LIQ_BURST_FOLLOW:
+            sd = signal.signal_data or {}
+            session = sd.get("session")
+            bucket = sd.get("cluster_bucket")
+            if session and bucket:
+                cluster_count = sum(
+                    1 for p in active
+                    if p.engine == EngineType.LIQ_BURST_FOLLOW
+                    and p.side == signal.side
+                    and (p.signal_data or {}).get("session") == session
+                    and (p.signal_data or {}).get("cluster_bucket") == bucket
+                )
+                if cluster_count >= cfg.max_cluster_positions:
+                    return False, (
+                        f"Cluster cap reached: {cluster_count}/{cfg.max_cluster_positions} "
+                        f"({session} {signal.side.value} {bucket})"
+                    )
 
         # Correlation check: if BTC long open and SOL long signal, require independent
         if cfg.correlation_require_independent and signal.symbol == "SOLUSDT":

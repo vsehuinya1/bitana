@@ -29,6 +29,7 @@ class EngineType(str, Enum):
     SQUEEZE = "SQUEEZE"
     SWING_BREAK = "SWING_BREAK"
     LIQ_CLUSTER = "LIQ_CLUSTER"
+    LIQ_BURST_FOLLOW = "LIQ_BURST_FOLLOW"
 
 
 class AlertTier(str, Enum):
@@ -248,6 +249,9 @@ class Position(BaseModel):
     # Metadata
     externally_managed: bool = False
     client_order_ids: list[str] = Field(default_factory=list)
+    signal_data: dict = Field(default_factory=dict)
+    entry_atr: float = 0.0
+    peak_mfe_atr: float = 0.0
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 

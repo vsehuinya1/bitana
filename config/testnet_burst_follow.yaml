@@ -1,0 +1,202 @@
+# Testnet config for Liq Burst Follow Engine
+# Run: python main.py --config config/testnet_burst_follow.yaml
+#
+# Session rules mirror shadow-validated winners (not one global burst_follow profile).
+
+config_version: "1.0.0"
+mode: "live"  # uses LiveExecutor; set BINANCE_TESTNET=true in .env
+
+engines:
+  compression_enabled: false
+  squeeze_enabled: false
+  burst_follow_enabled: true
+
+symbols:
+  active:
+    - BTCUSDT
+    - SOLUSDT
+    - ETHUSDT
+    - WLDUSDT
+    - XRPUSDT
+    - NEARUSDT
+    - ZECUSDT
+    - APTUSDT
+    - ADAUSDT
+    - UNIUSDT
+  defaults:
+    risk_pct: 0.005  # 0.5% — testnet fill/slippage telemetry
+
+timeframes:
+  regime: "15m"
+  primary: "5m"
+  confirmation: "1m"
+
+risk:
+  default_risk_pct: 0.005
+  reduced_risk_pct: 0.0025
+  drawdown_reduce_threshold: 0.15
+  drawdown_restore_threshold: 0.10
+  max_leverage: 10
+  liquidation_buffer_pct: 0.05
+
+brakes:
+  daily_loss_limit_pct: 0.04
+  weekly_loss_limit_pct: 0.08
+  weekly_cooldown_hours: 48
+  consecutive_loss_threshold: 3
+  consecutive_loss_reduced_trades: 5
+  equity_pause_drawdown: 0.25
+  equity_shutdown_drawdown: 0.40
+
+stops:
+  compression:
+    method: "structure_or_atr"
+    atr_multiplier: 1.5
+  squeeze:
+    method: "trigger_extreme"
+    buffer_pct: 0.002
+
+profit_taking:
+  partial_close_pct: 0.50
+  partial_close_r: 1.5
+  trail_atr_multiplier: 1.0
+  time_stop_r_threshold: 1.0
+  time_stop_candles: 8
+
+portfolio:
+  max_concurrent_positions: 10
+  max_per_symbol: 10
+  limit_by_engine: true  # burst-follow not blocked by legacy/external positions
+  btc_priority: true
+  correlation_require_independent: false
+  correlation_sizing_reduction: 0.0
+
+execution:
+  max_spread_bps: 15.0
+  max_slippage_bps: 10.0
+  partial_fill_timeout_s: 30
+  client_order_id_prefix: "BITANA"
+
+reconciliation:
+  interval_s: 30
+  external_position_stop_atr_mult: 2.0
+
+regime_filters:
+  enabled: true
+  min_atr_15m: 0.001
+  avoid_low_vol_drift: true
+  session_filter:
+    enabled: false
+    allowed_utc_hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  blackout_windows: []
+
+fees:
+  taker_bps: 4.0
+  maker_bps: 2.0
+  default_slippage_bps: 2.0
+
+telegram:
+  enabled: true
+  flatten_confirm_timeout_s: 30
+  max_log_lines: 50
+
+health:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8081
+
+logging:
+  level: "INFO"
+  file: "logs/bitana.log"
+  trade_file: "logs/trades.jsonl"
+  max_bytes: 52428800
+  backup_count: 10
+  retention_days: 30
+
+data:
+  candle_history_limit: 500
+  rest_candle_check_interval_s: 60
+  ws_reconnect_max_retries: 10
+  ws_reconnect_base_delay_s: 1.0
+  server_time_sync_interval_s: 300
+
+rate_limiter:
+  order_weight_per_minute: 1200
+  data_weight_per_minute: 2400
+  warn_threshold_pct: 0.80
+
+watchdog:
+  heartbeat_interval_s: 30
+  max_restart_attempts: 5
+  restart_backoff_base_s: 2.0
+
+squeeze:
+  enabled: false
+  oi_poll_interval_s: 15
+  oi_drop_threshold_pct: 0.02
+  velocity_threshold: 0.005
+  impulse_lookback_candles: 5
+
+burst_follow:
+  enabled: true
+  force_order_db_path: storage/force_orders.db
+  force_order_read_only: true
+  liq_cache_db_path: storage/v5_forward_test.db
+  min_burst_volume_30m: 20000
+  min_burst_events_30m: 3
+  dedup_bars: 3
+  risk_pct: 0.005
+  session_rules:
+    asia:
+      shadow_strategy: follow_3h_asia
+      side_mode: follow
+      pos_imb_only: true
+      min_imb: 0.0
+      stop_atr: 10.0
+      tp_atr: 999.0
+      time_bars: 36
+      time_exit_only: true
+      min_cascade_strength: 0.5
+      min_vol_z: 0.0
+      min_n_confirms: 1
+      min_decile: 2
+    ny:
+      shadow_strategy: burst_follow
+      side_mode: follow
+      pos_imb_only: false
+      stop_atr: 10.0
+      tp_atr: 3.0
+      time_bars: 6
+      time_exit_only: false
+      min_imb: 0.5
+      min_cascade_strength: 0.0
+      min_vol_z: 0.0
+      min_n_confirms: 0
+      min_decile: 0
+    london:
+      shadow_strategy: london_burst_fade
+      side_mode: fade
+      stop_atr: 4.0
+      tp_atr: 3.0
+      time_bars: 6
+      time_exit_only: false
+      min_imb: 0.5
+      min_cascade_strength: 0.0
+      min_vol_z: 0.0
+      min_n_confirms: 0
+      min_decile: 0
+    late:
+      shadow_strategy: late_fade
+      side_mode: fade
+      stop_atr: 12.0
+      tp_atr: 3.0
+      time_bars: 6
+      time_exit_only: false
+      min_imb: 0.5
+      min_cascade_strength: 0.0
+      min_vol_z: 0.0
+      min_n_confirms: 0
+      min_decile: 0
+
+database:
+  path: "data/bitana.db"

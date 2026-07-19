@@ -59,6 +59,35 @@ SideMode = Literal["fade", "fade_short_only", "follow", "long"]
 
 # Checkpoint bars for per-horizon MAE/MFE snapshots (5m bars).
 MAE_CHECKPOINT_BARS: dict[int, str] = {36: "3h", 72: "6h", 144: "12h", 288: "24h"}
+PNL_CHECKPOINT_BARS: dict[int, str] = {12: "1h", 24: "2h"}
+
+ENTRY_QUALITY_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("spread_bps", "REAL"),
+    ("book_depth_usd_5bps", "REAL"),
+    ("fill_price_next_open", "REAL"),
+    ("btc_adx", "REAL"),
+    ("btc_regime_age_bars", "INTEGER"),
+    ("btc_realized_vol_24h", "REAL"),
+    ("symbol_trend_state", "TEXT"),
+    ("cluster_breadth", "INTEGER"),
+    ("market_liq_flow_usd", "REAL"),
+    ("burst_vol_zscore", "REAL"),
+    ("entry_lag_bars", "INTEGER"),
+    ("oi_delta_30m_pct", "REAL"),
+    ("bars_to_mfe_peak", "INTEGER"),
+    ("pnl_1h", "REAL"),
+    ("pnl_2h", "REAL"),
+    ("would_live_accept", "INTEGER"),
+    ("cluster_bucket", "TEXT"),
+)
+
+
+def _cluster_bucket(bar_time: datetime, window_min: int = 15) -> str:
+    minute = (bar_time.minute // window_min) * window_min
+    bt = bar_time.replace(minute=minute, second=0, microsecond=0)
+    if bt.tzinfo is None:
+        bt = bt.replace(tzinfo=timezone.utc)
+    return bt.isoformat()
 
 
 @dataclass
@@ -68,6 +97,9 @@ class ShadowPortfolioConfig:
     max_concurrent: int | None = None
     max_per_symbol_session: int = 1
     max_net_delta: int | None = None  # |open longs - open shorts|
+    live_max_concurrent: int = 3
+    live_max_per_symbol: int = 1
+    live_max_cluster: int = 3
 
 
 DEFAULT_PORTFOLIO = ShadowPortfolioConfig()
@@ -75,13 +107,24 @@ DEFAULT_PORTFOLIO = ShadowPortfolioConfig()
 
 @dataclass
 class MarketContext:
-    """Regime snapshot supplied by the runner at bar time."""
+    """Regime + execution snapshot supplied by the runner at bar time."""
 
     btc_trend_state: str | None = None
     btc_distance_from_ema_pct: float | None = None
+    btc_adx: float | None = None
+    btc_regime_age_bars: int | None = None
+    btc_realized_vol_24h: float | None = None
     market_breadth_pct: float | None = None
     funding_rate_btc: float | None = None
     funding_rate_symbol: float | None = None
+    symbol_trend_state: str | None = None
+    spread_bps: float | None = None
+    book_depth_usd_5bps: float | None = None
+    cluster_breadth: int | None = None
+    market_liq_flow_usd: float | None = None
+    oi_delta_30m_pct: float | None = None
+    entry_lag_bars: int | None = None
+    burst_vol_zscore: float | None = None
 
 
 @dataclass
@@ -285,6 +328,34 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "asia_pump_short_4h_limit15", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
         limit_entry_atr=1.5, limit_entry_max_bars=36,
+    ),
+    # Stop-distance counterfactuals on live books (logging-only).
+    ShadowStrategy(
+        "asia_pump_short_4h_s4", "burst", "follow", 4.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "asia_pump_short_4h_s6", "burst", "follow", 6.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "asia_pump_short_4h_s8", "burst", "follow", 8.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_4h_open_s4", "burst", "follow", 4.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), hours=frozenset({14, 15, 16, 17}),
+        min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_4h_open_s6", "burst", "follow", 6.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), hours=frozenset({14, 15, 16, 17}),
+        min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_4h_open_s8", "burst", "follow", 8.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), hours=frozenset({14, 15, 16, 17}),
+        min_imb=0.5, pos_imb_only=True, time_exit_only=True,
     ),
     # ── Setup / bar-close (on_bar, v_confirms3 snapshot) ──
     ShadowStrategy(
@@ -670,6 +741,38 @@ class SignalShadow:
         ):
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
+        for col, typ in ENTRY_QUALITY_COLUMNS:
+            if col not in existing:
+                self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
+
+    def _would_live_accept(
+        self, symbol: str, side: str, session: str, cluster_bucket: str,
+    ) -> int:
+        """Whether live portfolio caps would accept this entry (1=yes, 0=no)."""
+        cfg = self.portfolio
+        rows = self.conn.execute(
+            "SELECT symbol, side, session, cluster_bucket FROM shadow_trades WHERE status='open'",
+        ).fetchall()
+        if len(rows) >= cfg.live_max_concurrent:
+            return 0
+        if sum(1 for r in rows if r["symbol"] == symbol) >= cfg.live_max_per_symbol:
+            return 0
+        cluster_n = sum(
+            1 for r in rows
+            if r["side"] == side
+            and r["session"] == session
+            and r["cluster_bucket"] == cluster_bucket
+        )
+        if cluster_n >= cfg.live_max_cluster:
+            return 0
+        return 1
+
+    def _signed_pnl_atr(self, side: str, entry: float, price: float, atr: float) -> float:
+        if atr <= 0:
+            return 0.0
+        if side == "LONG":
+            return (price - entry) / atr
+        return (entry - price) / atr
 
     def _features(self, candles_5m: list, st: SymbolState) -> dict | None:
         """Pure feature extraction mirroring engine.evaluate() — no side effects."""
@@ -1081,7 +1184,8 @@ class SignalShadow:
         rows = self.conn.execute(
             """
             SELECT id, strategy, side, entry_price, stop_price, tp_price, atr,
-                   bars_held, time_bars, time_exit_only, run_mae_atr, run_mfe_atr
+                   bars_held, time_bars, time_exit_only, run_mae_atr, run_mfe_atr,
+                   bars_to_mfe_peak, fill_price_next_open
             FROM shadow_trades WHERE symbol=? AND status='open'
             """,
             (symbol,),
@@ -1102,6 +1206,14 @@ class SignalShadow:
             fav, adv = self._trade_path_atr(side, entry, atr, high, low)
             run_mfe = max(float(r["run_mfe_atr"] or 0.0), fav)
             run_mae = min(float(r["run_mae_atr"] or 0.0), adv)
+
+            mfe_peak_bar = int(r["bars_to_mfe_peak"] or bars_held)
+            if fav > float(r["run_mfe_atr"] or 0.0):
+                mfe_peak_bar = bars_held
+
+            fill_next_open = r["fill_price_next_open"]
+            if bars_held == 1:
+                fill_next_open = float(bar.open)
 
             spec = _STRATEGY_BY_NAME.get(strategy)
             effective_sl = sl
@@ -1154,16 +1266,24 @@ class SignalShadow:
                 label = MAE_CHECKPOINT_BARS[bars_held]
                 horizon_updates.extend([f"mae_{label}=?", f"mfe_{label}=?"])
                 horizon_vals.extend([run_mae, run_mfe])
+            if bars_held in PNL_CHECKPOINT_BARS:
+                pnl_label = PNL_CHECKPOINT_BARS[bars_held]
+                horizon_updates.append(f"pnl_{pnl_label}=?")
+                horizon_vals.append(self._signed_pnl_atr(side, entry, close, atr))
 
             if exit_reason is not None:
                 sets = [
                     "status='closed'", "pnl_atr=?", "exit_time=?", "exit_price=?",
                     "exit_reason=?", "bars_held=?", "run_mae_atr=?", "run_mfe_atr=?",
+                    "bars_to_mfe_peak=?",
                 ]
                 vals: list = [
                     pnl_atr, close_time_str, exit_price, exit_reason, bars_held,
-                    run_mae, run_mfe,
+                    run_mae, run_mfe, mfe_peak_bar,
                 ]
+                if fill_next_open is not None:
+                    sets.append("fill_price_next_open=?")
+                    vals.append(fill_next_open)
                 sets.extend(horizon_updates)
                 vals.extend(horizon_vals)
                 vals.append(tid)
@@ -1178,8 +1298,14 @@ class SignalShadow:
                     strategy, symbol, side, entry, exit_price, pnl_atr, exit_reason, run_mae,
                 )
             else:
-                sets = ["bars_held=?", "run_mae_atr=?", "run_mfe_atr=?"]
-                vals = [bars_held, run_mae, run_mfe]
+                sets = [
+                    "bars_held=?", "run_mae_atr=?", "run_mfe_atr=?",
+                    "bars_to_mfe_peak=?",
+                ]
+                vals = [bars_held, run_mae, run_mfe, mfe_peak_bar]
+                if fill_next_open is not None:
+                    sets.append("fill_price_next_open=?")
+                    vals.append(fill_next_open)
                 sets.extend(horizon_updates)
                 vals.extend(horizon_vals)
                 vals.append(tid)
@@ -1228,6 +1354,8 @@ class SignalShadow:
         is_weekend = 1 if f["bar_time"].weekday() >= 5 else 0
         port = self._portfolio_at_entry(symbol, side, spec.stop_atr)
         mkt = self._market_ctx
+        cluster_bucket = _cluster_bucket(f["bar_time"])
+        would_live = self._would_live_accept(symbol, side, f["session"], cluster_bucket)
 
         self.conn.execute(
             """
@@ -1241,9 +1369,14 @@ class SignalShadow:
                 concurrent_positions_total, concurrent_positions_same_side,
                 net_delta_at_entry, gross_exposure_at_entry, symbols_active_count,
                 btc_trend_state, btc_distance_from_ema_pct, market_breadth_pct,
-                funding_rate_btc, funding_rate_symbol
+                funding_rate_btc, funding_rate_symbol,
+                spread_bps, book_depth_usd_5bps, fill_price_next_open,
+                btc_adx, btc_regime_age_bars, btc_realized_vol_24h,
+                symbol_trend_state, cluster_breadth, market_liq_flow_usd,
+                burst_vol_zscore, entry_lag_bars, oi_delta_30m_pct,
+                would_live_accept, cluster_bucket
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 spec.name, symbol, side, entry_time_str, entry_price, stop_price, tp_price, atr,
@@ -1258,6 +1391,11 @@ class SignalShadow:
                 port.net_delta_at_entry, port.gross_exposure_at_entry, port.symbols_active_count,
                 mkt.btc_trend_state, mkt.btc_distance_from_ema_pct, mkt.market_breadth_pct,
                 mkt.funding_rate_btc, mkt.funding_rate_symbol,
+                mkt.spread_bps, mkt.book_depth_usd_5bps, None,
+                mkt.btc_adx, mkt.btc_regime_age_bars, mkt.btc_realized_vol_24h,
+                mkt.symbol_trend_state, mkt.cluster_breadth, mkt.market_liq_flow_usd,
+                mkt.burst_vol_zscore, mkt.entry_lag_bars, mkt.oi_delta_30m_pct,
+                would_live, cluster_bucket,
             ),
         )
         self.conn.commit()

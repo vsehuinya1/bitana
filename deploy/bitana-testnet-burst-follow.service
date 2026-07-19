@@ -1,0 +1,16 @@
+[Unit]
+Description=Bitana Testnet Liq Burst Follow (main.py)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+EnvironmentFile=/root/bitana/.env
+ExecStart=/root/bitana/venv/bin/python3 -u main.py --config config/testnet_burst_follow.yaml
+Restart=always
+RestartSec=30
+StandardOutput=append:/var/log/bitana-testnet-burst.log
+StandardError=append:/var/log/bitana-testnet-burst.log
+
+[Install]
+WantedBy=multi-user.target

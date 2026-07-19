@@ -79,6 +79,9 @@ CREATE TABLE IF NOT EXISTS positions (
     candles_held INTEGER DEFAULT 0,
     externally_managed INTEGER DEFAULT 0,
     client_order_ids TEXT DEFAULT '[]',
+    signal_data TEXT DEFAULT '{}',
+    entry_atr REAL DEFAULT 0.0,
+    peak_mfe_atr REAL DEFAULT 0.0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -164,10 +167,25 @@ class Database:
         await self._db.execute("PRAGMA busy_timeout=5000")
         await self._db.execute("PRAGMA synchronous=NORMAL")
         await self._db.executescript(_SCHEMA)
+        await self._migrate_positions()
         await self._db.commit()
         self._running = True
         self._writer_task = asyncio.create_task(self._writer_loop())
         logger.info("Database initialized", path=str(self._db_path))
+
+    async def _migrate_positions(self) -> None:
+        assert self._db is not None
+        cols = set()
+        async with self._db.execute("PRAGMA table_info(positions)") as cursor:
+            rows = await cursor.fetchall()
+            cols = {row[1] for row in rows}
+        for col, typ in (
+            ("signal_data", "TEXT DEFAULT '{}'"),
+            ("entry_atr", "REAL DEFAULT 0.0"),
+            ("peak_mfe_atr", "REAL DEFAULT 0.0"),
+        ):
+            if col not in cols:
+                await self._db.execute(f"ALTER TABLE positions ADD COLUMN {col} {typ}")
 
     async def close(self) -> None:
         self._running = False
@@ -263,8 +281,9 @@ class Database:
                 risk_r, tp1_price, tp1_hit, trailing_stop, trailing_active,
                 realized_pnl, unrealized_pnl, commission_total,
                 funding_fees, candles_held, externally_managed,
-                client_order_ids, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                client_order_ids, signal_data, entry_atr, peak_mfe_atr,
+                created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (p.trade_uuid, p.symbol, p.side.value, p.engine.value,
              p.state.value, p.entry_price,
              p.entry_time.isoformat() if p.entry_time else None,
@@ -273,7 +292,11 @@ class Database:
              int(p.trailing_active), p.realized_pnl, p.unrealized_pnl,
              p.commission_total, p.funding_fees, p.candles_held,
              int(p.externally_managed),
-             json.dumps(p.client_order_ids), p.created_at.isoformat(),
+             json.dumps(p.client_order_ids),
+             json.dumps(getattr(p, "signal_data", {}) or {}, default=str),
+             float(getattr(p, "entry_atr", 0.0) or 0.0),
+             float(getattr(p, "peak_mfe_atr", 0.0) or 0.0),
+             p.created_at.isoformat(),
              p.updated_at.isoformat()),
         )
 

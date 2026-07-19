@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import signal
 import sys
 import time
@@ -28,15 +29,18 @@ from core.events import event_bus, Events
 from core.health import HealthServer
 from core.logging_setup import setup_logging, get_logger, TradeLogger
 from core.models import (
-    AlertTier, BrakeState, Candle, Position, PositionState, RiskState, Side, Signal,
+    AlertTier, BrakeState, Candle, EngineType, Position, PositionState, RiskState, Side, Signal,
 )
 from core.watchdog import Watchdog
+from data.force_order_pipeline import ForceOrderPipeline
 from data.binance_rest import BinanceRestClient
 from data.binance_ws import BinanceWebSocket
 from data.candle_manager import CandleManager
 from data.rate_limiter import RateLimiterGroup
 from data.symbol_info import SymbolInfoManager
 from engines.compression_breakout import CompressionBreakoutEngine
+from engines.btc_regime import compute_btc_regime
+from engines.liq_burst_follow_engine import BurstFollowState, LiqBurstFollowEngine
 from engines.regime_filter import RegimeFilter
 from engines.squeeze_engine import SqueezeEngine
 from execution.base_executor import BaseExecutor
@@ -103,6 +107,11 @@ class Bitana:
 
         # Engines
         self.engines = {}
+        self.burst_follow_state: dict[str, BurstFollowState] = {}
+        self.force_pipeline: ForceOrderPipeline | None = None
+        self._btc_regime: str | None = None
+        self._btc_regime_dist: float | None = None
+        self._last_btc_regime_fetch: float = 0.0
         self.health_server: HealthServer = None  # type: ignore
         self.watchdog = Watchdog(config.watchdog.heartbeat_interval_s)
         self.telegram_bot: TelegramBotHandler = None  # type: ignore
@@ -172,14 +181,70 @@ class Bitana:
         # Recover positions
         await self.position_mgr.recover_positions()
 
+        # Sync live equity; clear stale peak/shutdown from account migration (testnet→mainnet)
+        if self.cfg.mode == "live":
+            try:
+                balance = await self.executor.get_balance()
+                if balance > 0:
+                    peak = self.risk_mgr.state.peak_equity
+                    if peak > balance * 1.5:
+                        logger.warning(
+                            "Resetting stale peak_equity",
+                            old_peak=peak, equity=balance,
+                        )
+                        self.risk_mgr.state.peak_equity = balance
+                    self.risk_mgr.update_equity(balance)
+                    if (
+                        self.brake_mgr.state.is_shutdown
+                        and self.risk_mgr.state.current_drawdown_pct
+                        < self.cfg.brakes.equity_shutdown_drawdown
+                    ):
+                        logger.warning(
+                            "Clearing stale equity shutdown",
+                            reason=self.brake_mgr.state.shutdown_reason,
+                        )
+                        self.brake_mgr.state.is_shutdown = False
+                        self.brake_mgr.state.shutdown_reason = ""
+                    await self.db.save_risk_state(self.risk_mgr.state)
+                    await self.db.save_brake_state(self.brake_mgr.state)
+            except Exception as e:
+                logger.error("Startup equity sync failed", error=str(e))
+
         # Engines
+        burst_enabled = (
+            self.cfg.engines.burst_follow_enabled and self.cfg.burst_follow.enabled
+        )
         for sym in self.cfg.symbols.active:
             resolved = resolve_symbol_config(self.cfg, sym)
-            self.engines[sym] = {
-                "compression": CompressionBreakoutEngine(resolved.compression),
-                "squeeze": SqueezeEngine(self.cfg.squeeze),
-                "risk_pct": resolved.risk_pct,
-            }
+            self.burst_follow_state[sym] = BurstFollowState()
+            sym_engines: dict = {"risk_pct": resolved.risk_pct}
+            if self.cfg.engines.compression_enabled:
+                sym_engines["compression"] = CompressionBreakoutEngine(resolved.compression)
+            if self.cfg.engines.squeeze_enabled and self.cfg.squeeze.enabled:
+                sym_engines["squeeze"] = SqueezeEngine(self.cfg.squeeze)
+            if burst_enabled and resolved.burst_follow.enabled:
+                sym_engines["burst_follow"] = LiqBurstFollowEngine(resolved.burst_follow)
+                sym_engines["burst_follow_cfg"] = resolved.burst_follow
+            self.engines[sym] = sym_engines
+
+        if burst_enabled:
+            bf_cfg = self.cfg.burst_follow
+            self.force_pipeline = ForceOrderPipeline(
+                db_path=Path(bf_cfg.force_order_db_path),
+                symbols=self.cfg.symbols.active,
+                read_only=bf_cfg.force_order_read_only,
+                liq_cache_db_path=Path(bf_cfg.liq_cache_db_path),
+            )
+            logger.info(
+                "Burst-follow enabled",
+                symbols=len(self.cfg.symbols.active),
+                min_vol=bf_cfg.min_burst_volume_30m,
+                force_order_read_only=bf_cfg.force_order_read_only,
+                btc_regime_gate=bf_cfg.btc_regime_gate_enabled,
+                allowed_btc_regimes=bf_cfg.allowed_btc_regimes,
+            )
+            if bf_cfg.btc_regime_gate_enabled:
+                await self._refresh_btc_regime()
 
         # Load candle history
         for sym in self.cfg.symbols.active:
@@ -272,6 +337,11 @@ class Bitana:
                 await asyncio.sleep(30)
                 self.watchdog.heartbeat("equity_update")
                 try:
+                    if (
+                        self.cfg.burst_follow.btc_regime_gate_enabled
+                        and time.monotonic() - self._last_btc_regime_fetch >= 3600
+                    ):
+                        await self._refresh_btc_regime()
                     balance = await self.executor.get_balance()
                     if balance > 0:
                         self.risk_mgr.update_equity(balance)
@@ -309,6 +379,23 @@ class Bitana:
         if self.cfg.mode == "live":
             self.watchdog.register("listen_key", listen_key_task, critical=False)
 
+        if self.force_pipeline is not None and not self.force_pipeline.read_only:
+            async def force_order_task():
+                ws_task = asyncio.create_task(
+                    self.force_pipeline.run_ws_loop(self._shutdown_event),
+                )
+                try:
+                    while not self._shutdown_event.is_set():
+                        self.watchdog.heartbeat("force_orders")
+                        await asyncio.sleep(15)
+                finally:
+                    if not ws_task.done():
+                        ws_task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await ws_task
+
+            self.watchdog.register("force_orders", force_order_task, critical=True)
+
         await self.watchdog.start_all()
 
         # Send startup alert
@@ -319,6 +406,26 @@ class Bitana:
         # Wait for shutdown signal
         await self._shutdown_event.wait()
         await self.shutdown()
+
+    async def _refresh_btc_regime(self) -> None:
+        """Load BTC 4h bars and compute bull/bear/neutral (shadow-aligned)."""
+        try:
+            await self.candle_mgr.load_history_from_rest(
+                self.rest_client, "BTCUSDT", "4h", limit=250,
+            )
+            candles = self.candle_mgr.get_candles("BTCUSDT", "4h")
+            state, dist = compute_btc_regime(candles)
+            self._btc_regime = state
+            self._btc_regime_dist = dist
+            self._last_btc_regime_fetch = time.monotonic()
+            logger.info(
+                "BTC regime updated",
+                state=state,
+                dist_pct=dist,
+                bars=len(candles),
+            )
+        except Exception as e:
+            logger.warning("BTC regime refresh failed", error=str(e))
 
     async def _on_candle_closed(self, **kwargs) -> None:
         """Main trading logic — triggered on each closed candle."""
@@ -336,9 +443,11 @@ class Bitana:
                 pass  # handled below
             return
 
-        # Update paper executor price
+        # Update paper executor price + force-order price cache
         if isinstance(self.executor, PaperExecutor):
             self.executor.set_price(symbol, candle.close)
+        if self.force_pipeline is not None:
+            self.force_pipeline.set_price(symbol, candle.close)
 
         # 1. Manage existing positions
         candles_5m = self.candle_mgr.get_candles(symbol, self.cfg.timeframes.primary)
@@ -383,12 +492,54 @@ class Bitana:
         signals: list[Signal] = []
 
         sym_engines = self.engines.get(symbol, {})
-        for engine_name in ("compression", "squeeze"):
+        engine_names: list[str] = []
+        if self.cfg.engines.compression_enabled:
+            engine_names.append("compression")
+        if self.cfg.engines.squeeze_enabled and self.cfg.squeeze.enabled:
+            engine_names.append("squeeze")
+        if self.cfg.engines.burst_follow_enabled and sym_engines.get("burst_follow"):
+            engine_names.append("burst_follow")
+
+        burst_stats = None
+        if self.force_pipeline is not None and "burst_follow" in engine_names:
+            if self.force_pipeline.read_only:
+                self.force_pipeline.refresh_cascades([symbol])
+            burst_stats = self.force_pipeline.intraday_burst_stats(symbol, candle)
+            bf_cfg = sym_engines.get("burst_follow_cfg")
+            min_vol = bf_cfg.min_burst_volume_30m if bf_cfg else self.cfg.burst_follow.min_burst_volume_30m
+            min_ev = bf_cfg.min_burst_events_30m if bf_cfg else self.cfg.burst_follow.min_burst_events_30m
+            if (
+                burst_stats.get("volume_30m", 0) >= min_vol
+                and burst_stats.get("events_30m", 0) >= min_ev
+            ):
+                ForceOrderPipeline.sync_burst_state(
+                    self.burst_follow_state[symbol],
+                    burst_stats,
+                    symbol,
+                    self.force_pipeline.cascade_engine,
+                )
+
+        for engine_name in engine_names:
             engine = sym_engines.get(engine_name)
             if not engine:
                 continue
             try:
-                sig = await engine.evaluate(symbol, candles_5m, candles_15m, candles_1m)
+                if engine_name == "burst_follow":
+                    if burst_stats is None:
+                        continue
+                    bf_cfg = sym_engines.get("burst_follow_cfg") or self.cfg.burst_follow
+                    btc_regime = (
+                        self._btc_regime
+                        if bf_cfg.btc_regime_gate_enabled else None
+                    )
+                    sig = await engine.evaluate(
+                        symbol, candles_5m, candles_15m, candles_1m,
+                        self.burst_follow_state[symbol],
+                        burst=burst_stats,
+                        btc_regime=btc_regime,
+                    )
+                else:
+                    sig = await engine.evaluate(symbol, candles_5m, candles_15m, candles_1m)
                 if sig:
                     signals.append(sig)
             except Exception as e:
@@ -420,6 +571,10 @@ class Bitana:
             # 7. Size position
             equity = await self.executor.get_balance()
             sym_risk = sym_engines.get("risk_pct", self.cfg.risk.default_risk_pct)
+            if sig.engine == EngineType.LIQ_BURST_FOLLOW:
+                bf_cfg = sym_engines.get("burst_follow_cfg")
+                if bf_cfg is not None:
+                    sym_risk = bf_cfg.risk_pct
             sizing_mult = self.portfolio_mgr.get_sizing_multiplier(sig, open_positions)
 
             quantity, leverage = self.risk_mgr.calculate_position_size(
@@ -437,7 +592,19 @@ class Bitana:
             if not result:
                 continue
 
+            # Live execution telemetry (signal price vs fill, spread at entry)
+            expected_entry = sig.entry_price
+            fill_entry = result.avg_fill_price
+            entry_slippage_bps = 0.0
+            if expected_entry > 0 and fill_entry > 0:
+                raw_bps = (fill_entry - expected_entry) / expected_entry * 10000
+                entry_slippage_bps = raw_bps if sig.side == Side.LONG else -raw_bps
+            sig.signal_data["expected_entry"] = expected_entry
+            sig.signal_data["spread_bps_at_entry"] = spread_bps
+            sig.signal_data["entry_slippage_bps"] = entry_slippage_bps
+
             # 9. Create position
+            entry_atr = float(sig.signal_data.get("entry_atr") or 0.0)
             pos = Position(
                 trade_uuid=sig.trade_uuid,
                 symbol=sig.symbol,
@@ -453,20 +620,26 @@ class Bitana:
                 risk_r=abs(result.avg_fill_price - sig.stop_price),
                 commission_total=result.commission,
                 client_order_ids=[result.client_order_id],
+                signal_data=sig.signal_data,
+                entry_atr=entry_atr,
             )
 
-            # Calculate TP1
-            risk_dist = abs(result.avg_fill_price - sig.stop_price)
-            tp1_r = self.cfg.profit_taking.partial_close_r
-            if sig.side == Side.LONG:
-                pos.tp1_price = result.avg_fill_price + risk_dist * tp1_r
-            else:
-                pos.tp1_price = result.avg_fill_price - risk_dist * tp1_r
+            if (
+                not sig.signal_data.get("time_exit_only")
+                and sig.engine != EngineType.LIQ_BURST_FOLLOW
+            ):
+                risk_dist = abs(result.avg_fill_price - sig.stop_price)
+                tp1_r = self.cfg.profit_taking.partial_close_r
+                if sig.side == Side.LONG:
+                    pos.tp1_price = result.avg_fill_price + risk_dist * tp1_r
+                else:
+                    pos.tp1_price = result.avg_fill_price - risk_dist * tp1_r
 
             pos.transition_to(PositionState.STOP_PLACED)
             pos.transition_to(PositionState.MANAGING)
 
             await self.position_mgr.add_position(pos)
+            open_positions.append(pos)
 
             await self.alerts.entry_alert(
                 sig.symbol, sig.side.value, result.avg_fill_price,
@@ -479,6 +652,8 @@ class Bitana:
                 symbol=sig.symbol, side=sig.side.value,
                 entry=result.avg_fill_price, stop=sig.stop_price,
                 qty=result.filled_qty, leverage=leverage,
+                spread_bps=round(spread_bps, 2),
+                entry_slippage_bps=round(entry_slippage_bps, 2),
             )
             break  # One entry per candle per symbol
 
@@ -584,6 +759,8 @@ class Bitana:
         await self.db.set_system_state("config_checksum", self.cfg.config_checksum)
 
         # Close REST
+        if self.force_pipeline is not None:
+            self.force_pipeline.close()
         await self.rest_client.close()
 
         # Close DB
@@ -592,9 +769,9 @@ class Bitana:
         logger.info("Shutdown complete")
 
 
-async def async_main(mode: str | None = None) -> None:
+async def async_main(mode: str | None = None, config_path: str | Path = "config/settings.yaml") -> None:
     """Async entry point."""
-    config = load_config()
+    config = load_config(config_path)
     if mode:
         config.mode = mode
 
@@ -623,9 +800,14 @@ def main():
         "--mode", choices=["paper", "live"],
         help="Override mode from config",
     )
+    parser.add_argument(
+        "--config",
+        default="config/settings.yaml",
+        help="Path to YAML config file",
+    )
     args = parser.parse_args()
 
-    asyncio.run(async_main(mode=args.mode))
+    asyncio.run(async_main(mode=args.mode, config_path=args.config))
 
 
 if __name__ == "__main__":

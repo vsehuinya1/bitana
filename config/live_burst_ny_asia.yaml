@@ -1,0 +1,186 @@
+# Live mainnet: NY-open flush buy + Asia pump short (plain 4h time exit)
+# Run: python main.py --config config/live_burst_ny_asia.yaml
+# Requires .env: BINANCE_TESTNET=false, API keys with futures + universal transfer
+#
+# Retuned Jul 15 from enriched shadow logs:
+#   - Plain time exit beats TSL on both books
+#   - NY skips Mondays (UTC)
+#   - Asia skips weekends Sat/Sun UTC bar time (Jul 19)
+#   - 4% risk (mature neutral, semi-Markov throttle)
+#   - Live gate: neutral + bear only; bull still logged by bitana-v5-paper shadow
+
+config_version: "1.1.1"
+mode: "live"
+
+engines:
+  compression_enabled: false
+  squeeze_enabled: false
+  burst_follow_enabled: true
+
+symbols:
+  active:
+    - BTCUSDT
+    - SOLUSDT
+    - ETHUSDT
+    - WLDUSDT
+    - XRPUSDT
+    - NEARUSDT
+    - ZECUSDT
+    - APTUSDT
+    - ADAUSDT
+    - UNIUSDT
+  defaults:
+    risk_pct: 4.0
+
+timeframes:
+  regime: "15m"
+  primary: "5m"
+  confirmation: "1m"
+
+risk:
+  default_risk_pct: 4.0
+  reduced_risk_pct: 2.0
+  drawdown_reduce_threshold: 0.15
+  drawdown_restore_threshold: 0.10
+  max_leverage: 10
+  liquidation_buffer_pct: 0.05
+
+brakes:
+  daily_loss_limit_pct: 0.20
+  weekly_loss_limit_pct: 0.40
+  weekly_cooldown_hours: 48
+  consecutive_loss_threshold: 3
+  consecutive_loss_reduced_trades: 5
+  equity_pause_drawdown: 0.35
+  equity_shutdown_drawdown: 0.50
+
+stops:
+  compression:
+    method: "structure_or_atr"
+    atr_multiplier: 1.5
+  squeeze:
+    method: "trigger_extreme"
+    buffer_pct: 0.002
+
+profit_taking:
+  partial_close_pct: 0.50
+  partial_close_r: 1.5
+  trail_atr_multiplier: 1.0
+  time_stop_r_threshold: 1.0
+  time_stop_candles: 8
+
+portfolio:
+  max_concurrent_positions: 3
+  max_per_symbol: 1
+  max_cluster_positions: 3
+  cluster_window_minutes: 15
+  limit_by_engine: true
+  btc_priority: true
+  correlation_require_independent: false
+  correlation_sizing_reduction: 0.0
+
+execution:
+  max_spread_bps: 15.0
+  max_slippage_bps: 10.0
+  partial_fill_timeout_s: 30
+  client_order_id_prefix: "BITANA"
+
+reconciliation:
+  interval_s: 30
+  external_position_stop_atr_mult: 2.0
+
+regime_filters:
+  enabled: true
+  min_atr_15m: 0.001
+  avoid_low_vol_drift: true
+  session_filter:
+    enabled: false
+  blackout_windows: []
+
+fees:
+  taker_bps: 4.0
+  maker_bps: 2.0
+  default_slippage_bps: 2.0
+
+telegram:
+  enabled: true
+  flatten_confirm_timeout_s: 30
+  max_log_lines: 50
+
+health:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8082
+
+logging:
+  level: "INFO"
+  file: "logs/bitana-live-burst.log"
+  trade_file: "logs/trades-live-burst.jsonl"
+  max_bytes: 52428800
+  backup_count: 10
+  retention_days: 30
+
+data:
+  candle_history_limit: 500
+  rest_candle_check_interval_s: 60
+  ws_reconnect_max_retries: 10
+  ws_reconnect_base_delay_s: 1.0
+  server_time_sync_interval_s: 300
+
+rate_limiter:
+  order_weight_per_minute: 1200
+  data_weight_per_minute: 2400
+  warn_threshold_pct: 0.80
+
+watchdog:
+  heartbeat_interval_s: 30
+  max_restart_attempts: 5
+  restart_backoff_base_s: 2.0
+
+squeeze:
+  enabled: false
+
+burst_follow:
+  enabled: true
+  force_order_db_path: storage/shadow_force_orders.db
+  force_order_read_only: true
+  liq_cache_db_path: storage/v5_forward_test.db
+  min_burst_volume_30m: 20000
+  min_burst_events_30m: 3
+  dedup_bars: 3
+  risk_pct: 4.0
+  btc_regime_gate_enabled: true
+  allowed_btc_regimes: ["neutral", "bear"]
+  session_rules:
+    asia:
+      shadow_strategy: asia_pump_short_4h
+      side_mode: follow
+      neg_imb_only: true
+      min_imb: 0.5
+      exclude_weekdays: [5, 6]
+      stop_atr: 10.0
+      tp_atr: 999.0
+      time_bars: 48
+      time_exit_only: true
+      min_cascade_strength: 0.0
+      min_vol_z: 0.0
+      min_n_confirms: 1
+      min_decile: 2
+    ny:
+      shadow_strategy: ny_flush_buy_4h_open
+      side_mode: follow
+      pos_imb_only: true
+      min_imb: 0.5
+      hours: [14, 15, 16, 17]
+      exclude_weekdays: [0]
+      stop_atr: 10.0
+      tp_atr: 999.0
+      time_bars: 48
+      time_exit_only: true
+      min_cascade_strength: 0.0
+      min_vol_z: 0.0
+      min_n_confirms: 1
+      min_decile: 2
+
+database:
+  path: "data/bitana-live-burst.db"

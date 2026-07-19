@@ -69,6 +69,8 @@ asia_shadow:
   report_hour_utc: 8
 
 # Signal shadow (logging-only — snapshots every cascade bar + forward R-paths)
+# No BTC regime gate: logs neutral, bear, AND bull entries for offline research.
+# Live book uses plain + TSL variants in parallel so retunes can be validated here first.
 signal_shadow:
   enabled: true
   # Portfolio caps: null max_concurrent = log everything (50+ parallel).

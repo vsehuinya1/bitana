@@ -167,6 +167,12 @@ class BinanceRestClient:
             params={"symbol": symbol}, weight=2,
         )
 
+    async def get_depth(self, symbol: str, limit: int = 20) -> dict:
+        return await self._request(
+            "GET", "/fapi/v1/depth",
+            params={"symbol": symbol, "limit": limit}, weight=5,
+        )
+
     async def get_mark_price(self, symbol: str) -> dict:
         return await self._request(
             "GET", "/fapi/v1/premiumIndex",
