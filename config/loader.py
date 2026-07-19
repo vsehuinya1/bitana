@@ -81,7 +81,7 @@ class LiqBurstFollowConfig(BaseModel):
     time_bars: int = 36
     time_exit_only: bool = True
     sessions: list[str] | None = None
-    risk_pct: float = 0.04
+    risk_pct: float = 4.0
     btc_regime_gate_enabled: bool = False
     allowed_btc_regimes: list[str] = Field(default_factory=lambda: ["bear"])
     session_rules: dict[str, SessionBurstRule] = Field(default_factory=dict)
@@ -400,10 +400,12 @@ def resolve_symbol_config(config: AppConfig, symbol: str) -> ResolvedSymbolConfi
     overrides = config.symbols.overrides.get(symbol, {})
     merged = _deep_merge(defaults, overrides)
 
-    burst_merged = _deep_merge(
-        config.burst_follow.model_dump(),
-        merged.get("burst_follow", {}),
-    )
+    # burst_follow: symbol defaults < top-level YAML < per-symbol override
+    defaults_bf = config.symbols.defaults.burst_follow.model_dump()
+    override_bf = overrides.get("burst_follow", {})
+    top_bf = config.burst_follow.model_dump()
+    burst_merged = _deep_merge(defaults_bf, top_bf)
+    burst_merged = _deep_merge(burst_merged, override_bf)
 
     return ResolvedSymbolConfig(
         symbol=symbol,
