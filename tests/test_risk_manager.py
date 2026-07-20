@@ -59,6 +59,20 @@ class TestPositionSizing:
         )
         assert qty_lower < qty_default
 
+    def test_active_reduction_caps_symbol_risk(self, risk_mgr, config):
+        risk_mgr.update_equity(10000)
+        risk_mgr.state.risk_pct_active = config.risk.reduced_risk_pct
+        qty, _ = risk_mgr.calculate_position_size(
+            equity=10000,
+            entry_price=100,
+            stop_price=98,
+            symbol_risk_pct=config.risk.default_risk_pct,
+        )
+        expected = (
+            10000 * config.risk.reduced_risk_pct / 100.0
+        ) / 2.0
+        assert qty == pytest.approx(expected)
+
 
 class TestDrawdownAdjustment:
     def test_reduces_risk_at_threshold(self, risk_mgr, config):
@@ -77,6 +91,11 @@ class TestDrawdownAdjustment:
         risk_mgr.update_equity(11000)
         assert risk_mgr.state.peak_equity == 11000
         assert risk_mgr.state.current_drawdown_pct == 0.0
+
+    def test_normalizes_stale_recovered_risk(self, risk_mgr, config):
+        risk_mgr.state.risk_pct_active = 8.0
+        risk_mgr.normalize_active_risk()
+        assert risk_mgr.state.risk_pct_active == config.risk.default_risk_pct
 
 
 class TestStreakTracking:

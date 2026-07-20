@@ -139,6 +139,7 @@ class Bitana:
                 k: v for k, v in risk_row.items()
                 if k in RiskState.model_fields
             })
+            self.risk_mgr.normalize_active_risk()
             logger.info("Risk state recovered", equity=self.risk_mgr.state.current_equity)
 
         brake_row = await self.db.get_brake_state()

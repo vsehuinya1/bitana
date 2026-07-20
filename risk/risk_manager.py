@@ -24,6 +24,18 @@ class RiskManager:
             risk_pct_active=config.risk.default_risk_pct,
         )
 
+    def normalize_active_risk(self) -> None:
+        """Align recovered risk with current config while preserving reductions."""
+        reduced = (
+            self.state.current_drawdown_pct > self._cfg.risk.drawdown_reduce_threshold
+            or self.state.reduced_risk_trades_remaining > 0
+        )
+        self.state.risk_pct_active = (
+            self._cfg.risk.reduced_risk_pct
+            if reduced
+            else self._cfg.risk.default_risk_pct
+        )
+
     def update_equity(self, equity: float) -> None:
         """Update equity and recalculate drawdown state."""
         self.state.current_equity = equity
@@ -79,7 +91,14 @@ class RiskManager:
 
         Returns (quantity, leverage).
         """
-        risk_pct = symbol_risk_pct or self.state.risk_pct_active
+        requested_risk = (
+            symbol_risk_pct
+            if symbol_risk_pct is not None
+            else self.state.risk_pct_active
+        )
+        # Per-engine/symbol risk is a ceiling, never a way around active
+        # drawdown or consecutive-loss reductions.
+        risk_pct = min(requested_risk, self.state.risk_pct_active)
         risk_amount = equity * (risk_pct / 100.0)
 
         stop_distance = abs(entry_price - stop_price)
