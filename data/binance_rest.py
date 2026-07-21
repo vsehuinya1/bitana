@@ -313,6 +313,7 @@ class BinanceRestClient:
         reduce_only: bool = False,
         client_order_id: str | None = None,
         time_in_force: str | None = None,
+        new_order_resp_type: str | None = None,
     ) -> dict:
         params: dict[str, Any] = {
             "symbol": symbol,
@@ -329,6 +330,8 @@ class BinanceRestClient:
             params["reduceOnly"] = "true"
         if client_order_id:
             params["newClientOrderId"] = client_order_id
+        if new_order_resp_type:
+            params["newOrderRespType"] = new_order_resp_type
         if time_in_force:
             params["timeInForce"] = time_in_force
         elif order_type == "LIMIT":
@@ -337,6 +340,22 @@ class BinanceRestClient:
         return await self._request(
             "POST", "/fapi/v1/order",
             params=params, signed=True, weight=1, is_order=True,
+        )
+
+    async def get_order(
+        self,
+        symbol: str,
+        order_id: int | None = None,
+        client_order_id: str | None = None,
+    ) -> dict:
+        params: dict[str, Any] = {"symbol": symbol}
+        if order_id is not None:
+            params["orderId"] = order_id
+        if client_order_id:
+            params["origClientOrderId"] = client_order_id
+        return await self._request(
+            "GET", "/fapi/v1/order",
+            params=params, signed=True, weight=1,
         )
 
     async def cancel_order(

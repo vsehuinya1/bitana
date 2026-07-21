@@ -5,6 +5,7 @@ Implements BaseExecutor using real Binance REST calls.
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 import time
 from datetime import datetime, timezone
@@ -77,6 +78,7 @@ class LiveExecutor(BaseExecutor):
             ),
             reduce_only=request.reduce_only,
             client_order_id=client_id,
+            new_order_resp_type="RESULT" if request.order_type == "MARKET" else None,
         )
 
         if not resp or "code" in resp:
@@ -92,6 +94,27 @@ class LiveExecutor(BaseExecutor):
                 raw=resp or {},
             )
 
+        if (
+            request.order_type == "MARKET"
+            and float(resp.get("executedQty", 0)) <= 0
+            and resp.get("status") in ("NEW", "PENDING")
+        ):
+            order_id = resp.get("orderId")
+            for delay in (0.1, 0.25, 0.5, 1.0):
+                await asyncio.sleep(delay)
+                refreshed = await self._rest.get_order(
+                    symbol,
+                    order_id=int(order_id) if order_id is not None else None,
+                    client_order_id=None if order_id is not None else client_id,
+                )
+                if refreshed and "code" not in refreshed:
+                    resp = refreshed
+                    if (
+                        float(resp.get("executedQty", 0)) > 0
+                        or resp.get("status") in ("CANCELED", "REJECTED", "EXPIRED")
+                    ):
+                        break
+
         status_map = {
             "NEW": OrderStatus.PENDING,
             "PARTIALLY_FILLED": OrderStatus.PARTIALLY_FILLED,
@@ -101,6 +124,13 @@ class LiveExecutor(BaseExecutor):
             "EXPIRED": OrderStatus.EXPIRED,
         }
 
+        filled_qty = float(resp.get("executedQty", 0))
+        avg_fill_price = float(resp.get("avgPrice", 0))
+        if avg_fill_price <= 0 and filled_qty > 0:
+            cum_quote = float(resp.get("cumQuote", 0))
+            if cum_quote > 0:
+                avg_fill_price = cum_quote / filled_qty
+
         return OrderResult(
             trade_uuid=request.trade_uuid,
             client_order_id=client_id,
@@ -109,8 +139,8 @@ class LiveExecutor(BaseExecutor):
             side=request.side,
             status=status_map.get(resp.get("status", ""), OrderStatus.PENDING),
             requested_qty=request.quantity,
-            filled_qty=float(resp.get("executedQty", 0)),
-            avg_fill_price=float(resp.get("avgPrice", 0)),
+            filled_qty=filled_qty,
+            avg_fill_price=avg_fill_price,
             commission=float(resp.get("cumQuote", 0)) * 0.0004,  # estimate
             timestamp=datetime.now(timezone.utc),
             raw=resp,
@@ -139,6 +169,7 @@ class LiveExecutor(BaseExecutor):
         resp = await self._rest.place_order(
             symbol=symbol, side=close_side, order_type="MARKET",
             quantity=qty, reduce_only=True, client_order_id=client_id,
+            new_order_resp_type="RESULT",
         )
 
         from core.models import Side as SideEnum
@@ -151,13 +182,37 @@ class LiveExecutor(BaseExecutor):
                 requested_qty=quantity, raw=resp or {},
             )
 
+        if float(resp.get("executedQty", 0)) <= 0 and resp.get("status") in ("NEW", "PENDING"):
+            order_id = resp.get("orderId")
+            for delay in (0.1, 0.25, 0.5, 1.0):
+                await asyncio.sleep(delay)
+                refreshed = await self._rest.get_order(
+                    symbol,
+                    order_id=int(order_id) if order_id is not None else None,
+                    client_order_id=None if order_id is not None else client_id,
+                )
+                if refreshed and "code" not in refreshed:
+                    resp = refreshed
+                    if (
+                        float(resp.get("executedQty", 0)) > 0
+                        or resp.get("status") in ("CANCELED", "REJECTED", "EXPIRED")
+                    ):
+                        break
+
+        filled_qty = float(resp.get("executedQty", 0))
+        avg_fill_price = float(resp.get("avgPrice", 0))
+        if avg_fill_price <= 0 and filled_qty > 0:
+            cum_quote = float(resp.get("cumQuote", 0))
+            if cum_quote > 0:
+                avg_fill_price = cum_quote / filled_qty
+
         return OrderResult(
             trade_uuid="", client_order_id=client_id,
             exchange_order_id=str(resp.get("orderId", "")),
             symbol=symbol, side=s, status=OrderStatus.FILLED,
             requested_qty=quantity,
-            filled_qty=float(resp.get("executedQty", 0)),
-            avg_fill_price=float(resp.get("avgPrice", 0)),
+            filled_qty=filled_qty,
+            avg_fill_price=avg_fill_price,
             timestamp=datetime.now(timezone.utc),
             raw=resp,
         )
