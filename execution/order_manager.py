@@ -25,6 +25,11 @@ if TYPE_CHECKING:
 
 logger = get_logger("order_manager")
 
+# Binance rejection codes that mean "not enough funds for this trade right now".
+# These are expected when concurrent positions have consumed available margin;
+# the correct response is to skip this signal, not to pause the whole bot.
+SOFT_REJECT_CODES = {-2019, -2018}
+
 
 class OrderManager:
     """Manages order lifecycle against the executor interface."""
@@ -43,6 +48,9 @@ class OrderManager:
         self._db = database
         self._alerts = alerts
         self._prefix = config.execution.client_order_id_prefix
+        # Set when the most recent entry was rejected for insufficient
+        # margin/balance. Lets the caller skip the signal instead of pausing.
+        self.last_soft_reject = False
 
     async def _critical_order_failure(
         self,
@@ -63,6 +71,17 @@ class OrderManager:
             f"Code: <code>{code}</code>\n"
             f"Reason: {msg or detail or 'unknown'}"
         )
+
+    @staticmethod
+    def _is_soft_reject(result: OrderResult | None) -> bool:
+        """True if the rejection is an insufficient-funds condition."""
+        raw = result.raw if result is not None else None
+        if not isinstance(raw, dict):
+            return False
+        try:
+            return int(raw.get("code")) in SOFT_REJECT_CODES
+        except (TypeError, ValueError):
+            return False
 
     def _gen_client_id(self) -> str:
         ts = int(time.time() * 1000)
@@ -105,6 +124,7 @@ class OrderManager:
         """Execute a new position entry."""
         symbol = signal.symbol
         client_id = self._gen_client_id()
+        self.last_soft_reject = False
 
         # Round quantity
         quantity = self._sym_info.round_quantity(symbol, quantity)
@@ -138,6 +158,19 @@ class OrderManager:
         await self._db.save_order(result)
 
         if result.status == OrderStatus.REJECTED:
+            if self._is_soft_reject(result):
+                self.last_soft_reject = True
+                raw = result.raw if isinstance(result.raw, dict) else {}
+                logger.warning(
+                    "Entry skipped — insufficient margin",
+                    symbol=symbol, code=raw.get("code"), msg=raw.get("msg"),
+                )
+                if self._cfg.mode == "live" and self._alerts is not None:
+                    await self._alerts.warning(
+                        f"Entry skipped ({symbol}): insufficient margin "
+                        f"for concurrent positions"
+                    )
+                return None
             logger.error("Entry order rejected", symbol=symbol)
             await self._critical_order_failure("ENTRY", symbol, result)
             return None

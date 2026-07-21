@@ -74,6 +74,32 @@ class TestPositionSizing:
         assert qty == pytest.approx(expected)
 
 
+class TestMarginReserve:
+    def test_leverage_floors_margin_to_equity_slot(self, risk_mgr, config):
+        # A position whose notional is a large fraction of equity must not lock
+        # up more than equity / max_concurrent_positions as initial margin.
+        risk_mgr.update_equity(19.0)
+        risk_mgr.state.risk_pct_active = 4.0
+        qty, lev = risk_mgr.calculate_position_size(
+            equity=19.0, entry_price=554.0, stop_price=578.0, symbol_risk_pct=4.0,
+        )
+        slots = config.portfolio.max_concurrent_positions
+        margin = (qty * 554.0) / lev
+        assert margin <= 19.0 / slots + 1e-9
+        # Regression: 1x leverage would have locked the full notional (~$17).
+        assert lev >= 2
+
+    def test_risk_at_stop_unchanged_by_leverage(self, risk_mgr):
+        # Leverage only affects margin, never the loss taken at the stop.
+        risk_mgr.update_equity(19.0)
+        risk_mgr.state.risk_pct_active = 4.0
+        qty, _ = risk_mgr.calculate_position_size(
+            equity=19.0, entry_price=554.0, stop_price=578.0, symbol_risk_pct=4.0,
+        )
+        loss_at_stop = qty * abs(578.0 - 554.0)
+        assert loss_at_stop == pytest.approx(19.0 * 0.04, rel=1e-6)
+
+
 class TestDrawdownAdjustment:
     def test_reduces_risk_at_threshold(self, risk_mgr, config):
         risk_mgr.state.peak_equity = 10000

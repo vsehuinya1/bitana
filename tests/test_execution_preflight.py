@@ -1,7 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from core.models import EngineType, Side, Signal
+from core.models import EngineType, OrderResult, OrderStatus, Side, Signal
 from data.binance_rest import BinanceRestClient
 from execution.order_manager import OrderManager
 from tg_bot.alerts import TelegramAlerts
@@ -59,6 +59,46 @@ def test_entry_stops_and_alerts_when_leverage_is_rejected(sample_config):
     assert result is None
     executor.place_order.assert_not_awaited()
     alerts.critical.assert_awaited_once()
+
+
+def test_entry_soft_skips_on_insufficient_margin(sample_config):
+    config = sample_config.model_copy(deep=True)
+    config.mode = "live"
+    executor = MagicMock()
+    executor.set_leverage = AsyncMock(return_value=True)
+    executor.place_order = AsyncMock(
+        return_value=OrderResult(
+            trade_uuid="t1",
+            client_order_id="c1",
+            symbol="SOLUSDT",
+            side=Side.SHORT,
+            status=OrderStatus.REJECTED,
+            requested_qty=1.0,
+            raw={"code": -2019, "msg": "Margin is insufficient."},
+        )
+    )
+    symbol_info = MagicMock()
+    symbol_info.round_quantity.return_value = 1.0
+    database = MagicMock()
+    database.save_order = AsyncMock()
+    alerts = MagicMock()
+    alerts.critical = AsyncMock(return_value=True)
+    alerts.warning = AsyncMock(return_value=True)
+    manager = OrderManager(executor, symbol_info, config, database, alerts)
+    signal = Signal(
+        engine=EngineType.LIQ_BURST_FOLLOW,
+        symbol="SOLUSDT",
+        side=Side.SHORT,
+        entry_price=100.0,
+        stop_price=110.0,
+    )
+
+    result = asyncio.run(manager.execute_entry(signal, quantity=1.0, leverage=2))
+
+    assert result is None
+    assert manager.last_soft_reject is True
+    alerts.critical.assert_not_awaited()
+    alerts.warning.assert_awaited_once()
 
 
 def test_telegram_preflight_sends_real_message():

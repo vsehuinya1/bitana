@@ -6,6 +6,8 @@ No martingale, no averaging, no pyramiding.
 """
 from __future__ import annotations
 
+import math
+
 from config.loader import AppConfig
 from core.logging_setup import get_logger
 from core.models import RiskState, Side
@@ -112,9 +114,15 @@ class RiskManager:
         # Notional value
         notional = quantity * entry_price
 
-        # Required leverage
-        required_leverage = notional / equity if equity > 0 else 1
-        leverage = min(int(required_leverage) + 1, self._cfg.risk.max_leverage)
+        # Leverage: pick the smallest whole leverage that keeps this position's
+        # initial margin within one equity slot, so several concurrent
+        # positions can be funded. margin = notional / leverage, and we want
+        # margin <= equity / max_concurrent_positions, hence
+        # leverage >= max_concurrent_positions * notional / equity.
+        # Leverage never changes the loss at stop — only the margin locked up.
+        slots = max(self._cfg.portfolio.max_concurrent_positions, 1)
+        required_leverage = slots * notional / equity if equity > 0 else 1
+        leverage = min(math.ceil(required_leverage), self._cfg.risk.max_leverage)
         leverage = max(leverage, 1)
 
         # Liquidation proximity check

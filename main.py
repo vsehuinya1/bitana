@@ -651,6 +651,10 @@ class Bitana:
             await self.db.save_signal(sig)
             result = await self.order_mgr.execute_entry(sig, quantity, leverage)
             if not result:
+                if self.order_mgr.last_soft_reject:
+                    # Insufficient margin for another concurrent position:
+                    # skip this signal, keep trading the rest of the session.
+                    continue
                 if self.cfg.mode == "live":
                     reason = f"Entry execution failed for {sig.symbol}; manual review required"
                     self.brake_mgr.pause(reason)
