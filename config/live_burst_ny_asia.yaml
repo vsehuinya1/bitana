@@ -142,7 +142,7 @@ squeeze:
 
 burst_follow:
   enabled: true
-  force_order_db_path: storage/shadow_force_orders.db
+  force_order_db_path: storage/force_orders.db
   force_order_read_only: true
   liq_cache_db_path: storage/v5_forward_test.db
   min_burst_volume_30m: 20000
