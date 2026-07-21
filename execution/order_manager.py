@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from config.loader import AppConfig
 from core.logging_setup import get_logger
@@ -19,6 +19,9 @@ from core.models import (
 from data.symbol_info import SymbolInfoManager
 from execution.base_executor import BaseExecutor
 from storage.database import Database
+
+if TYPE_CHECKING:
+    from tg_bot.alerts import TelegramAlerts
 
 logger = get_logger("order_manager")
 
@@ -32,12 +35,34 @@ class OrderManager:
         symbol_info: SymbolInfoManager,
         config: AppConfig,
         database: Database,
+        alerts: TelegramAlerts | None = None,
     ) -> None:
         self._executor = executor
         self._sym_info = symbol_info
         self._cfg = config
         self._db = database
+        self._alerts = alerts
         self._prefix = config.execution.client_order_id_prefix
+
+    async def _critical_order_failure(
+        self,
+        action: str,
+        symbol: str,
+        result: OrderResult | None = None,
+        detail: str = "",
+    ) -> None:
+        if self._cfg.mode != "live" or self._alerts is None:
+            return
+        raw = result.raw if result is not None else {}
+        code = raw.get("code", "unknown") if isinstance(raw, dict) else "unknown"
+        msg = raw.get("msg", detail) if isinstance(raw, dict) else detail
+        await self._alerts.critical(
+            f"<b>LIVE ORDER FAILURE</b>\n"
+            f"Action: {action}\n"
+            f"Symbol: {symbol}\n"
+            f"Code: <code>{code}</code>\n"
+            f"Reason: {msg or detail or 'unknown'}"
+        )
 
     def _gen_client_id(self) -> str:
         ts = int(time.time() * 1000)
@@ -85,10 +110,18 @@ class OrderManager:
         quantity = self._sym_info.round_quantity(symbol, quantity)
         if quantity <= 0:
             logger.warning("Quantity rounded to zero", symbol=symbol)
+            await self._critical_order_failure(
+                "ENTRY", symbol, detail="Quantity rounded to zero",
+            )
             return None
 
         # Set leverage first
-        await self._executor.set_leverage(symbol, leverage)
+        if not await self._executor.set_leverage(symbol, leverage):
+            logger.error("Leverage setup rejected", symbol=symbol, leverage=leverage)
+            await self._critical_order_failure(
+                "SET_LEVERAGE", symbol, detail=f"Leverage {leverage} rejected",
+            )
+            return None
 
         # Build order
         request = OrderRequest(
@@ -106,6 +139,7 @@ class OrderManager:
 
         if result.status == OrderStatus.REJECTED:
             logger.error("Entry order rejected", symbol=symbol)
+            await self._critical_order_failure("ENTRY", symbol, result)
             return None
 
         # Handle partial fills
@@ -114,6 +148,9 @@ class OrderManager:
 
         if result.filled_qty <= 0:
             logger.warning("Zero fill on entry", symbol=symbol)
+            await self._critical_order_failure(
+                "ENTRY", symbol, result, detail="Exchange returned zero fill",
+            )
             return None
 
         logger.info(
@@ -148,6 +185,11 @@ class OrderManager:
 
         result = await self._executor.place_order(request)
         await self._db.save_order(result)
+
+        if result.status == OrderStatus.REJECTED:
+            logger.error("Exit order rejected", symbol=symbol, reason=reason)
+            await self._critical_order_failure("EXIT", symbol, result)
+            return None
 
         if result.status == OrderStatus.PARTIALLY_FILLED:
             result = await self._handle_partial_fill(result)
@@ -184,6 +226,9 @@ class OrderManager:
 
         result = await self._executor.place_order(request)
         await self._db.save_order(result)
+        if result.status == OrderStatus.REJECTED:
+            logger.error("Stop order rejected", symbol=symbol)
+            await self._critical_order_failure("STOP", symbol, result)
         return result
 
     async def _handle_partial_fill(self, result: OrderResult) -> OrderResult:

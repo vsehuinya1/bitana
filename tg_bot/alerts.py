@@ -28,25 +28,44 @@ class TelegramAlerts:
         self._enabled = bool(bot_token and chat_id)
         self._bot = None
 
-    async def initialize(self) -> None:
+    async def initialize(self) -> bool:
         if not self._enabled:
             logger.warning("Telegram alerts disabled — no token/chat_id")
-            return
+            return False
         try:
             from telegram import Bot
             self._bot = Bot(token=self._token)
             logger.info("Telegram alerts initialized")
+            return True
         except Exception as e:
             logger.error("Failed to init Telegram", error=str(e))
             self._enabled = False
+            return False
+
+    async def verify(self) -> bool:
+        """Verify chat access and actual message delivery."""
+        if not self._enabled or not self._bot:
+            return False
+        try:
+            await self._bot.get_chat(chat_id=self._chat_id)
+        except Exception as e:
+            logger.error("Telegram delivery preflight failed", error=str(e))
+            return False
+        delivered = await self.info(
+            "<b>Live alert preflight passed</b>\n"
+            "Telegram delivery is operational."
+        )
+        if delivered:
+            logger.info("Telegram delivery preflight passed")
+        return delivered
 
     async def send(
         self,
         message: str,
         tier: AlertTier = AlertTier.INFO,
-    ) -> None:
+    ) -> bool:
         if not self._enabled or not self._bot:
-            return
+            return False
 
         prefix = {
             AlertTier.INFO: "ℹ️",
@@ -67,7 +86,7 @@ class TelegramAlerts:
                     text=text,
                     parse_mode="HTML",
                 )
-                return
+                return True
             except Exception as e:
                 last_exc = e
                 logger.warning(
@@ -80,16 +99,17 @@ class TelegramAlerts:
                     await asyncio.sleep(2)
 
         logger.error("Telegram send failed after retries", error=str(last_exc), tier=tier.value)
+        return False
 
     # Convenience methods
-    async def info(self, msg: str) -> None:
-        await self.send(msg, AlertTier.INFO)
+    async def info(self, msg: str) -> bool:
+        return await self.send(msg, AlertTier.INFO)
 
-    async def warning(self, msg: str) -> None:
-        await self.send(msg, AlertTier.WARNING)
+    async def warning(self, msg: str) -> bool:
+        return await self.send(msg, AlertTier.WARNING)
 
-    async def critical(self, msg: str) -> None:
-        await self.send(msg, AlertTier.CRITICAL)
+    async def critical(self, msg: str) -> bool:
+        return await self.send(msg, AlertTier.CRITICAL)
 
     async def entry_alert(
         self, symbol: str, side: str, price: float, qty: float,

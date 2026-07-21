@@ -7,6 +7,7 @@ Commands: /status, /positions, /stats, /pause, /resume,
 from __future__ import annotations
 
 import asyncio
+import inspect
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -120,6 +121,7 @@ class TelegramBotHandler:
             f"DD: {state.get('drawdown', 0):.1%}\n"
             f"Positions: {state.get('open_positions', 0)}\n"
             f"Paused: {state.get('paused', False)}\n"
+            f"Pause reason: {state.get('pause_reason', '') or '-'}\n"
             f"Tasks: {state.get('task_health', 'unknown')}\n"
             f"Uptime: {state.get('uptime', '?')}"
         )
@@ -173,7 +175,14 @@ class TelegramBotHandler:
         if not self._check_auth(update.effective_chat.id):
             return
         if self._resume_callback:
-            self._resume_callback()
+            result = self._resume_callback()
+            if inspect.isawaitable(result):
+                result = await result
+            if isinstance(result, tuple) and not result[0]:
+                await update.message.reply_text(
+                    f"⛔ Resume refused: {result[1]}"
+                )
+                return
         await update.message.reply_text("▶️ Trading resumed.")
 
     async def _cmd_shutdown(self, update, context) -> None:

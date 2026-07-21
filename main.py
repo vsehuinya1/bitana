@@ -153,6 +153,9 @@ class Bitana:
         # REST client
         await self.rest_client.start()
 
+        # Alerting must be verified before live execution is considered ready.
+        await self.alerts.initialize()
+
         # Symbol info
         exchange_info = await self.rest_client.get_exchange_info()
         if exchange_info:
@@ -170,7 +173,7 @@ class Bitana:
             self.executor = PaperExecutor(self.cfg, initial_balance=balance)
 
         self.order_mgr = OrderManager(
-            self.executor, self.symbol_info, self.cfg, self.db,
+            self.executor, self.symbol_info, self.cfg, self.db, self.alerts,
         )
         self.position_mgr = PositionManager(
             self.order_mgr, self.cfg, self.db,
@@ -178,6 +181,27 @@ class Bitana:
         self.recon_mgr = ReconciliationManager(
             self.executor, self.position_mgr, self.cfg, self.db,
         )
+
+        if self.cfg.mode == "live":
+            ready, preflight_reason = await self._verify_live_preconditions()
+            if not ready:
+                pause_reason = f"Live preflight failed: {preflight_reason}"
+                self.brake_mgr.pause(pause_reason)
+                await self.db.save_brake_state(self.brake_mgr.state)
+                logger.critical("Live execution disabled", reason=preflight_reason)
+                await self.alerts.critical(
+                    f"<b>LIVE EXECUTION DISABLED</b>\n{preflight_reason}\n"
+                    "Trading is paused; no entries will be attempted."
+                )
+            elif (
+                self.brake_mgr.state.is_paused
+                and self.brake_mgr.state.pause_reason.startswith("Live preflight failed:")
+            ):
+                self.brake_mgr.resume()
+                await self.db.save_brake_state(self.brake_mgr.state)
+                await self.alerts.info(
+                    "<b>Live preflight recovered</b>\nExecution permission and Telegram checks passed."
+                )
 
         # Recover positions
         await self.position_mgr.recover_positions()
@@ -267,7 +291,6 @@ class Bitana:
             await self.health_server.start()
 
         # Telegram
-        await self.alerts.initialize()
         self.telegram_bot = TelegramBotHandler(
             self.cfg.secrets.telegram_bot_token,
             self.cfg.secrets.telegram_chat_id,
@@ -277,7 +300,7 @@ class Bitana:
             state_getter=self._get_state_snapshot,
             flatten_callback=self._flatten_all,
             pause_callback=lambda: self.brake_mgr.pause("Telegram /pause"),
-            resume_callback=self.brake_mgr.resume,
+            resume_callback=self._resume_trading,
             shutdown_callback=lambda: self._shutdown_event.set(),
         )
 
@@ -399,14 +422,51 @@ class Bitana:
 
         await self.watchdog.start_all()
 
-        # Send startup alert
-        await self.alerts.startup_alert(self.cfg.mode, self.cfg.config_checksum)
+        # Send startup alert without implying that a paused live bot is trade-ready.
+        if self.brake_mgr.state.is_paused:
+            await self.alerts.warning(
+                f"<b>Bitana Started PAUSED</b>\nReason: {self.brake_mgr.state.pause_reason}"
+            )
+        else:
+            await self.alerts.startup_alert(self.cfg.mode, self.cfg.config_checksum)
 
         logger.info("All tasks started, entering main loop")
 
         # Wait for shutdown signal
         await self._shutdown_event.wait()
         await self.shutdown()
+
+    async def _verify_live_preconditions(self) -> tuple[bool, str]:
+        """Fail closed unless alert delivery and no-fill order auth both work."""
+        failures = []
+        if not self.cfg.telegram.enabled:
+            failures.append("Telegram alerting is disabled")
+        elif not await self.alerts.verify():
+            failures.append("Telegram bot/chat verification failed")
+
+        order_ok, response = await self.rest_client.test_order_permission()
+        if not order_ok:
+            code = response.get("code", "unknown")
+            msg = response.get("msg", "unknown error")
+            failures.append(f"Binance futures order test rejected ({code}: {msg})")
+
+        return not failures, "; ".join(failures)
+
+    async def _resume_trading(self) -> tuple[bool, str]:
+        """Re-run live preflight before accepting a Telegram /resume."""
+        if self.cfg.mode == "live":
+            ready, reason = await self._verify_live_preconditions()
+            if not ready:
+                self.brake_mgr.pause(f"Live preflight failed: {reason}")
+                await self.db.save_brake_state(self.brake_mgr.state)
+                await self.alerts.critical(
+                    f"<b>RESUME REFUSED</b>\n{reason}"
+                )
+                return False, reason
+
+        self.brake_mgr.resume()
+        await self.db.save_brake_state(self.brake_mgr.state)
+        return True, ""
 
     async def _refresh_btc_regime(self) -> None:
         """Load BTC 4h bars and compute bull/bear/neutral (shadow-aligned)."""
@@ -591,6 +651,14 @@ class Bitana:
             await self.db.save_signal(sig)
             result = await self.order_mgr.execute_entry(sig, quantity, leverage)
             if not result:
+                if self.cfg.mode == "live":
+                    reason = f"Entry execution failed for {sig.symbol}; manual review required"
+                    self.brake_mgr.pause(reason)
+                    await self.db.save_brake_state(self.brake_mgr.state)
+                    logger.critical("Live trading paused after entry failure", symbol=sig.symbol)
+                    await self.alerts.critical(
+                        f"<b>LIVE TRADING PAUSED</b>\n{reason}"
+                    )
                 continue
 
             # Live execution telemetry (signal price vs fill, spread at entry)
@@ -706,6 +774,7 @@ class Bitana:
             "drawdown": self.risk_mgr.state.current_drawdown_pct,
             "open_positions": len(self.position_mgr.get_open_positions()),
             "paused": self.brake_mgr.state.is_paused,
+            "pause_reason": self.brake_mgr.state.pause_reason,
             "task_health": "ok",
             "uptime": f"{h}h {m}m {s}s",
             "positions_detail": positions_detail,

@@ -280,6 +280,28 @@ class BinanceRestClient:
     # Trading endpoints (signed)
     # ------------------------------------------------------------------
 
+    async def test_order_permission(
+        self,
+        symbol: str = "BTCUSDT",
+        quantity: float = 0.001,
+    ) -> tuple[bool, dict]:
+        """Validate signed futures trading permission without placing an order."""
+        response = await self._request(
+            "POST", "/fapi/v1/order/test",
+            params={
+                "symbol": symbol,
+                "side": "BUY",
+                "type": "MARKET",
+                "quantity": str(quantity),
+            },
+            signed=True,
+            weight=1,
+            is_order=True,
+        )
+        if not isinstance(response, dict):
+            return False, {"code": "invalid_response", "msg": str(response)}
+        return "code" not in response, response
+
     async def place_order(
         self,
         symbol: str,
