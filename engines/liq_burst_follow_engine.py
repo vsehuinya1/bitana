@@ -272,7 +272,7 @@ class LiqBurstFollowEngine:
             return None
 
         if self.cfg.btc_regime_gate_enabled:
-            allowed = self.cfg.allowed_btc_regimes
+            allowed = rule.allowed_btc_regimes or self.cfg.allowed_btc_regimes
             if btc_regime is None:
                 logger.debug(
                     "Burst session skip", symbol=symbol, session=f["session"],

@@ -60,6 +60,8 @@ class SessionBurstRule(BaseModel):
     time_exit_only: bool = False
     trail_atr: float | None = None
     trail_trigger_r: float | None = None
+    # When set, overrides burst_follow.allowed_btc_regimes for this session only.
+    allowed_btc_regimes: list[str] | None = None
 
 
 class LiqBurstFollowConfig(BaseModel):

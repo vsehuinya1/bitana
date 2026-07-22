@@ -4,10 +4,10 @@
 #
 # Retuned Jul 15 from enriched shadow logs:
 #   - Plain time exit beats TSL on both books
-#   - NY skips Mondays (UTC)
+#   - NY skips Mondays and weekends (UTC)
 #   - Asia skips weekends Sat/Sun UTC bar time (Jul 19)
 #   - 4% risk (mature neutral, semi-Markov throttle)
-#   - Live gate: neutral + bear only; bull still logged by bitana-v5-paper shadow
+#   - Live gate: NY neutral+bear full-session; Asia neutral+bull (Jul 22 retune)
 
 config_version: "1.1.1"
 mode: "live"
@@ -158,6 +158,7 @@ burst_follow:
       neg_imb_only: true
       min_imb: 0.5
       exclude_weekdays: [5, 6]
+      allowed_btc_regimes: ["neutral", "bull"]
       stop_atr: 10.0
       tp_atr: 999.0
       time_bars: 48
@@ -167,12 +168,12 @@ burst_follow:
       min_n_confirms: 1
       min_decile: 2
     ny:
-      shadow_strategy: ny_flush_buy_4h_open
+      shadow_strategy: ny_flush_buy_4h
       side_mode: follow
       pos_imb_only: true
       min_imb: 0.5
-      hours: [14, 15, 16, 17]
-      exclude_weekdays: [0]
+      exclude_weekdays: [0, 5, 6]
+      allowed_btc_regimes: ["neutral", "bear"]
       stop_atr: 10.0
       tp_atr: 999.0
       time_bars: 48
