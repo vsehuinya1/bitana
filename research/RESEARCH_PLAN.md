@@ -1,6 +1,6 @@
 # Bitana Research Plan
 
-_Last updated: Wed 2026-07-22. Live config: v1.1.1 (`2615df5`)._
+_Last updated: Thu 2026-07-23. Live config: v1.1.1 (`bf434ed`)._
 _Companion prompt for deep research sessions: `research/QUANT_RESEARCH_PROMPT.md`._
 
 Single source of truth for what we test, when, and how results get promoted into
@@ -10,8 +10,8 @@ Single source of truth for what we test, when, and how results get promoted into
 
 1. Objective: understanding > backtest performance. Every apparent edge is presumed
    false until it survives out-of-sample.
-2. Standard evaluation: cap-3 portfolio sim, 1 per symbol, 12 bps round-trip costs,
-   PnL in ATR (1 ATR ≈ 0.8% equity at 8% risk / 10 ATR stop).
+2. Standard evaluation: **candidate-specific** cap-3 portfolio sim, 1 per symbol,
+   12 bps round-trip costs, PnL in ATR (1 ATR ≈ 0.8% equity at 8% risk / 10 ATR stop).
 3. No lookahead: regime and HMM labels from completed 4h bars only; models frozen
    before their evaluation window (HMM walk-forward: train ≤ month-end, filter forward).
 4. Pre-registration: hypothesis, mechanism, test window, and pass/fail criteria are
@@ -21,6 +21,11 @@ Single source of truth for what we test, when, and how results get promoted into
    (regime-split cells: ≥ 3 days). Top day may contribute ≤ 40% of net.
 7. Max 5 active hypotheses at once. Live config changes ship at week boundaries
    (Mondays), except safety cuts.
+8. **Research integrity:** do not use the shared historical `would_live_accept`
+   column for promotion decisions on trades opened before the Jul 23 fix. From
+   Jul 23 onward, `would_live_accept` is strategy-scoped (only that strategy's
+   previously accepted opens count). Offline analyses must still recompute
+   candidate-specific acceptance when mixing pre/post windows.
 
 ## Promotion ladder
 
@@ -42,20 +47,20 @@ or day-concentration fails. Killed ideas go to the decision log below.
 - **Mon Jul 20 — go-live day 1.** Fund check, first-fill reconciliation, live vs
   shadow `would_live_accept` agreement, age throttle armed (4% if neutral > 64h).
 - **Sun Jul 19 —** 4/6/8 ATR stop variants deployed to `SHADOW_STRATEGIES`
-  (logging only, no schema change): `asia_pump_short_4h_s{4,6,8}`,
-  `ny_flush_buy_4h_open_s{4,6,8}`.
-- **Daily (~10 min) —** service health, insert errors, live fills vs shadow,
-  slippage vs the 12 bps assumption, BTC regime + age. Until fixed, explicitly
-  audit live `entry_price` / `avg_fill_price`: Jul 22 closes were persisted with
-  zero entry prices, corrupting trade PnL/R and the consecutive-loss counter.
+  (logging only): `asia_pump_short_4h_s{4,6,8}`, `ny_flush_buy_4h_open_s{4,6,8}`.
 - **Wed Jul 22 — live session retune shipped.** Asia remains
-  `asia_pump_short_4h` at 48 bars, now neutral+bull only and weekends off.
-  NY switches to full-session `ny_flush_buy_4h`, neutral+bear only, with
-  Mon/Sat/Sun off. The proposed blind Asia 36-bar cut is rejected: peak MFE is
-  not a realizable 3h exit, and later-peaking trades contain the winners.
+  `asia_pump_short_4h` at 48 bars, neutral+bull only, weekends off.
+  NY switches to full-session `ny_flush_buy_4h`, neutral+bear only, Mon/Sat/Sun off.
+  Blind Asia 36-bar cut rejected (MFE peak ≠ executable exit).
+- **Thu Jul 23 — live fill accounting fix + weekly cooldown removed.** Binance
+  market fills without `avgPrice`/`cumQuote` now resolve via `/fapi/v1/userTrades`.
+  Corrected Asia closes: ETH −0.148R, SOL +0.094R (near flat). Weekly loss/cooldown
+  path deleted from runtime. Live/shadow fill integrity returns to daily monitoring.
+- **Thu Jul 23 — research instrumentation.** Candidate-specific cap-3
+  `would_live_accept`; full-session NY stop ladder
+  `ny_flush_buy_4h_s{4,6,8}` added to shadow (pairs with live book, not open-window).
 - **Fri Jul 24 – Sat Jul 25 — HMM OOS validation #1** (spec below).
-- **Sun Jul 26 —** weekly review #1 (loop below). Weekend checkpoint: Jul 25–26
-  adds weekend days 5–6 for the live books.
+- **Sun Jul 26 —** weekly review #1 (loop below).
 
 #### HMM OOS validation #1 (pre-registered Jul 18)
 
@@ -78,45 +83,43 @@ or day-concentration fails. Killed ideas go to the decision log below.
 
 - Semi-Markov age throttle validation #1: did >64h-neutral trades underperform as
   predicted, live and shadow?
-- Asia partial-profit rule (take 50% when ≥ +2 ATR at 1h) OOS check on Jul 18+ data.
-- Restore and verify continuous `fade_6h_late` shadow logging, then begin its
-  H4/H5 OOS read. Historical rows stop around Jul 16; stale data cannot promote it.
+- Asia partial-profit rule (take 50% when ≥ +2 ATR at 1h) OOS check on Jul 18+ data —
+  measurement only; not an active promotion hypothesis.
+- London/Late: begin OOS clock only if continuous quality-floor fills appear;
+  instrumentation is already active.
 - **Sat Aug 1 —** HMM monthly retrain (train ≤ Jul 31), only AFTER the validation
   decision. Version the model.
 
 ### August
 
-- **Sun Aug 2 —** stop-variant first read (≥ 1 week of 4/6/8 ATR data).
-- **Sun Aug 9 —** earliest `fade_6h_late` × H4/H5 promotion decision, only if
-  continuous shadow logging has resumed and ≥ 20 fresh OOS trades are accepted
-  → G3 pilot as a new late book if pass.
-- **Sun Aug 16 — weekend read #1.** NY weekend reaches ±1.0 ATR detection power
-  (~34 trades); Asia has ~10 weekend days. Decide: keep or lift any Asia weekend
-  restriction.
-- **Sun Aug 16–23 —** NY scale-in decision (needs ≥ 30 checkpoint samples;
-  ~0.7/day → reached ~Aug 14).
-- **Sun Aug 30 —** stop-variant decision: replace 10 ATR only if a variant clears
-  G2 out-of-sample.
+- **Sun Aug 2 —** stop-variant first read (≥ 1 week of Asia s4/s6/s8 + new full-session
+  NY s4/s6/s8). Require ≥ 5 distinct days before any live stop change. Note: tighter
+  stop without cutting `risk_pct` increases size — path R can rise while USD DD worsens.
+- **Sun Aug 9 —** earliest London/Late promotion decision, only if ≥ 20 fresh OOS
+  accepted trades with candidate-specific cap-3 and concentration checks pass.
+- **Sun Aug 16 — weekend read #1** (measurement; live Asia/NY weekends remain off).
+- **Sun Aug 16–23 —** NY scale-in decision (measurement/backlog; needs ≥ 30 samples).
+- **Sun Aug 30 —** stop-variant decision: replace 10 ATR only if a variant clears G2.
 
 ### September
 
-- **Sun Sep 6 — weekend verdict** for Asia at ±1.0 ATR resolution (7 weekends of
-  live-book data). If |effect| < 0.75 ATR and CI includes 0: default to trading
-  weekends at 4% risk while logging continues, rather than waiting for ±0.5 power
-  (that needs ~33 weekends — not worth the wait).
-- Event-driven — bull-book promotion: Asia plain short in bull (+20.5 cap-3 net,
-  Jul 15–17 in-sample) requires the next bull regime lasting ≥ 3 days to validate.
+- **Sun Sep 6 — weekend verdict** for Asia at ±1.0 ATR resolution (measurement).
+- Event-driven — bull-book formal G2: Asia plain short in the current bull window
+  (provisional live already) needs multi-day stable OOS vs shadow.
 
 ### Monthly (first weekend of month)
 
 - HMM walk-forward retrain + state-profile drift check.
-- Session × regime matrix refresh; decision-log audit (has new data contradicted
-  any resolved item?).
+- Session × regime matrix refresh; decision-log audit.
+- Regime-detector audit report (flip lag / false transitions) from
+  `storage/v6_telemetry.db` regime snapshots — measurement, not threshold tuning
+  on the same window.
 
 ## Weekly research loop (Sundays, ~1h)
 
 1. **Integrity:** insert errors, enriched-field null rates, orphaned rows; live vs
-   shadow reconciliation (fill agreement, slippage vs 12 bps, `would_live_accept`).
+   shadow reconciliation (fill agreement, slippage vs 12 bps, strategy-scoped
+   `would_live_accept` on post-Jul-23 rows).
 2. **Variance scan:** PnL by regime × age-bin × session × HMM state × weekday.
    Flag cells with |avg| ≥ 0.5 ATR and n ≥ 15 not explained by known axes.
 3. **Register update:** advance / extend / kill each active hypothesis strictly by
@@ -126,74 +129,69 @@ or day-concentration fails. Killed ideas go to the decision log below.
    mechanism (who is on the other side, why does the effect persist). Cap: 5 active.
 5. **Ship:** approved live changes deploy Monday. Update the decision log.
 
-## Active register
+## Active register (max 5)
 
 | Hypothesis | Gate | Next checkpoint | Kill criteria |
 |---|---|---|---|
 | Asia HMM {H2,H5} gate | G1 → G2 | Jul 24–25 | net/trade < +0.2 on ≥ 15 OOS |
-| `fade_6h_late` × H4/H5 | G1; logging stale | Aug 9 earliest, after ≥ 20 fresh OOS | same |
-| 4/6/8 ATR stop variants | G0 (deployed Jul 19) | Aug 2 first read | no variant beats 10 ATR OOS by Aug 30 |
-| Asia partial 50% @ +2 ATR at 1h | G1 | week of Jul 27 | OOS improvement < +0.3/trade |
-| NY scale-in +0.5 ATR @ 1h | G0 | ~Aug 16 (n ≥ 30) | CI includes 0 at n = 30 |
-| Asia/NY weekend tradability | measurement; live off | Aug 16 read; Sep 6 verdict | n/a |
-| Late weekend fade | measurement; shadow only | after logging resumes | fresh OOS fails concentration/cost checks |
-| Age throttle (4% if neutral > 64h) | G3 (live) | weekly | >64h cells not worse for 3 straight weeks → remove throttle |
-| Bull Asia short | provisional live at 4%; formal G1 → G2 pending | current bull window review | negative in next bull window |
+| 4/6/8 ATR stop variants (Asia + full-session NY) | G0 → G1 | Aug 2 first read | no variant beats 10 ATR OOS by Aug 30; < 5 days → extend |
+| Bull Asia short | provisional live at 4%; formal G1 → G2 | current bull window review | negative in next / current multi-day bull window |
+| NY quality floor (`follow_3h_all` ∩ session=ny vs `ny_flush_buy_4h`) | G0 | after ≥ 15 post-fix accepted OOS; Aug review | < +0.5 ATR improvement vs paired baseline, or candidate < +1.0, or day-concentrated |
+| London `follow_3h_london` + Late `fade_6h_late` expansion | G0; quality floor active | Aug 9 earliest if ≥ 20 fresh OOS | concentration fails; or no fills for 2 weeks → park |
 
-## Weekend data status (as of Jul 19)
+## Measurement / backlog (not active promotion)
 
-Live books have 4 weekend days (Jul 11–12, 18–19). Early, underpowered reads:
+| Item | Status | Notes |
+|---|---|---|
+| Asia/NY weekend tradability | live off; shadow continues | Aug 16 / Sep 6 reads |
+| Age throttle (4% if neutral > 64h) | live | weekly; remove if >64h cells not worse 3 weeks |
+| Regime-detector audit | measurement | 14k+ snapshots in `v6_telemetry.db`; report lag/flips/transition-zone PnL; do not retune on same window |
+| Asia partial 50% @ +2 ATR at 1h | measurement | week of Jul 27 OOS check |
+| NY scale-in +0.5 ATR @ 1h | backlog | ~Aug 16 if n ≥ 30 |
+| Portfolio / same-side / cluster gates | backlog | after candidate-specific cap-3 is trusted; expect portfolio DD help more than avg R |
+| Asia limit-entry (−1.5 ATR) | already shadow-logging | research-only until live limit path exists |
+| Symbol allowlist / fee micro / MAE-peak exits | ignore for now | noise / non-executable as tested |
+| TSL / 24h hold enablement | killed / ignore | plain time exits win on current books |
+| Per-regime strategy maps (engine) | engineering backlog | build only after ≥ 2 session×regime cells pass G2 and require different strategies/stops |
 
-| Book | Weekend n | Weekend avg | Weekday avg | ±1.0 ATR power reached |
-|---|---:|---:|---:|---|
-| Asia short | 22 | −0.36 | +1.44 | ~Sep 5–6 (7 more weekends) |
-| NY flush | 10 | +1.74 | +0.17 | ~Aug 15–16 (4 more weekends) |
-| Late fade | 37 | +3.37 | +0.65 | ~Aug 23 (sleeper candidate; no fills Jul 18–19 — watch) |
-| London fade | 130 | −0.14 | +0.11 | already powered — flat, stays dead |
+## Weekend data status
 
-**Resolved Jul 22:** live Asia and NY both exclude weekends. NY also continues
-to exclude Mondays. Shadow logging should continue so the Aug 16 / Sep 6
-measurement checkpoints remain valid. `fade_6h_late` is not live; its +3.37
-weekend average (n=37) is historical shadow evidence, not a deployment result,
-and requires fresh forward-shadow data before promotion.
+**Resolved Jul 22:** live Asia and NY both exclude weekends. NY also excludes Mondays.
+Shadow continues for measurement. Historical Late weekend +3.37 (n=37) is
+pre-promotion shadow evidence only; quality-floor Late has had no fills since
+~Jul 16 — OOS clock has not started.
 
 ## Backlog (unscheduled — pre-register before touching)
 
-- Funding-rate / OI-delta conditioning (enriched fields since Jul 14; ≥ 3 weeks of
-  data by mid-Aug).
-- Cluster breadth / market-wide liq flow as entry filters (same data window).
-- Symbol heterogeneity / whitelists (earlier claim was built on misread horizons;
-  needs per-symbol n ≥ 30).
-- Weekend-specific strategies, especially late fade (+3.37/trade, n=37
-  historical shadow) — restore continuous logging, then require fresh OOS and
-  concentration checks before any live pilot.
-- Proper MDP sizing with state = (regime, age, open risk, drawdown) — only after
-  ≥ 2 months of live PnL.
-- HMM state/confidence as live-logged columns — only if the HMM gate reaches G3;
-  until then it is reconstructable offline from BTC 4h bars + `entry_time`.
-- London `follow_3h_london` revival — historical shadow is positive but
-  day-clustered and logging is stale. Paper-first only; require a fresh OOS
-  window and concentration checks before promotion.
+- Funding-rate / OI-delta conditioning (enriched fields since Jul 14; ≥ 3 weeks by mid-Aug).
+- Cluster breadth / market-wide liq flow as entry filters.
+- Symbol heterogeneity / whitelists (needs per-symbol n ≥ 30).
+- Proper MDP sizing with portfolio state — only after ≥ 2 months of live PnL.
+- HMM state/confidence as live-logged columns — only if HMM gate reaches G3.
+- Per-regime live engine maps — gated on dual G2 cells requiring different rules.
+- London/Late half-risk live pilot — only after G2 on fresh quality-floor OOS.
 
 ## Decision log (do not relitigate without new data)
 
 - **Jul 15 — TSL variants: killed.** Plain time exits beat TSL on both live books.
 - **Jul 15 — NY Mondays: blackout.** −48 ATR on Monday samples.
-- **Jul 18 — Stops stay 10 ATR.** 2–5 ATR stops kill valid Asia winners
-  (winner MAE p95 = 5.2 ATR); revisit only via the 4/6/8 shadow variants.
-- **Jul 18 — No scale-ins live.** Asia scale-in negative; NY promising but n = 12.
+- **Jul 18 — Stops stay 10 ATR live.** 2–5 ATR stops kill valid Asia winners
+  (winner MAE p95 = 5.2 ATR); revisit only via shadow stop ladder + Aug checkpoints.
+- **Jul 18 — No scale-ins live.** Asia scale-in negative; NY promising but thin.
 - **Jul 18 — Session carryover: dead.** No significant Asia→London→NY PnL link.
-- **Jul 18 — MDP on (regime, age) alone: parked.** Degenerate — collapses to a
-  contextual bandit without portfolio state.
-- **Jul 19 — Weekends: unproven.** Asia weekend −0.36/trade (n = 22) vs weekday
-  +1.44; this prompted the Jul 22 live exclusion below.
+- **Jul 18 — MDP on (regime, age) alone: parked.** Degenerate without portfolio state.
+- **Jul 19 — Weekends: unproven.** Asia weekend negative vs weekday; prompted Jul 22 exclusion.
 - **Jul 22 — Asia session/regime:** keep `asia_pump_short_4h` at 48 bars;
-  allow neutral+bull, drop thin bear, and exclude Sat/Sun. Reject a blind 36-bar
-  cut because MFE timing does not specify a realizable exit and later peaks
-  contain the profitable cohort.
-- **Jul 22 — NY session/regime:** replace the open-window label/filter with
-  full-session `ny_flush_buy_4h`; allow neutral+bear only and exclude
-  Mon/Sat/Sun. NY bull remains out pending stronger OOS evidence.
-- **Jul 22 — Late/London:** neither is live. Historical session-regime matrices
-  are hypothesis generators; stale or day-clustered books must resume shadow
-  logging and pass fresh OOS before promotion.
+  allow neutral+bull, drop thin bear, exclude Sat/Sun. Reject blind 36-bar cut.
+- **Jul 22 — NY session/regime:** full-session `ny_flush_buy_4h`; neutral+bear only;
+  exclude Mon/Sat/Sun. NY bull remains out.
+- **Jul 22 — Late/London:** not live. Matrices are hypothesis generators until
+  fresh quality-floor OOS exists.
+- **Jul 23 — Fill accounting:** resolve fills via userTrades; refuse unresolved
+  entry/exit prices; net PnL/R includes commissions. Weekly cooldown removed.
+- **Jul 23 — Cap-3 integrity:** `would_live_accept` is per-strategy from this date.
+  Pre-Jul-23 shared-column labels are invalid for promotion.
+- **Jul 23 — Ignore for now:** symbol allowlists, fee micro-tuning, MAE-peak exits,
+  enabling TSL/24h. Next dollar of research effort: NY quality floor OOS + stop
+  ladder day-count; growth bets (London/Late) wait for fills; per-regime engine
+  waits for dual G2 cells.

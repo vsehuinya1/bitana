@@ -278,6 +278,19 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
     ),
+    # Full-session NY stop ladder (pairs with live ny_flush_buy_4h, not open-window).
+    ShadowStrategy(
+        "ny_flush_buy_4h_s4", "burst", "follow", 4.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_4h_s6", "burst", "follow", 6.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_4h_s8", "burst", "follow", 8.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
     ShadowStrategy(
         "ny_flush_buy_8h", "burst", "follow", 10.0, 999.0, time_bars=96,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
@@ -746,12 +759,27 @@ class SignalShadow:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
 
     def _would_live_accept(
-        self, symbol: str, side: str, session: str, cluster_bucket: str,
+        self,
+        strategy: str,
+        symbol: str,
+        side: str,
+        session: str,
+        cluster_bucket: str,
     ) -> int:
-        """Whether live portfolio caps would accept this entry (1=yes, 0=no)."""
+        """Whether this strategy's independent cap-3 book accepts the entry.
+
+        Parallel shadow variants must never consume one another's slots. Only
+        previously accepted positions from the same strategy count here;
+        rejected shadow rows remain observational and do not occupy capacity.
+        """
         cfg = self.portfolio
         rows = self.conn.execute(
-            "SELECT symbol, side, session, cluster_bucket FROM shadow_trades WHERE status='open'",
+            """
+            SELECT symbol, side, session, cluster_bucket
+            FROM shadow_trades
+            WHERE strategy=? AND status='open' AND would_live_accept=1
+            """,
+            (strategy,),
         ).fetchall()
         if len(rows) >= cfg.live_max_concurrent:
             return 0
@@ -935,10 +963,17 @@ class SignalShadow:
     def set_market_context(self, ctx: MarketContext | None):
         self._market_ctx = ctx or MarketContext()
 
-    def _portfolio_at_entry(self, symbol: str, side: str, stop_atr: float) -> PortfolioSnapshot:
-        """Snapshot open-book state excluding the trade about to open."""
+    def _portfolio_at_entry(
+        self, strategy: str, symbol: str, side: str, stop_atr: float,
+    ) -> PortfolioSnapshot:
+        """Snapshot this strategy's accepted open book before the new entry."""
         rows = self.conn.execute(
-            "SELECT symbol, side, stop_atr FROM shadow_trades WHERE status='open'",
+            """
+            SELECT symbol, side, stop_atr
+            FROM shadow_trades
+            WHERE strategy=? AND status='open' AND would_live_accept=1
+            """,
+            (strategy,),
         ).fetchall()
         n_long = sum(1 for r in rows if r["side"] == "LONG")
         n_short = sum(1 for r in rows if r["side"] == "SHORT")
@@ -1352,10 +1387,12 @@ class SignalShadow:
             tp_price = entry_price - spec.tp_atr * atr
 
         is_weekend = 1 if f["bar_time"].weekday() >= 5 else 0
-        port = self._portfolio_at_entry(symbol, side, spec.stop_atr)
+        port = self._portfolio_at_entry(spec.name, symbol, side, spec.stop_atr)
         mkt = self._market_ctx
         cluster_bucket = _cluster_bucket(f["bar_time"])
-        would_live = self._would_live_accept(symbol, side, f["session"], cluster_bucket)
+        would_live = self._would_live_accept(
+            spec.name, symbol, side, f["session"], cluster_bucket,
+        )
 
         self.conn.execute(
             """
