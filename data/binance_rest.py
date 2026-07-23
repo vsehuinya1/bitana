@@ -358,6 +358,21 @@ class BinanceRestClient:
             params=params, signed=True, weight=1,
         )
 
+    async def get_account_trades(
+        self,
+        symbol: str,
+        order_id: int | None = None,
+    ) -> list[dict]:
+        """Return actual fills, including price and commission, for an order."""
+        params: dict[str, Any] = {"symbol": symbol}
+        if order_id is not None:
+            params["orderId"] = order_id
+        response = await self._request(
+            "GET", "/fapi/v1/userTrades",
+            params=params, signed=True, weight=5,
+        )
+        return response if isinstance(response, list) else []
+
     async def cancel_order(
         self, symbol: str,
         order_id: int | None = None,

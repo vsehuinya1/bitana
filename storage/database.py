@@ -124,9 +124,6 @@ CREATE TABLE IF NOT EXISTS brake_state (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     daily_realized_loss REAL DEFAULT 0.0,
     daily_reset_date TEXT DEFAULT '',
-    weekly_realized_loss REAL DEFAULT 0.0,
-    weekly_reset_date TEXT DEFAULT '',
-    weekly_cooldown_until TEXT,
     is_paused INTEGER DEFAULT 0,
     pause_reason TEXT DEFAULT '',
     is_shutdown INTEGER DEFAULT 0,
@@ -385,14 +382,11 @@ class Database:
         await self._write(
             """INSERT OR REPLACE INTO brake_state
                (id, daily_realized_loss, daily_reset_date,
-                weekly_realized_loss, weekly_reset_date,
-                weekly_cooldown_until, is_paused, pause_reason,
+                is_paused, pause_reason,
                 is_shutdown, shutdown_reason, manual_review_required,
                 updated_at)
-               VALUES (1,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (1,?,?,?,?,?,?,?,?)""",
             (s.daily_realized_loss, s.daily_reset_date,
-             s.weekly_realized_loss, s.weekly_reset_date,
-             s.weekly_cooldown_until.isoformat() if s.weekly_cooldown_until else None,
              int(s.is_paused), s.pause_reason,
              int(s.is_shutdown), s.shutdown_reason,
              int(s.manual_review_required),

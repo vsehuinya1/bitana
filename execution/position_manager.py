@@ -322,7 +322,9 @@ class PositionManager:
             hold_time = (datetime.now(timezone.utc) - pos.entry_time).total_seconds()
 
         stop_dist = abs(pos.entry_price - pos.initial_stop)
-        pnl_r = pnl / (stop_dist * result.filled_qty) if stop_dist > 0 else 0
+        net_pnl = total_pnl - total_commission - pos.funding_fees
+        initial_risk = stop_dist * result.filled_qty
+        pnl_r = net_pnl / initial_risk if initial_risk > 0 else 0.0
 
         trade = TradeRecord(
             trade_uuid=pos.trade_uuid,
@@ -337,7 +339,7 @@ class PositionManager:
             commission=total_commission,
             slippage_est=entry_slip + exit_slippage_bps,
             funding_fees=pos.funding_fees,
-            pnl_usd=total_pnl - total_commission - pos.funding_fees,
+            pnl_usd=net_pnl,
             pnl_r=pnl_r,
             hold_time_s=hold_time,
             hold_candles=pos.candles_held,

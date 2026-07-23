@@ -47,8 +47,6 @@ risk:
 
 brakes:
   daily_loss_limit_pct: 0.20
-  weekly_loss_limit_pct: 0.40
-  weekly_cooldown_hours: 48
   consecutive_loss_threshold: 3
   consecutive_loss_reduced_trades: 5
   equity_pause_drawdown: 0.35

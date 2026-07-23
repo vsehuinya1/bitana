@@ -185,6 +185,13 @@ class OrderManager:
                 "ENTRY", symbol, result, detail="Exchange returned zero fill",
             )
             return None
+        if result.avg_fill_price <= 0:
+            logger.critical("Entry fill price unavailable", symbol=symbol)
+            await self._critical_order_failure(
+                "ENTRY", symbol, result,
+                detail="Order filled but actual fill price could not be resolved",
+            )
+            return None
 
         logger.info(
             "Entry filled",
@@ -226,6 +233,18 @@ class OrderManager:
 
         if result.status == OrderStatus.PARTIALLY_FILLED:
             result = await self._handle_partial_fill(result)
+
+        if result.filled_qty <= 0 or result.avg_fill_price <= 0:
+            logger.critical(
+                "Exit fill details unavailable",
+                symbol=symbol, qty=result.filled_qty,
+                price=result.avg_fill_price,
+            )
+            await self._critical_order_failure(
+                "EXIT", symbol, result,
+                detail="Exit filled but quantity/price could not be resolved",
+            )
+            return None
 
         logger.info(
             "Exit filled",

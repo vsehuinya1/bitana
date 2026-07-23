@@ -13,6 +13,7 @@ def _executor(sample_config, responses):
     rest.get_order = AsyncMock(
         side_effect=responses[1:] if len(responses) > 1 else [],
     )
+    rest.get_account_trades = AsyncMock(return_value=[])
     symbol_info = MagicMock()
     symbol_info.round_quantity.return_value = 0.03
     symbol_info.round_price.return_value = 0.0
@@ -76,4 +77,32 @@ def test_market_entry_refreshes_new_ack_until_filled(sample_config):
         "ZECUSDT",
         order_id=803604861540,
         client_order_id=None,
+    )
+
+
+def test_market_entry_resolves_omitted_price_from_actual_fills(sample_config):
+    response = {
+        "orderId": 8389766239384294556,
+        "status": "FILLED",
+        "executedQty": "0.027",
+    }
+    executor, rest = _executor(sample_config, [response])
+    rest.get_account_trades = AsyncMock(return_value=[{
+        "orderId": 8389766239384294556,
+        "price": "1929.88",
+        "qty": "0.027",
+        "quoteQty": "52.10676",
+        "commission": "0.02605338",
+        "commissionAsset": "USDT",
+    }])
+
+    result = asyncio.run(executor.place_order(_market_request()))
+
+    assert result.status == OrderStatus.FILLED
+    assert result.filled_qty == pytest.approx(0.027)
+    assert result.avg_fill_price == pytest.approx(1929.88)
+    assert result.commission == pytest.approx(0.02605338)
+    assert result.raw["_accountTrades"][0]["price"] == "1929.88"
+    rest.get_account_trades.assert_awaited_once_with(
+        "ZECUSDT", order_id=8389766239384294556,
     )

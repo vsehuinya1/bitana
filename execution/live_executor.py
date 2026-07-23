@@ -42,6 +42,76 @@ class LiveExecutor(BaseExecutor):
         uid = uuid.uuid4().hex[:8]
         return f"{self._prefix}_{ts}_{uid}"
 
+    async def _resolve_fill(
+        self, symbol: str, resp: dict,
+    ) -> tuple[float, float, float]:
+        """Resolve quantity, weighted fill price, and commission.
+
+        Some Binance Futures accounts omit avgPrice and cumQuote from both the
+        RESULT response and GET /order, even when a market order is FILLED.
+        The userTrades endpoint is the source of truth for actual executions.
+        """
+        filled_qty = float(resp.get("executedQty", 0))
+        avg_fill_price = float(resp.get("avgPrice", 0))
+        cum_quote = float(resp.get("cumQuote", 0))
+        if avg_fill_price <= 0 and filled_qty > 0 and cum_quote > 0:
+            avg_fill_price = cum_quote / filled_qty
+
+        commission = cum_quote * 0.0004 if cum_quote > 0 else 0.0
+        order_id = resp.get("orderId")
+        if filled_qty <= 0 or order_id is None:
+            return filled_qty, avg_fill_price, commission
+
+        fills: list[dict] = []
+        delays = (
+            (0.0,)
+            if avg_fill_price > 0
+            else (0.0, 0.1, 0.25, 0.5, 1.0)
+        )
+        for delay in delays:
+            if delay:
+                await asyncio.sleep(delay)
+            try:
+                fills = await self._rest.get_account_trades(
+                    symbol, order_id=int(order_id),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Could not fetch actual order fills",
+                    symbol=symbol, order_id=order_id, error=str(exc),
+                )
+                fills = []
+            fill_qty = sum(float(fill.get("qty", 0)) for fill in fills)
+            if fill_qty >= filled_qty * 0.999999:
+                break
+
+        if fills:
+            fill_qty = sum(float(fill.get("qty", 0)) for fill in fills)
+            fill_quote = sum(
+                float(fill.get("quoteQty", 0))
+                or float(fill.get("price", 0)) * float(fill.get("qty", 0))
+                for fill in fills
+            )
+            if fill_qty > 0 and fill_quote > 0:
+                filled_qty = fill_qty
+                avg_fill_price = fill_quote / fill_qty
+
+            if all(fill.get("commissionAsset") == "USDT" for fill in fills):
+                commission = sum(float(fill.get("commission", 0)) for fill in fills)
+            elif fill_quote > 0:
+                commission = fill_quote * 0.0004
+
+            # Persist the evidence used for accounting in the order's raw JSON.
+            resp["_accountTrades"] = fills
+
+        if filled_qty > 0 and avg_fill_price <= 0:
+            logger.critical(
+                "Filled market order has no resolvable fill price",
+                symbol=symbol, order_id=order_id, filled_qty=filled_qty,
+            )
+
+        return filled_qty, avg_fill_price, commission
+
     async def place_order(self, request: OrderRequest) -> OrderResult:
         symbol = request.symbol
         side_str = "BUY" if request.side == Side.LONG else "SELL"
@@ -124,12 +194,9 @@ class LiveExecutor(BaseExecutor):
             "EXPIRED": OrderStatus.EXPIRED,
         }
 
-        filled_qty = float(resp.get("executedQty", 0))
-        avg_fill_price = float(resp.get("avgPrice", 0))
-        if avg_fill_price <= 0 and filled_qty > 0:
-            cum_quote = float(resp.get("cumQuote", 0))
-            if cum_quote > 0:
-                avg_fill_price = cum_quote / filled_qty
+        filled_qty, avg_fill_price, commission = await self._resolve_fill(
+            symbol, resp,
+        )
 
         return OrderResult(
             trade_uuid=request.trade_uuid,
@@ -141,7 +208,7 @@ class LiveExecutor(BaseExecutor):
             requested_qty=request.quantity,
             filled_qty=filled_qty,
             avg_fill_price=avg_fill_price,
-            commission=float(resp.get("cumQuote", 0)) * 0.0004,  # estimate
+            commission=commission,
             timestamp=datetime.now(timezone.utc),
             raw=resp,
         )
@@ -199,12 +266,9 @@ class LiveExecutor(BaseExecutor):
                     ):
                         break
 
-        filled_qty = float(resp.get("executedQty", 0))
-        avg_fill_price = float(resp.get("avgPrice", 0))
-        if avg_fill_price <= 0 and filled_qty > 0:
-            cum_quote = float(resp.get("cumQuote", 0))
-            if cum_quote > 0:
-                avg_fill_price = cum_quote / filled_qty
+        filled_qty, avg_fill_price, commission = await self._resolve_fill(
+            symbol, resp,
+        )
 
         return OrderResult(
             trade_uuid="", client_order_id=client_id,
@@ -213,6 +277,7 @@ class LiveExecutor(BaseExecutor):
             requested_qty=quantity,
             filled_qty=filled_qty,
             avg_fill_price=avg_fill_price,
+            commission=commission,
             timestamp=datetime.now(timezone.utc),
             raw=resp,
         )

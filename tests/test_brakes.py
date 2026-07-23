@@ -38,13 +38,11 @@ class TestDailyLoss:
         assert allowed
 
 
-class TestWeeklyLoss:
-    def test_triggers_cooldown(self, brake_mgr):
-        brake_mgr.record_loss(0.09)  # > 8% weekly limit
-        triggered = brake_mgr.record_loss(0.0)  # just to check
-        allowed, reason = brake_mgr.check_entry_allowed()
-        assert not allowed
-        assert brake_mgr.state.weekly_cooldown_until is not None
+class TestNoWeeklyBrake:
+    def test_weekly_cooldown_state_removed(self, brake_mgr, config):
+        assert not hasattr(config.brakes, "weekly_loss_limit_pct")
+        assert not hasattr(config.brakes, "weekly_cooldown_hours")
+        assert not hasattr(brake_mgr.state, "weekly_cooldown_until")
 
 
 class TestEquityBrakes:

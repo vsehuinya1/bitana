@@ -118,8 +118,6 @@ class RiskConfig(BaseModel):
 
 class BrakesConfig(BaseModel):
     daily_loss_limit_pct: float = 0.04
-    weekly_loss_limit_pct: float = 0.08
-    weekly_cooldown_hours: int = 48
     consecutive_loss_threshold: int = 3
     consecutive_loss_reduced_trades: int = 5
     equity_pause_drawdown: float = 0.25

@@ -40,7 +40,6 @@ class AlertTier(str, Enum):
 
 class BrakeType(str, Enum):
     DAILY_LOSS = "DAILY_LOSS"
-    WEEKLY_LOSS = "WEEKLY_LOSS"
     CONSECUTIVE_LOSS = "CONSECUTIVE_LOSS"
     EQUITY_PAUSE = "EQUITY_PAUSE"
     EQUITY_SHUTDOWN = "EQUITY_SHUTDOWN"
@@ -301,9 +300,6 @@ class BrakeState(BaseModel):
     """Persistent brake state."""
     daily_realized_loss: float = 0.0
     daily_reset_date: str = ""  # YYYY-MM-DD
-    weekly_realized_loss: float = 0.0
-    weekly_reset_date: str = ""  # YYYY-MM-DD (Monday)
-    weekly_cooldown_until: Optional[datetime] = None
     is_paused: bool = False
     pause_reason: str = ""
     is_shutdown: bool = False

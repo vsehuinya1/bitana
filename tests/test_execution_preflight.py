@@ -101,6 +101,42 @@ def test_entry_soft_skips_on_insufficient_margin(sample_config):
     alerts.warning.assert_awaited_once()
 
 
+def test_entry_refuses_filled_order_without_resolved_price(sample_config):
+    config = sample_config.model_copy(deep=True)
+    config.mode = "live"
+    executor = MagicMock()
+    executor.set_leverage = AsyncMock(return_value=True)
+    executor.place_order = AsyncMock(return_value=OrderResult(
+        trade_uuid="t1",
+        client_order_id="c1",
+        symbol="SOLUSDT",
+        side=Side.SHORT,
+        status=OrderStatus.FILLED,
+        requested_qty=1.0,
+        filled_qty=1.0,
+        avg_fill_price=0.0,
+    ))
+    symbol_info = MagicMock()
+    symbol_info.round_quantity.return_value = 1.0
+    database = MagicMock()
+    database.save_order = AsyncMock()
+    alerts = MagicMock()
+    alerts.critical = AsyncMock(return_value=True)
+    manager = OrderManager(executor, symbol_info, config, database, alerts)
+    signal = Signal(
+        engine=EngineType.LIQ_BURST_FOLLOW,
+        symbol="SOLUSDT",
+        side=Side.SHORT,
+        entry_price=100.0,
+        stop_price=110.0,
+    )
+
+    result = asyncio.run(manager.execute_entry(signal, quantity=1.0, leverage=2))
+
+    assert result is None
+    alerts.critical.assert_awaited_once()
+
+
 def test_telegram_preflight_sends_real_message():
     alerts = TelegramAlerts("token", "chat")
     alerts._bot = MagicMock()

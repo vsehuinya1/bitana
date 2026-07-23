@@ -68,8 +68,6 @@ risk:
 # ---------------------------------------------------------------------------
 brakes:
   daily_loss_limit_pct: 0.04           # 4% daily realized loss -> pause
-  weekly_loss_limit_pct: 0.08          # 8% weekly realized loss -> 48h cooldown
-  weekly_cooldown_hours: 48
   consecutive_loss_threshold: 3        # 3 consecutive losses
   consecutive_loss_reduced_trades: 5   # reduced risk for next 5 trades
   equity_pause_drawdown: 0.25          # 25% DD -> manual review required

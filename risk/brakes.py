@@ -2,11 +2,11 @@
 Hard Risk Brakes
 
 All brakes are persistent across restarts via SQLite.
-Daily/weekly loss limits, consecutive losses, equity drawdown pauses.
+Daily loss limits, consecutive losses, equity drawdown pauses.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from config.loader import BrakesConfig
 from core.logging_setup import get_logger
@@ -38,20 +38,6 @@ class BrakeManager:
         if self.state.is_paused:
             return False, f"PAUSED: {self.state.pause_reason}"
 
-        # Weekly cooldown
-        if self.state.weekly_cooldown_until:
-            try:
-                cooldown = self.state.weekly_cooldown_until
-                if isinstance(cooldown, str):
-                    cooldown = datetime.fromisoformat(cooldown)
-                if cooldown.tzinfo is None:
-                    cooldown = cooldown.replace(tzinfo=timezone.utc)
-                if now < cooldown:
-                    remaining = (cooldown - now).total_seconds() / 3600
-                    return False, f"Weekly cooldown: {remaining:.1f}h remaining"
-            except (ValueError, TypeError):
-                pass
-
         # Daily loss check
         today = now.strftime("%Y-%m-%d")
         if self.state.daily_reset_date != today:
@@ -61,15 +47,6 @@ class BrakeManager:
         if self.state.daily_realized_loss >= self._cfg.daily_loss_limit_pct:
             return False, f"Daily loss limit hit: {self.state.daily_realized_loss:.2%}"
 
-        # Weekly loss check
-        monday = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
-        if self.state.weekly_reset_date != monday:
-            self.state.weekly_realized_loss = 0.0
-            self.state.weekly_reset_date = monday
-
-        if self.state.weekly_realized_loss >= self._cfg.weekly_loss_limit_pct:
-            return False, f"Weekly loss limit hit: {self.state.weekly_realized_loss:.2%}"
-
         return True, ""
 
     def record_loss(self, loss_pct: float) -> list[BrakeType]:
@@ -77,30 +54,17 @@ class BrakeManager:
         triggered = []
         now = datetime.now(timezone.utc)
 
-        # Reset daily/weekly if needed
+        # Reset daily loss if needed
         today = now.strftime("%Y-%m-%d")
         if self.state.daily_reset_date != today:
             self.state.daily_realized_loss = 0.0
             self.state.daily_reset_date = today
 
-        monday = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
-        if self.state.weekly_reset_date != monday:
-            self.state.weekly_realized_loss = 0.0
-            self.state.weekly_reset_date = monday
-
         self.state.daily_realized_loss += abs(loss_pct)
-        self.state.weekly_realized_loss += abs(loss_pct)
 
         if self.state.daily_realized_loss >= self._cfg.daily_loss_limit_pct:
             triggered.append(BrakeType.DAILY_LOSS)
             logger.warning("BRAKE: Daily loss limit", loss=self.state.daily_realized_loss)
-
-        if self.state.weekly_realized_loss >= self._cfg.weekly_loss_limit_pct:
-            self.state.weekly_cooldown_until = now + timedelta(
-                hours=self._cfg.weekly_cooldown_hours
-            )
-            triggered.append(BrakeType.WEEKLY_LOSS)
-            logger.warning("BRAKE: Weekly loss limit — 48h cooldown")
 
         return triggered
 
