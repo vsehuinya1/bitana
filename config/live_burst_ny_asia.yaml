@@ -6,7 +6,7 @@
 #   - Plain time exit beats TSL on both books
 #   - NY skips Mondays and weekends (UTC)
 #   - Asia skips weekends Sat/Sun UTC bar time (Jul 19)
-#   - 4% risk (mature neutral, semi-Markov throttle)
+#   - 8% risk per position (ops bump Jul 23; uncommitted until confirmed)
 #   - Live gate: NY neutral+bear full-session; Asia neutral+bull (Jul 22 retune)
 
 config_version: "1.1.1"
@@ -30,7 +30,7 @@ symbols:
     - ADAUSDT
     - UNIUSDT
   defaults:
-    risk_pct: 4.0
+    risk_pct: 8.0
 
 timeframes:
   regime: "15m"
@@ -38,8 +38,8 @@ timeframes:
   confirmation: "1m"
 
 risk:
-  default_risk_pct: 4.0
-  reduced_risk_pct: 2.0
+  default_risk_pct: 8.0
+  reduced_risk_pct: 4.0
   drawdown_reduce_threshold: 0.15
   drawdown_restore_threshold: 0.10
   max_leverage: 10
@@ -68,9 +68,9 @@ profit_taking:
   time_stop_candles: 8
 
 portfolio:
-  max_concurrent_positions: 3
+  max_concurrent_positions: 6
   max_per_symbol: 1
-  max_cluster_positions: 3
+  max_cluster_positions: 6
   cluster_window_minutes: 15
   limit_by_engine: true
   btc_priority: true
@@ -146,7 +146,7 @@ burst_follow:
   min_burst_volume_30m: 20000
   min_burst_events_30m: 3
   dedup_bars: 3
-  risk_pct: 4.0
+  risk_pct: 8.0
   btc_regime_gate_enabled: true
   allowed_btc_regimes: ["neutral", "bear"]
   session_rules:
@@ -166,11 +166,13 @@ burst_follow:
       min_n_confirms: 1
       min_decile: 2
     ny:
+      # Aug 10: NY-A early only (h14-15); D7 (NY-B) reverted — Early alone better in-sample
       shadow_strategy: ny_flush_buy_4h
       side_mode: follow
       pos_imb_only: true
       min_imb: 0.5
       exclude_weekdays: [0, 5, 6]
+      hours: [14, 15]
       allowed_btc_regimes: ["neutral", "bear"]
       stop_atr: 10.0
       tp_atr: 999.0

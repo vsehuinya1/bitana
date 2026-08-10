@@ -338,7 +338,9 @@ class Bitana:
             while self._running:
                 await asyncio.sleep(self.cfg.reconciliation.interval_s)
                 self.watchdog.heartbeat("reconciliation")
-                await self.recon_mgr.reconcile()
+                closed = await self.recon_mgr.reconcile()
+                if closed:
+                    await self._process_closed_trades(closed)
 
         async def candle_verify_task():
             while self._running:
@@ -368,14 +370,44 @@ class Bitana:
                         await self._refresh_btc_regime()
                     balance = await self.executor.get_balance()
                     if balance > 0:
+                        # Futures wallet top-up after a drain: reset stale peak so
+                        # transfer-out DD does not keep the account shut down.
+                        peak = self.risk_mgr.state.peak_equity
+                        if peak > balance * 1.5:
+                            logger.warning(
+                                "Resetting stale peak_equity",
+                                old_peak=peak, equity=balance,
+                            )
+                            self.risk_mgr.state.peak_equity = balance
                         self.risk_mgr.update_equity(balance)
+                        if (
+                            self.brake_mgr.state.is_shutdown
+                            and self.risk_mgr.state.current_drawdown_pct
+                            < self.cfg.brakes.equity_shutdown_drawdown
+                        ):
+                            logger.warning(
+                                "Clearing stale equity shutdown",
+                                reason=self.brake_mgr.state.shutdown_reason,
+                                equity=balance,
+                                dd=self.risk_mgr.state.current_drawdown_pct,
+                            )
+                            self.brake_mgr.state.is_shutdown = False
+                            self.brake_mgr.state.shutdown_reason = ""
+                            await self.alerts.info(
+                                "<b>Equity shutdown cleared</b>\n"
+                                f"Futures wallet: <code>${balance:.2f}</code>\n"
+                                "Drawdown healthy — entries re-enabled."
+                            )
                         await self.db.save_risk_state(self.risk_mgr.state)
+                        await self.db.save_brake_state(self.brake_mgr.state)
                         # Check equity brakes
                         brakes = self.brake_mgr.check_equity_brakes(
                             self.risk_mgr.state.current_drawdown_pct
                         )
                         for b in brakes:
                             await event_bus.emit(Events.BRAKE_TRIGGERED, brake=b)
+                    if self.cfg.mode == "live":
+                        await self._poll_futures_wallet_transfers(balance)
                 except Exception as e:
                     logger.error("Equity update failed", error=str(e))
 
@@ -435,6 +467,25 @@ class Bitana:
         # Wait for shutdown signal
         await self._shutdown_event.wait()
         await self.shutdown()
+
+    async def _process_closed_trades(self, closed_trades) -> None:
+        """Risk / brake / alert bookkeeping shared by candle exits and recon closes."""
+        for trade in closed_trades:
+            self.trade_logger.log_trade(trade.model_dump())
+            self.risk_mgr.record_trade_result(trade.pnl_r)
+
+            if trade.pnl_usd < 0 and self.risk_mgr.state.current_equity > 0:
+                loss_pct = abs(trade.pnl_usd) / self.risk_mgr.state.current_equity
+                triggered = self.brake_mgr.record_loss(loss_pct)
+                for b in triggered:
+                    await event_bus.emit(Events.BRAKE_TRIGGERED, brake=b)
+
+            await self.alerts.exit_alert(
+                trade.symbol, trade.side.value, trade.exit_price,
+                trade.pnl_usd, trade.pnl_r, trade.exit_reason,
+            )
+            await self.db.save_risk_state(self.risk_mgr.state)
+            await self.db.save_brake_state(self.brake_mgr.state)
 
     async def _verify_live_preconditions(self) -> tuple[bool, str]:
         """Fail closed unless alert delivery and no-fill order auth both work."""
@@ -515,23 +566,7 @@ class Bitana:
         closed_trades = await self.position_mgr.manage_on_candle_close(
             symbol, candle, candles_5m,
         )
-        for trade in closed_trades:
-            self.trade_logger.log_trade(trade.model_dump())
-            self.risk_mgr.record_trade_result(trade.pnl_r)
-
-            # Record loss for brakes
-            if trade.pnl_usd < 0 and self.risk_mgr.state.current_equity > 0:
-                loss_pct = abs(trade.pnl_usd) / self.risk_mgr.state.current_equity
-                triggered = self.brake_mgr.record_loss(loss_pct)
-                for b in triggered:
-                    await event_bus.emit(Events.BRAKE_TRIGGERED, brake=b)
-
-            await self.alerts.exit_alert(
-                trade.symbol, trade.side.value, trade.exit_price,
-                trade.pnl_usd, trade.pnl_r, trade.exit_reason,
-            )
-            await self.db.save_risk_state(self.risk_mgr.state)
-            await self.db.save_brake_state(self.brake_mgr.state)
+        await self._process_closed_trades(closed_trades)
 
         # 2. Check if entries allowed
         allowed, reason = self.brake_mgr.check_entry_allowed()
@@ -753,6 +788,71 @@ class Bitana:
         self.brake_mgr.pause("Flatten all via Telegram")
         await self.db.save_brake_state(self.brake_mgr.state)
         await self.alerts.critical("ALL POSITIONS FLATTENED — trading paused")
+
+    async def _poll_futures_wallet_transfers(self, equity_after: float) -> None:
+        """Note spot ↔ USDT-M futures transfers from Binance income and Telegram them."""
+        cursor_key = "last_futures_transfer_ms"
+        last_raw = await self.db.get_system_state(cursor_key)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        if not last_raw:
+            # Prime cursor so restart does not replay historical transfers.
+            await self.db.set_system_state(cursor_key, str(now_ms))
+            return
+
+        last_ms = int(float(last_raw))
+        # Slight overlap; dedupe via wallet_transfers UNIQUE/lookup.
+        start_ms = max(0, last_ms - 1000)
+        rows = await self.rest_client.get_income(
+            income_type="TRANSFER",
+            start_time=start_ms,
+            limit=100,
+        )
+        if not isinstance(rows, list):
+            return
+
+        max_ms = last_ms
+        for row in sorted(rows, key=lambda r: int(r.get("time") or 0)):
+            t_ms = int(row.get("time") or 0)
+            if t_ms <= last_ms:
+                continue
+            amount = float(row.get("income") or 0.0)
+            if amount == 0:
+                max_ms = max(max_ms, t_ms)
+                continue
+            asset = str(row.get("asset") or "USDT")
+            direction = "in" if amount > 0 else "out"
+            info = str(row.get("info") or "")
+            tran_id = row.get("tranId") or row.get("tran_id")
+            saved = await self.db.save_wallet_transfer(
+                tran_id=str(tran_id) if tran_id is not None else None,
+                asset=asset,
+                amount=amount,
+                direction=direction,
+                income_type=str(row.get("incomeType") or "TRANSFER"),
+                event_time_ms=t_ms,
+                info=info,
+                equity_after=equity_after if equity_after > 0 else None,
+            )
+            if saved:
+                logger.info(
+                    "Futures wallet transfer noted",
+                    direction=direction,
+                    amount=amount,
+                    asset=asset,
+                    event_time_ms=t_ms,
+                    equity_after=equity_after,
+                )
+                await self.alerts.futures_transfer_alert(
+                    direction=direction,
+                    amount=amount,
+                    asset=asset,
+                    equity_after=equity_after if equity_after > 0 else None,
+                    info=info,
+                )
+            max_ms = max(max_ms, t_ms)
+
+        if max_ms > last_ms:
+            await self.db.set_system_state(cursor_key, str(max_ms))
 
     def _get_state_snapshot(self) -> dict:
         """State for Telegram /status command."""

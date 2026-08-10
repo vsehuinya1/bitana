@@ -147,3 +147,29 @@ class TelegramAlerts:
             f"Config: <code>{config_checksum[:12]}...</code>"
         )
 
+    async def futures_transfer_alert(
+        self,
+        *,
+        direction: str,
+        amount: float,
+        asset: str,
+        equity_after: float | None = None,
+        info: str = "",
+    ) -> None:
+        """Notify spot ↔ USDT-M futures wallet transfer."""
+        if direction == "in":
+            title = "FUTURES TRANSFER IN"
+            emoji = "📥"
+        else:
+            title = "FUTURES TRANSFER OUT"
+            emoji = "📤"
+        lines = [
+            f"{emoji} <b>{title}</b>",
+            f"Amount: <code>{amount:+.4f} {asset}</code>",
+        ]
+        if equity_after is not None:
+            lines.append(f"Futures wallet after: <code>${equity_after:.2f}</code>")
+        if info:
+            lines.append(f"Info: <code>{info}</code>")
+        await self.warning("\n".join(lines))
+

@@ -300,22 +300,70 @@ class PositionManager:
 
         return closed_trades
 
+    async def record_external_close(
+        self,
+        pos: Position,
+        exit_price: float,
+        reason: str = "external_close",
+        commission: float = 0.0,
+        filled_qty: float | None = None,
+    ) -> Optional[TradeRecord]:
+        """Book a close for a position already flat on the exchange.
+
+        Does not place an order — used when reconciliation finds a local-only
+        ghost (manual flat, liquidation, or external reduce).
+        """
+        if pos.state in (PositionState.CLOSED, PositionState.CANCELLED):
+            return None
+        qty = filled_qty if filled_qty is not None else pos.quantity
+        if qty <= 0 or exit_price <= 0:
+            logger.critical(
+                "Cannot book external close without qty/price",
+                trade_uuid=pos.trade_uuid, symbol=pos.symbol,
+                qty=qty, exit_price=exit_price,
+            )
+            return None
+        return await self._finalize_close(
+            pos, exit_price=exit_price, filled_qty=qty,
+            commission=commission, reason=reason, trigger_price=exit_price,
+        )
+
     async def _close_position(
         self, pos: Position, exit_price: float, reason: str,
     ) -> Optional[TradeRecord]:
-        """Fully close a position and create trade record."""
+        """Fully close a position via exchange exit order and create trade record."""
         result = await self._orders.execute_exit(pos, pos.quantity, reason=reason)
         if not result:
             return None
 
         actual_exit = result.avg_fill_price if result.avg_fill_price > 0 else exit_price
+        return await self._finalize_close(
+            pos,
+            exit_price=actual_exit,
+            filled_qty=result.filled_qty,
+            commission=result.commission,
+            reason=reason,
+            trigger_price=exit_price,
+        )
+
+    async def _finalize_close(
+        self,
+        pos: Position,
+        *,
+        exit_price: float,
+        filled_qty: float,
+        commission: float,
+        reason: str,
+        trigger_price: float,
+    ) -> TradeRecord:
+        """Shared PnL accounting + persistence after a fill is known."""
         exit_slippage_bps = 0.0
-        if exit_price > 0 and actual_exit > 0:
-            exit_slippage_bps = abs(actual_exit - exit_price) / exit_price * 10000
+        if trigger_price > 0 and exit_price > 0:
+            exit_slippage_bps = abs(exit_price - trigger_price) / trigger_price * 10000
         entry_slip = float((pos.signal_data or {}).get("entry_slippage_bps") or 0.0)
-        pnl = self._calc_pnl(pos, actual_exit, result.filled_qty)
+        pnl = self._calc_pnl(pos, exit_price, filled_qty)
         total_pnl = pos.realized_pnl + pnl
-        total_commission = pos.commission_total + result.commission
+        total_commission = pos.commission_total + commission
 
         hold_time = 0.0
         if pos.entry_time:
@@ -323,7 +371,7 @@ class PositionManager:
 
         stop_dist = abs(pos.entry_price - pos.initial_stop)
         net_pnl = total_pnl - total_commission - pos.funding_fees
-        initial_risk = stop_dist * result.filled_qty
+        initial_risk = stop_dist * filled_qty
         pnl_r = net_pnl / initial_risk if initial_risk > 0 else 0.0
 
         trade = TradeRecord(
@@ -332,8 +380,8 @@ class PositionManager:
             symbol=pos.symbol,
             side=pos.side,
             entry_price=pos.entry_price,
-            exit_price=actual_exit,
-            quantity=result.filled_qty,
+            exit_price=exit_price,
+            quantity=filled_qty,
             leverage=pos.leverage,
             initial_stop=pos.initial_stop,
             commission=total_commission,
@@ -346,7 +394,7 @@ class PositionManager:
             exit_reason=reason,
             signal_data={
                 **(pos.signal_data or {}),
-                "exit_trigger_price": exit_price,
+                "exit_trigger_price": trigger_price,
                 "exit_slippage_bps": exit_slippage_bps,
             },
         )

@@ -92,7 +92,9 @@ POLL_INTERVAL_S = 15
 TAKER_BPS = 4.5
 SLIP_BPS = 2.0
 DB_PATH = Path("storage/v5_forward_test.db")
-FORCE_ORDER_DB_PATH = Path("storage/force_orders.db")
+# Paper must NOT share live's force_orders.db — two writers wedge SQLite and
+# kill intraday burst shadow (observed Jul 31 2026: FO WAL grew, burst tape died).
+FORCE_ORDER_DB_PATH = Path("storage/force_orders_paper.db")
 DAILY_REPORT_HOUR = 8
 DAILY_REPORT_MINUTE = 5
 NY_SESSION_REPORT_HOUR = 22
@@ -414,9 +416,10 @@ class ForceOrderDatabase:
 
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(path))
+        self.conn = sqlite3.connect(str(path), timeout=30.0, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=30000")
         self._init()
 
     def _init(self):
@@ -452,6 +455,12 @@ class ForceOrderDatabase:
             (before_ms,),
         )
         self.conn.commit()
+
+    def rollback(self):
+        try:
+            self.conn.rollback()
+        except Exception:
+            pass
 
     def close(self):
         self.conn.close()
@@ -1547,6 +1556,12 @@ class V5ForwardTest:
             except Exception as e:
                 if self._shutdown.is_set():
                     break
+                # Aborted SQLite txn must be cleared or every later FO read/write fails.
+                self.force_order_db.rollback()
+                try:
+                    self.db.conn.rollback()
+                except Exception:
+                    pass
                 logger.error("Liquidation WebSocket error or disconnect, reconnecting in 5s...", error=str(e))
                 await asyncio.sleep(5)
 

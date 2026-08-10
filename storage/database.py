@@ -138,6 +138,20 @@ CREATE TABLE IF NOT EXISTS system_state (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS wallet_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tran_id TEXT,
+    asset TEXT NOT NULL,
+    amount REAL NOT NULL,
+    direction TEXT NOT NULL,
+    income_type TEXT NOT NULL,
+    event_time_ms INTEGER NOT NULL,
+    info TEXT DEFAULT '',
+    equity_after REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tran_id, event_time_ms, amount)
+);
+
 CREATE INDEX IF NOT EXISTS idx_signals_trade_uuid ON signals(trade_uuid);
 CREATE INDEX IF NOT EXISTS idx_orders_trade_uuid ON orders(trade_uuid);
 CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol);
@@ -412,3 +426,47 @@ class Database:
             "SELECT value FROM system_state WHERE key = ?", (key,)
         )
         return row["value"] if row else None
+
+    # ------------------------------------------------------------------
+    # Futures wallet transfers (spot ↔ USDT-M)
+    # ------------------------------------------------------------------
+
+    async def save_wallet_transfer(
+        self,
+        *,
+        tran_id: str | None,
+        asset: str,
+        amount: float,
+        direction: str,
+        income_type: str,
+        event_time_ms: int,
+        info: str = "",
+        equity_after: float | None = None,
+    ) -> bool:
+        """Persist a futures wallet transfer. Returns False if duplicate."""
+        tid = (tran_id or "").strip() or f"{event_time_ms}:{amount}:{asset}"
+        existing = await self._read_one(
+            """SELECT id FROM wallet_transfers
+               WHERE tran_id = ? AND event_time_ms = ? AND amount = ?""",
+            (tid, event_time_ms, amount),
+        )
+        if existing:
+            return False
+        await self._write(
+            """INSERT INTO wallet_transfers
+               (tran_id, asset, amount, direction, income_type,
+                event_time_ms, info, equity_after, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                tid,
+                asset,
+                amount,
+                direction,
+                income_type,
+                event_time_ms,
+                info,
+                equity_after,
+                datetime.utcnow().isoformat(),
+            ),
+        )
+        return True
