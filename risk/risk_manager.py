@@ -119,23 +119,33 @@ class RiskManager:
         # positions can be funded. margin = notional / leverage, and we want
         # margin <= equity / max_concurrent_positions, hence
         # leverage >= max_concurrent_positions * notional / equity.
-        # Leverage never changes the loss at stop — only the margin locked up.
+        # Leverage never changes the loss at stop by itself — only the margin
+        # locked up. If max_leverage still cannot fund the target risk inside
+        # one slot, quantity is reduced (risk in $ falls) so concurrent slots
+        # remain fundable (avoids "insufficient margin for concurrent positions").
         slots = max(self._cfg.portfolio.max_concurrent_positions, 1)
         required_leverage = slots * notional / equity if equity > 0 else 1
         leverage = min(math.ceil(required_leverage), self._cfg.risk.max_leverage)
         leverage = max(leverage, 1)
 
-        # Liquidation proximity check
-        available_margin = equity  # simplified for cross margin
         liq_buffer = self._cfg.risk.liquidation_buffer_pct
-        max_notional = available_margin * leverage * (1 - liq_buffer)
+        # Reserve 1/slots of equity as initial margin per position (cross).
+        slot_margin = equity / slots if equity > 0 else 0.0
+        max_notional = slot_margin * leverage * (1 - liq_buffer)
 
-        if notional > max_notional:
+        if notional > max_notional and entry_price > 0:
+            old_notional = notional
             quantity = max_notional / entry_price
+            notional = max_notional
+            new_risk = quantity * stop_distance
             logger.warning(
-                "Position reduced for liquidation buffer",
-                original_notional=notional,
-                max_notional=max_notional,
+                "Position reduced for concurrent margin slot",
+                original_notional=round(old_notional, 4),
+                max_notional=round(max_notional, 4),
+                slots=slots,
+                leverage=leverage,
+                risk_amount_target=round(risk_amount, 4),
+                risk_amount_actual=round(new_risk, 4),
             )
 
         if quantity <= 0:
@@ -145,9 +155,15 @@ class RiskManager:
             "Position sized",
             equity=round(equity, 2),
             risk_pct=risk_pct,
-            risk_amount=round(risk_amount, 2),
+            risk_amount=round(quantity * stop_distance, 2),
+            risk_pct_effective=round(
+                (quantity * stop_distance / equity) * 100.0, 2
+            )
+            if equity > 0
+            else 0.0,
             stop_dist=round(stop_distance, 4),
             quantity=round(quantity, 6),
             leverage=leverage,
+            margin_est=round(notional / leverage, 2) if leverage else 0.0,
         )
         return quantity, leverage

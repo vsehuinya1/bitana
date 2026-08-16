@@ -56,6 +56,10 @@ from research.v65_monitoring import (
 )
 from tg_bot.alerts import TelegramAlerts
 
+# Paper/shadow shares the live Telegram chat — mute by default so only live alerts.
+# Set V5_TELEGRAM=1 to re-enable session/daily reports.
+_V5_TELEGRAM_ENABLED = os.getenv("V5_TELEGRAM", "0").strip().lower() in ("1", "true", "yes")
+
 # Research telemetry — purely observational, never affects trading
 try:
     from research.v6_telemetry import TelemetryDB
@@ -506,10 +510,15 @@ class V5ForwardTest:
         self.db = V5Database(DB_PATH)
         self.force_order_db = ForceOrderDatabase(FORCE_ORDER_DB_PATH)
         self.engine = LiqClusterEngineV5()
-        self.alerts = TelegramAlerts(
-            self.app_cfg.secrets.telegram_bot_token,
-            self.app_cfg.secrets.telegram_chat_id,
-        )
+        if _V5_TELEGRAM_ENABLED:
+            self.alerts = TelegramAlerts(
+                self.app_cfg.secrets.telegram_bot_token,
+                self.app_cfg.secrets.telegram_chat_id,
+            )
+        else:
+            # Empty token → TelegramAlerts no-ops (shadow collection continues).
+            self.alerts = TelegramAlerts("", "")
+            logger.info("V5 Telegram muted (set V5_TELEGRAM=1 to enable reports)")
         self.rl = RateLimiterGroup()
         self.rest = BinanceRestClient(testnet=False, rate_limiter=self.rl)
 

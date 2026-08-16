@@ -61,6 +61,38 @@ def test_entry_stops_and_alerts_when_leverage_is_rejected(sample_config):
     alerts.critical.assert_awaited_once()
 
 
+def test_entry_soft_skips_when_quantity_rounds_to_zero(sample_config):
+    config = sample_config.model_copy(deep=True)
+    config.mode = "live"
+    executor = MagicMock()
+    executor.set_leverage = AsyncMock()
+    executor.place_order = AsyncMock()
+    symbol_info = MagicMock()
+    symbol_info.round_quantity.return_value = 0.0
+    database = MagicMock()
+    database.save_order = AsyncMock()
+    alerts = MagicMock()
+    alerts.critical = AsyncMock(return_value=True)
+    alerts.warning = AsyncMock(return_value=True)
+    manager = OrderManager(executor, symbol_info, config, database, alerts)
+    signal = Signal(
+        engine=EngineType.LIQ_BURST_FOLLOW,
+        symbol="BTCUSDT",
+        side=Side.SHORT,
+        entry_price=64000.0,
+        stop_price=64600.0,
+    )
+
+    result = asyncio.run(manager.execute_entry(signal, quantity=0.0004, leverage=10))
+
+    assert result is None
+    assert manager.last_soft_reject is True
+    executor.set_leverage.assert_not_awaited()
+    executor.place_order.assert_not_awaited()
+    alerts.critical.assert_not_awaited()
+    alerts.warning.assert_awaited_once()
+
+
 def test_entry_soft_skips_on_insufficient_margin(sample_config):
     config = sample_config.model_copy(deep=True)
     config.mode = "live"

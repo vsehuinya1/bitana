@@ -6,7 +6,7 @@
 #   - Plain time exit beats TSL on both books
 #   - NY skips Mondays and weekends (UTC)
 #   - Asia skips weekends Sat/Sun UTC bar time (Jul 19)
-#   - 8% risk per position (ops bump Jul 23; uncommitted until confirmed)
+#   - 10% risk per position (ops bump Aug 11); max_leverage 100 (Aug 12) so slot sizing can reach target
 #   - Live gate: NY neutral+bear full-session; Asia neutral+bull (Jul 22 retune)
 
 config_version: "1.1.1"
@@ -30,7 +30,7 @@ symbols:
     - ADAUSDT
     - UNIUSDT
   defaults:
-    risk_pct: 8.0
+    risk_pct: 10.0
 
 timeframes:
   regime: "15m"
@@ -38,11 +38,11 @@ timeframes:
   confirmation: "1m"
 
 risk:
-  default_risk_pct: 8.0
-  reduced_risk_pct: 4.0
+  default_risk_pct: 10.0
+  reduced_risk_pct: 5.0
   drawdown_reduce_threshold: 0.15
   drawdown_restore_threshold: 0.10
-  max_leverage: 10
+  max_leverage: 100
   liquidation_buffer_pct: 0.05
 
 brakes:
@@ -140,13 +140,16 @@ squeeze:
 
 burst_follow:
   enabled: true
-  force_order_db_path: storage/force_orders.db
+  # Paper owns the !forceOrder@arr WS writer (force_orders_paper.db). Live must
+  # not open a second WS on the same IP — Binance only feeds one client, which
+  # left live's DB stale after FO isolation (Tue Asia blind). Read paper FO DB.
+  force_order_db_path: storage/force_orders_paper.db
   force_order_read_only: true
   liq_cache_db_path: storage/v5_forward_test.db
   min_burst_volume_30m: 20000
   min_burst_events_30m: 3
   dedup_bars: 3
-  risk_pct: 8.0
+  risk_pct: 10.0
   btc_regime_gate_enabled: true
   allowed_btc_regimes: ["neutral", "bear"]
   session_rules:

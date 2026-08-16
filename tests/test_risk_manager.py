@@ -90,7 +90,7 @@ class TestMarginReserve:
         assert lev >= 2
 
     def test_risk_at_stop_unchanged_by_leverage(self, risk_mgr):
-        # Leverage only affects margin, never the loss taken at the stop.
+        # Leverage only affects margin when slot fits; may cut qty if lever capped.
         risk_mgr.update_equity(19.0)
         risk_mgr.state.risk_pct_active = 4.0
         qty, _ = risk_mgr.calculate_position_size(
@@ -98,6 +98,53 @@ class TestMarginReserve:
         )
         loss_at_stop = qty * abs(578.0 - 554.0)
         assert loss_at_stop == pytest.approx(19.0 * 0.04, rel=1e-6)
+
+    def test_size_reduces_when_max_leverage_blocks_slots(self, risk_mgr, config):
+        # Live ZEC regression: risk_pct=15, stop ~3% of price, max_leverage=10,
+        # max_concurrent=3 → required lev ~14–15; without size-down margin locked
+        # ~half equity and 2nd/3rd entries hit insufficient margin.
+        config.portfolio.max_concurrent_positions = 3
+        config.risk.max_leverage = 10
+        config.risk.liquidation_buffer_pct = 0.05
+        risk_mgr.update_equity(15.26)
+        risk_mgr.state.risk_pct_active = 15.0
+        qty, lev = risk_mgr.calculate_position_size(
+            equity=15.26,
+            entry_price=475.5,
+            stop_price=489.62,
+            symbol_risk_pct=15.0,
+        )
+        assert lev == 10
+        slots = 3
+        margin = (qty * 475.5) / lev
+        assert margin <= 15.26 / slots + 1e-6
+        # Full 15% risk would need > slot margin at 10x — effective risk cut.
+        stop_dist = abs(489.62 - 475.5)
+        risk_actual = qty * stop_dist
+        assert risk_actual < 15.26 * 0.15 - 1e-9
+        # Three identical slots still fit under full equity (with buffer).
+        assert 3 * margin <= 15.26 * (1 - 0.05) + 1e-6
+
+    def test_higher_max_leverage_preserves_full_risk_for_slots(self, risk_mgr, config):
+        # With max_leverage=50, same ZEC params should keep full 15% risk and
+        # still fit 3 concurrent margin slots (required lev ~15).
+        config.portfolio.max_concurrent_positions = 3
+        config.risk.max_leverage = 50
+        config.risk.liquidation_buffer_pct = 0.05
+        risk_mgr.update_equity(15.26)
+        risk_mgr.state.risk_pct_active = 15.0
+        qty, lev = risk_mgr.calculate_position_size(
+            equity=15.26,
+            entry_price=475.5,
+            stop_price=489.62,
+            symbol_risk_pct=15.0,
+        )
+        stop_dist = abs(489.62 - 475.5)
+        risk_actual = qty * stop_dist
+        assert risk_actual == pytest.approx(15.26 * 0.15, rel=1e-6)
+        assert 2 <= lev <= 50
+        margin = (qty * 475.5) / lev
+        assert margin <= 15.26 / 3 + 1e-6
 
 
 class TestDrawdownAdjustment:

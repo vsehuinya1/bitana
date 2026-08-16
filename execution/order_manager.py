@@ -129,10 +129,15 @@ class OrderManager:
         # Round quantity
         quantity = self._sym_info.round_quantity(symbol, quantity)
         if quantity <= 0:
-            logger.warning("Quantity rounded to zero", symbol=symbol)
-            await self._critical_order_failure(
-                "ENTRY", symbol, detail="Quantity rounded to zero",
-            )
+            # Too small for LOT_SIZE/minQty after sizing (tiny equity / high
+            # price / margin slot). Soft-skip — do not pause the whole book.
+            self.last_soft_reject = True
+            logger.warning("Quantity rounded to zero — entry skipped", symbol=symbol)
+            if self._cfg.mode == "live" and self._alerts is not None:
+                await self._alerts.warning(
+                    f"Entry skipped ({symbol}): quantity rounded to zero "
+                    f"(below exchange min lot)"
+                )
             return None
 
         # Set leverage first
