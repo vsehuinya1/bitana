@@ -255,6 +255,7 @@ class LiqBurstFollowEngine:
         *,
         burst: dict | None = None,
         btc_regime: str | None = None,
+        btc_regime_age_bars: int | None = None,
     ) -> Signal | None:
         if burst is None:
             return None
@@ -283,6 +284,22 @@ class LiqBurstFollowEngine:
                 logger.debug(
                     "Burst session skip", symbol=symbol, session=f["session"],
                     reason="btc_regime_gate", btc_regime=btc_regime, allowed=allowed,
+                )
+                return None
+
+        max_age = rule.max_regime_age_bars or self.cfg.max_regime_age_bars
+        if max_age is not None:
+            if btc_regime_age_bars is None:
+                logger.debug(
+                    "Burst session skip", symbol=symbol, session=f["session"],
+                    reason="btc_regime_age_unknown",
+                )
+                return None
+            if btc_regime_age_bars > max_age:
+                logger.debug(
+                    "Burst session skip", symbol=symbol, session=f["session"],
+                    reason="btc_regime_age_gate",
+                    regime_age_bars=btc_regime_age_bars, max_age_bars=max_age,
                 )
                 return None
 

@@ -1,6 +1,6 @@
 # Bitana Research Plan
 
-_Last updated: Sat 2026-08-01. Live config: v1.1.1 (`bf434ed`)._
+_Last updated: Sun 2026-08-16. Live config: v1.1.1 (`bf434ed`; Asia neutral-only + NY h16-17 pilot uncommitted). Register expanded to max 10._
 _Companion prompt for deep research sessions: `research/QUANT_RESEARCH_PROMPT.md`._
 _Weekend block artifacts: `research/output/reports/stop_variant_first_read_2026-08-01.csv`, `hmm_oos_validation_2026-08-01.csv`, `hmm_oos_decision_2026-08-01.json`, `weekend_aug1_bundle.json`. Runner: `research/weekend_aug1_analysis.py`._
 
@@ -20,7 +20,7 @@ Single source of truth for what we test, when, and how results get promoted into
 5. Selection windows never overlap evaluation windows.
 6. Sample floors: no conclusion on < 15 cap-3 accepted trades or < 5 distinct days
    (regime-split cells: ≥ 3 days). Top day may contribute ≤ 40% of net.
-7. Max 5 active hypotheses at once. Live config changes ship at week boundaries
+7. Max 10 active hypotheses at once. Live config changes ship at week boundaries
    (Mondays), except safety cuts.
 8. **Research integrity:** do not use the shared historical `would_live_accept`
    column for promotion decisions on trades opened before the Jul 23 fix. From
@@ -183,10 +183,10 @@ Notes:
    its pre-registered criteria. One decision per hypothesis per week — no daily
    peeking for promotion decisions (daily ops monitoring is separate).
 4. **New hypotheses:** pre-register BEFORE computing outcomes; must state the
-   mechanism (who is on the other side, why does the effect persist). Cap: 5 active.
+   mechanism (who is on the other side, why does the effect persist). Cap: 10 active.
 5. **Ship:** approved live changes deploy Monday. Update the decision log.
 
-## Active register (max 5)
+## Active register (max 10)
 
 | Hypothesis | Gate | Next checkpoint | Kill criteria |
 |---|---|---|---|
@@ -195,20 +195,23 @@ Notes:
 | Bull Asia short | provisional live at 4%; formal G1 → G2 | current bull/neutral window review (Asia live-like Jul20–30 still red) | negative in next / current multi-day bull window |
 | NY quality floor (`follow_3h_all` ∩ session=ny vs `ny_flush_buy_4h`) | G0 | after ≥ 15 post-fix accepted OOS; Aug review | < +0.5 ATR improvement vs paired baseline, or candidate < +1.0, or day-concentrated |
 | London `follow_3h_london` + Late `fade_6h_late` expansion | G0; quality floor active | Aug 9 earliest if ≥ 20 fresh OOS | concentration fails; or no fills for 2 weeks → park |
+| 1h time-exit variants (`ny_flush_buy_1h`, `asia_pump_short_1h`, t12) | G0 | after ≥ 15 post-fix accepted OOS each | < baseline 4h paired Δavg, or day-concentrated |
+| Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, gate inert) | Aug 23 read; enable only after OOS confirm | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0) |
+| NY scale-in +0.5 ATR @ 1h | G0 | Aug 16–23 (needs n ≥ 30) | scale-in net ≤ plain single-entry, or day-concentrated |
+| Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
+| Funding-rate / OI-delta conditioning | G0 | Aug 16 (≥ 3 wk enriched fields) | conditioning adds < +0.5 ATR vs baseline, or unstable sign across weeks |
+| Cluster breadth / market-wide liq flow filter | G0 | Sep 6 checkpoint (after candidate cap-3 trusted) | no incremental edge vs single-symbol cap-3, or concentration fails |
 
-**Open register slot:** 1 free after HMM kill. Candidates only via pre-registration
-before outcome compute. Do not auto-fill.
+**Open register slot:** 0 free (10 active). Candidates only via pre-registration before
+outcome compute. Do not auto-fill — a new candidate requires killing or promoting one.
 
 ## Measurement / backlog (not active promotion)
 
 | Item | Status | Notes |
 |---|---|---|
-| Asia/NY weekend tradability | live off; shadow continues | Aug 16 / Sep 6 reads |
 | Age throttle (4% if neutral > 64h) | live | weekly; remove if >64h cells not worse 3 weeks |
 | Regime-detector audit | measurement | 14k+ snapshots in `v6_telemetry.db`; report lag/flips/transition-zone PnL; do not retune on same window |
 | Asia partial 50% @ +2 ATR at 1h | measurement | week of Jul 27 OOS check |
-| NY scale-in +0.5 ATR @ 1h | backlog | ~Aug 16 if n ≥ 30 |
-| Portfolio / same-side / cluster gates | backlog | after candidate-specific cap-3 is trusted; expect portfolio DD help more than avg R |
 | Asia limit-entry (−1.5 ATR) | already shadow-logging | research-only until live limit path exists |
 | Symbol allowlist / fee micro / MAE-peak exits | ignore for now | noise / non-executable as tested |
 | TSL / 24h hold enablement | killed / ignore | plain time exits win on current books |
@@ -223,8 +226,6 @@ pre-promotion shadow evidence only; quality-floor Late has had no fills since
 
 ## Backlog (unscheduled — pre-register before touching)
 
-- Funding-rate / OI-delta conditioning (enriched fields since Jul 14; ≥ 3 weeks by mid-Aug).
-- Cluster breadth / market-wide liq flow as entry filters.
 - Symbol heterogeneity / whitelists (needs per-symbol n ≥ 30).
 - Proper MDP sizing with portfolio state — only after ≥ 2 months of live PnL.
 - HMM state/confidence as live-logged columns — only if HMM gate reaches G3.
@@ -264,3 +265,33 @@ pre-promotion shadow evidence only; quality-floor Late has had no fills since
   in window; relative winner s4 (Asia paired Δavg +0.38, NY +0.21) via more stops,
   not a green edge. s6/s8 no clear win. NY only 4 live-like days (need ≥5). Keep
   10 ATR live through Aug 30 G2 gate. CSVs: `stop_variant_*_2026-08-01.csv`.
+- **Aug 16 — Asia regime filter: neutral-only.** Drop `bull` from live
+  `allowed_btc_regimes` (`live_burst_ny_asia.yaml`). Bull-Asia insufficient
+  evidence (n=142 blocked live, regime frequency low); neutral carries the edge.
+  Revisit on next multi-day bull window.
+- **Aug 16 — NY hours pilot: [16,17].** Shift live NY window from [14,15] to
+  [16,17] (`live_burst_ny_asia.yaml`). Variance scan shows h16-17 edge; full-session
+  reverted. Revisit after OOS accumulation.
+- **Aug 16 — Regime age gate: plumbing added (inert).** Added `max_regime_age_bars`
+  to `SessionBurstRule` + `LiqBurstFollowConfig`, engine age gate, and
+  `compute_regime_age_bars` wiring in `main.py`. Default `None` = no-op, so live
+  behaviour unchanged until explicitly enabled. Motivation: variance scan toxic cell
+  neutral 24-48h NY −0.75 R (n=623). Enable only behind a pre-registered threshold
+  + OOS confirmation.
+- **Aug 16 — 1h time-exit variants registered (G0).** Added `ny_flush_buy_1h` and
+  `asia_pump_short_1h` (time_bars=12) to shadow. Motivation: ~70% of winners peak by
+  bar 6 (1.5h); 48-bar (4h) exit holds too long. Shadow-only until G0 read.
+- **Aug 16 — CORRECTION + 2h variants added.** The "~70% peak by bar 6" premise was
+  DISPROVEN on direct measurement: winner mean MFE peak = bar 32 (8h), only 3–6% of
+  winners peak within 6 bars. Added `ny_flush_buy_2h` + `asia_pump_short_2h`
+  (time_bars=24) as the primary candidate horizon. **Data-integrity note:** the
+  `pnl_1h`/`pnl_2h` (and `mae_*`/`mfe_*`) checkpoint columns in `shadow_trades` are
+  NOT usable for time-exit inference — they're written only when the shadow logger
+  ticks at EXACTLY `bars_held in {12,24}` (PNL) or `{36,72,...}` (MAE/MFE), so they
+  are logger-uptime-gapped and their coverage is anti-correlated with performance
+  (bare windows Jul 6–14, Aug 1–7 = the strongest weeks). Time-exit hypothesis is
+  therefore answered by shadow-logging 1h/2h/4h as REAL strategy variants, where
+  `pnl_atr` is the unconditional primary exit value, not a best-effort checkpoint.
+  Also added London follow 1h/2h variants (`follow_1h_london`, `follow_2h_london`)
+  against the 3h baseline, and NY/Asia 2h (`ny_flush_buy_2h`, `asia_pump_short_2h`)
+  as the primary candidate horizon.

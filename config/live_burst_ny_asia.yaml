@@ -159,7 +159,7 @@ burst_follow:
       neg_imb_only: true
       min_imb: 0.5
       exclude_weekdays: [5, 6]
-      allowed_btc_regimes: ["neutral", "bull"]
+      allowed_btc_regimes: ["neutral"]
       stop_atr: 10.0
       tp_atr: 999.0
       time_bars: 48
@@ -175,8 +175,8 @@ burst_follow:
       pos_imb_only: true
       min_imb: 0.5
       exclude_weekdays: [0, 5, 6]
-      hours: [14, 15]
-      allowed_btc_regimes: ["neutral", "bear"]
+      hours: [16, 17]
+      allowed_btc_regimes: ["neutral"]
       stop_atr: 10.0
       tp_atr: 999.0
       time_bars: 48

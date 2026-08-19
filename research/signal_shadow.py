@@ -223,6 +223,17 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
         **_FOLLOW_QUALITY,
     ),
+    # G0 (Aug 16): 1h/2h time-exit variants of London follow (baseline is 3h).
+    ShadowStrategy(
+        "follow_1h_london", "burst", "follow", 10.0, 999.0, time_bars=12,
+        sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
+    ),
+    ShadowStrategy(
+        "follow_2h_london", "burst", "follow", 10.0, 999.0, time_bars=24,
+        sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
+        **_FOLLOW_QUALITY,
+    ),
     ShadowStrategy(
         "follow_6h_london", "burst", "follow", 10.0, 999.0, time_bars=72,
         sessions=frozenset({"london"}), pos_imb_only=True, time_exit_only=True,
@@ -278,6 +289,19 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
     ),
+    # G0 (Aug 16): 1h time-exit variant. NOTE: prior "~70% peak by bar 6" claim
+    # was disproven (winner mean MFE peak = bar 32; only 3-6% peak within 6 bars).
+    # Logging 1h/2h/4h as real strategy variants so pnl_atr is the PRIMARY exit
+    # value (unconditional at close), NOT the checkpoint columns (pnl_1h/pnl_2h),
+    # which are logger-uptime-gapped and anti-correlated with performance.
+    ShadowStrategy(
+        "ny_flush_buy_1h", "burst", "follow", 10.0, 999.0, time_bars=12,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "ny_flush_buy_2h", "burst", "follow", 10.0, 999.0, time_bars=24,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
     # Full-session NY stop ladder (pairs with live ny_flush_buy_4h, not open-window).
     ShadowStrategy(
         "ny_flush_buy_4h_s4", "burst", "follow", 4.0, 999.0, time_bars=48,
@@ -302,6 +326,15 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     # Asia short-liq squeeze: after price pumps on short liquidations, short the pump (4h only).
     ShadowStrategy(
         "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    # G0 (Aug 16): 1h time-exit variant of the Asia pump short.
+    ShadowStrategy(
+        "asia_pump_short_1h", "burst", "follow", 10.0, 999.0, time_bars=12,
+        sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+    ),
+    ShadowStrategy(
+        "asia_pump_short_2h", "burst", "follow", 10.0, 999.0, time_bars=24,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
     ),
     ShadowStrategy(

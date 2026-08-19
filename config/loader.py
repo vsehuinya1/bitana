@@ -62,6 +62,9 @@ class SessionBurstRule(BaseModel):
     trail_trigger_r: float | None = None
     # When set, overrides burst_follow.allowed_btc_regimes for this session only.
     allowed_btc_regimes: list[str] | None = None
+    # When set, skip entries whose BTC regime age (4h bars since last flip)
+    # exceeds this many bars. None = no age gate.
+    max_regime_age_bars: int | None = None
 
 
 class LiqBurstFollowConfig(BaseModel):
@@ -86,6 +89,7 @@ class LiqBurstFollowConfig(BaseModel):
     risk_pct: float = 4.0
     btc_regime_gate_enabled: bool = False
     allowed_btc_regimes: list[str] = Field(default_factory=lambda: ["bear"])
+    max_regime_age_bars: int | None = None
     session_rules: dict[str, SessionBurstRule] = Field(default_factory=dict)
 
 

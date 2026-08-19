@@ -39,7 +39,7 @@ from data.candle_manager import CandleManager
 from data.rate_limiter import RateLimiterGroup
 from data.symbol_info import SymbolInfoManager
 from engines.compression_breakout import CompressionBreakoutEngine
-from engines.btc_regime import compute_btc_regime
+from engines.btc_regime import compute_btc_regime, compute_regime_age_bars
 from engines.liq_burst_follow_engine import BurstFollowState, LiqBurstFollowEngine
 from engines.regime_filter import RegimeFilter
 from engines.squeeze_engine import SqueezeEngine
@@ -111,6 +111,7 @@ class Bitana:
         self.force_pipeline: ForceOrderPipeline | None = None
         self._btc_regime: str | None = None
         self._btc_regime_dist: float | None = None
+        self._btc_regime_age_bars: int | None = None
         self._last_btc_regime_fetch: float = 0.0
         self.health_server: HealthServer = None  # type: ignore
         self.watchdog = Watchdog(config.watchdog.heartbeat_interval_s)
@@ -529,12 +530,14 @@ class Bitana:
             state, dist = compute_btc_regime(candles)
             self._btc_regime = state
             self._btc_regime_dist = dist
+            self._btc_regime_age_bars = compute_regime_age_bars(candles)
             self._last_btc_regime_fetch = time.monotonic()
             logger.info(
                 "BTC regime updated",
                 state=state,
                 dist_pct=dist,
                 bars=len(candles),
+                age_bars=self._btc_regime_age_bars,
             )
         except Exception as e:
             logger.warning("BTC regime refresh failed", error=str(e))
@@ -633,6 +636,7 @@ class Bitana:
                         self.burst_follow_state[symbol],
                         burst=burst_stats,
                         btc_regime=btc_regime,
+                        btc_regime_age_bars=self._btc_regime_age_bars,
                     )
                 else:
                     sig = await engine.evaluate(symbol, candles_5m, candles_15m, candles_1m)
