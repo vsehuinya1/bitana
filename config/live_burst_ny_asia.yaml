@@ -201,6 +201,11 @@ burst_follow:
       #   Aug OOS +0.29R/trade. Exit mix: 92% time (+0.14), 8% TP3 (+3.0), 0 stops.
       #   NOTE Aug 21: time_bars=6 on 5m bars = 30 MINUTES (not 3h; earlier docs wrong).
       #   Validated vs shadow: 5m replay reproduces +32.2R/83, mix 7tp/76time/0sl exactly.
+      # Aug 21 (later): time exit extended 30m -> 120m (time_bars 6 -> 24). Post-exit
+      #   kline counterfactual (142 clean paths, TP3+10ATR kept): mean +0.36R/PF1.89 @30m
+      #   vs +0.75R/PF2.13 @120m; legacy-only n59 same shape (+0.32 -> +0.61). Per-day not
+      #   uniform: Jul-29/Aug-12 degrade ~-2R/day on chop. 360m looks better but is
+      #   morning-entry selection bias. Kill criteria unchanged.
       # Known fragility: Jul16 = 57% of P&L; would_live_accept subset n27 -6.0R (thin).
       # Kill criteria: net/trade < +0.2R after 30 accepted, or top-day > 40% of live P&L -> freeze.
       # No min_decile floor: d1 is best bucket (+17.5R/57).
@@ -213,7 +218,7 @@ burst_follow:
       allowed_btc_regimes: ["bull"]
       stop_atr: 10.0
       tp_atr: 3.0
-      time_bars: 6
+      time_bars: 24
       time_exit_only: false
       min_cascade_strength: 0.0
       min_vol_z: 0.0
