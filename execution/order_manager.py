@@ -140,6 +140,28 @@ class OrderManager:
                 )
             return None
 
+        # Exchange min-notional floor: risk-based sizing can produce
+        # notionals below Binance MIN_NOTIONAL on small equity / wide stops
+        # (-4164). Skip the trade — never inflate size above intended risk.
+        sf = self._sym_info.get_filters(symbol)
+        if sf is not None:
+            est_notional = quantity * signal.entry_price
+            if est_notional < sf.min_notional * 1.02:  # buffer vs fill drift
+                self.last_soft_reject = True
+                logger.warning(
+                    "Entry skipped — notional below exchange minimum",
+                    symbol=symbol,
+                    est_notional=round(est_notional, 2),
+                    min_notional=sf.min_notional,
+                )
+                if self._cfg.mode == "live" and self._alerts is not None:
+                    await self._alerts.warning(
+                        f"Entry skipped ({symbol}): notional {est_notional:.2f} "
+                        f"< exchange min {sf.min_notional:.2f} "
+                        f"(equity too small for stop distance)"
+                    )
+                return None
+
         # Set leverage first
         if not await self._executor.set_leverage(symbol, leverage):
             logger.error("Leverage setup rejected", symbol=symbol, leverage=leverage)

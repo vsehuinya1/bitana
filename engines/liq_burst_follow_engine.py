@@ -303,7 +303,10 @@ class LiqBurstFollowEngine:
                 )
                 return None
 
-        if rule.hours and f["hour"] not in rule.hours:
+        hours = rule.hours
+        if rule.regime_hours and btc_regime in rule.regime_hours:
+            hours = rule.regime_hours[btc_regime]
+        if hours and f["hour"] not in hours:
             return None
 
         bar_time = f["bar_time"]
@@ -327,10 +330,13 @@ class LiqBurstFollowEngine:
 
         entry = f["close"]
         atr = f["atr"]
+        stop_atr = rule.stop_atr
+        if rule.regime_stop_atr and btc_regime in rule.regime_stop_atr:
+            stop_atr = rule.regime_stop_atr[btc_regime]
         if side == Side.LONG:
-            stop_price = entry - rule.stop_atr * atr
+            stop_price = entry - stop_atr * atr
         else:
-            stop_price = entry + rule.stop_atr * atr
+            stop_price = entry + stop_atr * atr
 
         strategy_name = rule.shadow_strategy or f"{rule.side_mode}_{f['session']}"
 
@@ -349,7 +355,7 @@ class LiqBurstFollowEngine:
             "side_mode": rule.side_mode,
             "session": f["session"],
             "cluster_bucket": _cluster_bucket(bar_time),
-            "stop_atr": rule.stop_atr,
+            "stop_atr": stop_atr,
             "tp_atr": rule.tp_atr,
             "time_bars": rule.time_bars,
             "time_exit_only": rule.time_exit_only,

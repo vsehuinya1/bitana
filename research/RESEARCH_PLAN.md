@@ -20,8 +20,9 @@ Single source of truth for what we test, when, and how results get promoted into
 5. Selection windows never overlap evaluation windows.
 6. Sample floors: no conclusion on < 15 cap-3 accepted trades or < 5 distinct days
    (regime-split cells: ≥ 3 days). Top day may contribute ≤ 40% of net.
-7. Max 10 active hypotheses at once. Live config changes ship at week boundaries
-   (Mondays), except safety cuts.
+7. No hard cap on active hypotheses, but each must be pre-registered with a kill
+   criterion. Live config changes ship at week boundaries (Mondays), except
+   safety cuts.
 8. **Research integrity:** do not use the shared historical `would_live_accept`
    column for promotion decisions on trades opened before the Jul 23 fix. From
    Jul 23 onward, `would_live_accept` is strategy-scoped (only that strategy's
@@ -201,9 +202,14 @@ Notes:
 | Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
 | Funding-rate / OI-delta conditioning | G0 | Aug 16 (≥ 3 wk enriched fields) | conditioning adds < +0.5 ATR vs baseline, or unstable sign across weeks |
 | Cluster breadth / market-wide liq flow filter | G0 | Sep 6 checkpoint (after candidate cap-3 trusted) | no incremental edge vs single-symbol cap-3, or concentration fails |
+| Weekend NY h21 bear (`ny_flush_buy_4h`, Sat/Sun, hour 21) | G0 (measure only) | Sep 6 weekend verdict | n<15, or paired Δavg ≤ 0 vs weekday, or top-day >40% |
+| London h12 neutral (`london_burst_fade`) | G0 (measure only) | Sep 6 | top-day >40% (current: Aug19 +3.77R, Jul23 +2.88R dominate), or n<15 |
+| Asia D10 @ h5 retained (`max_decile` NOT applied) | G0 (no code — filter-plan correction) | next variance scan | h5 D10 n<15 or avg<+0.1 after fresh OOS |
+| Monday risk bump (session `risk_multiplier` override) | G0 (plumbing inert) | Aug 25 | Monday premium not reproduced OOS, or WR source fails sample floor |
 
-**Open register slot:** 0 free (10 active). Candidates only via pre-registration before
-outcome compute. Do not auto-fill — a new candidate requires killing or promoting one.
+**Open register slot:** uncapped as of Aug 19. Candidates only via pre-registration
+before outcome compute; every entry must carry a kill criterion. No auto-fill of
+stale cells.
 
 ## Measurement / backlog (not active promotion)
 
@@ -212,7 +218,7 @@ outcome compute. Do not auto-fill — a new candidate requires killing or promot
 | Age throttle (4% if neutral > 64h) | live | weekly; remove if >64h cells not worse 3 weeks |
 | Regime-detector audit | measurement | 14k+ snapshots in `v6_telemetry.db`; report lag/flips/transition-zone PnL; do not retune on same window |
 | Asia partial 50% @ +2 ATR at 1h | measurement | week of Jul 27 OOS check |
-| Asia limit-entry (−1.5 ATR) | already shadow-logging | research-only until live limit path exists |
+| ~~Asia limit-entry (−1.5 ATR)~~ | **KILLED Aug 19** | anti-edge: limit fills after burst has moved; NY bear −0.013R vs market +0.033R, Asia neutral −0.021R vs +0.033R |
 | Symbol allowlist / fee micro / MAE-peak exits | ignore for now | noise / non-executable as tested |
 | TSL / 24h hold enablement | killed / ignore | plain time exits win on current books |
 | Per-regime strategy maps (engine) | engineering backlog | build only after ≥ 2 session×regime cells pass G2 and require different strategies/stops |
@@ -281,6 +287,21 @@ pre-promotion shadow evidence only; quality-floor Late has had no fills since
 - **Aug 16 — 1h time-exit variants registered (G0).** Added `ny_flush_buy_1h` and
   `asia_pump_short_1h` (time_bars=12) to shadow. Motivation: ~70% of winners peak by
   bar 6 (1.5h); 48-bar (4h) exit holds too long. Shadow-only until G0 read.
+- **Aug 19 — Adversarial re-scan (tiered proposals): findings.**
+  (a) **NY bear: KILLED.** live-accept NY SHORT = −0.066R (n=172); every
+  real-n symbol red (SOL −8.06R n=33, ZEC −7.08R n=27, ETH −3.28R n=69).
+  "LUNCUSDT 78% WR" is a non-live-accept sample artifact (symbol absent from
+  the live-accept set). No symbol-weighting scheme rescues a structurally
+  negative book. (b) **Late fade_6h_late: KILLED.** neutral-SHORT n=4,
+  avg +6.97R, 50% WR — the +27.9R "alpha" is ~2 trades. (c) **Limit entry:
+  KILLED** (anti-edge, see backlog). (d) **London h12 london_burst_fade &
+  weekend NY h21 bear: G0 measure-only** — both top-day concentrated.
+  (e) **D10@h5 retained** — no `max_decile` shipped; D10 toxicity is h6-7 only.
+  (f) `risk_multiplier` field added to `SessionBurstRule` (inert, default 1.0).
+  **Equity-scaling gate: NOT activated.** Live book is currently negative-edge
+  (Asia neutral −0.679R, 46.3% WR, n=41); all proposal "high-WR" cells are
+  tiny-n survivors (n=16/18/20/23). WR→sizing requires a WR source clearing
+  sample floor (≥30 closed, ≥5 days, top-day ≤40%) before any value ≠1.0.
 - **Aug 16 — CORRECTION + 2h variants added.** The "~70% peak by bar 6" premise was
   DISPROVEN on direct measurement: winner mean MFE peak = bar 32 (8h), only 3–6% of
   winners peak within 6 bars. Added `ny_flush_buy_2h` + `asia_pump_short_2h`
@@ -295,3 +316,44 @@ pre-promotion shadow evidence only; quality-floor Late has had no fills since
   Also added London follow 1h/2h variants (`follow_1h_london`, `follow_2h_london`)
   against the 3h baseline, and NY/Asia 2h (`ny_flush_buy_2h`, `asia_pump_short_2h`)
   as the primary candidate horizon.
+- **Aug 21 — London bull wired (G0) + NY bull hours reshuffle.** Regime bull
+  (dist_pct ~15%, age 9+). **London:** `burst_follow` LONG h8-13 bull wired live as
+  G0 forward-test — shadow +32.0R/83 (+0.385/trade, WR 64%, 6/8 days pos, Aug OOS
+  +0.29R/trade), SL 10 ATR / TP 3 ATR / 30-min time exit (time_bars=6 on 5m bars — earlier '3h' label was wrong), pos_imb ≥ 0.5, no weekends,
+  min_decile 1 (d1 = best bucket +17.5R/57). `london_burst_fade` REJECTED: edge is
+  100% in its 30 TP hits (+90R) while 113 time-exits bleed −32.7R; h08 alone +36.8R
+  of +45.3R total; Jul15 = 73% of P&L. `follow_3h_london`/`follow_6h_london`: zero
+  bull trades (quality floor never fired in bull). Declared fragility: Jul16 = 57%
+  of burst_follow P&L; would_live_accept subset n=27 −6.0R. Kill: net/trade < +0.2R
+  after 30 accepted, or top-day > 40% of live P&L. **NY bull hours [14,15,17] →
+  [14,16,17]:** h15 dropped (−1.5R avg n5, 0/3 days positive), h16 added (+1.18R
+  avg n6, 2/2 days positive, all-July — thin), h17 retained despite Aug19 = 110% of
+  hour P&L (recent regime evidence positive Aug19-20; existing kill criteria cover).
+  h18 excluded (flat −0.02R n12); h19 watchlisted (+13.4R n9, 4/5 days pos — not
+  wired, re-check after ~2 more bull weeks). TP sensitivity on London (Aug 21, exact 5m-bar replay of all 83 bull trades, validated +32.2R vs +32.0R actual, mix 7tp/76time/0sl):
+  - SL grid @TP3/30min: SL10 +32.2R (0 stops) | SL8 +32.4 (1) | SL6 +34.4 (1) | SL5 +35.4 (1).
+    SL6 delta = ONE trade (id16468, MAE −8.85 → −6 saves 2.9R). No harm, tail-saving, but n=1 event.
+  - TP-up @30min: TP4 +30.1 (1 fill) | TP5/off +27.8 (0 fills) — strictly worse. Max MFE in sample = 3.81 ATR;
+    only 7/83 ever touch 3 inside the 30-min window; zero touch 4. Nothing above 3 fills inside the window.
+  - Post-exit (next 24h after our 30-min exit, n=76): med +3.6 ATR up AND med −7.2 down; 27/76 ran ≥5 up,
+    54/76 fell ≥3. Ripping continues after exit but symmetric — naive longer holds lose (1h +21.9, 2h +7.8,
+    4h +3.3; SL hits during the dip phase).
+  - 8h hold @TP3 = +53.8R but top-3 days = 138% of total (Jul 15/16/21); Aug 12 = −18.2R. Jul-rip artifact, not a rule.
+  - CONCLUSION: keep TP3/30min. SL6 defensible (non-negative, tail-saving) — pre-register before wiring.
+  - G0 candidate: breakeven/trail design to capture post-exit runners without paying the dip; needs shadow first.
+- Aug 21: post-exit tracking WIRED into shadow recorder (signal_shadow.py): post_mfe_atr/post_mae_atr/post_bars
+  columns (24h = 288x5m window after close) + trade_r_path table (per-bar r_high/r_low/r_close, phase open|post).
+  Legacy closed trades stamped elapsed (31,480); only new closes tracked going forward. 83 London bull trades
+  backfilled from klines — cross-check vs manual analysis: median post_mfe 3.63 (manual 3.6), p90 9.06 (9.1),
+  27/76 ran ≥5 ATR, 54/76 fell ≥3 — exact match. Trail/breakeven G0 sims now a SQL join, no external kline pulls.
+TP sensitivity on London: TP=2.0 wash
+  (+32.1R vs +32.0R), TP=1.5 worse (−3.3R) → 3 ATR kept. Stop never binds in-sample
+  (0/83 hits, worst MAE −8.85 once, winners max adverse −3.62) → 10 ATR kept for
+  shadow comparability; s6 variant pre-registerable in shadow if pursued.
+- **Aug 21 (later) — h19 promoted from watchlist to live NY bull window.** Hours
+  now [14,16,17,19]. Basis: +13.4R/9 (+1.49R avg, 4/5 days positive). Deviation
+  from plan: promoted same day instead of waiting ~2 bull weeks — user decision,
+  accepted risk is thin n=9 and h19's +13.4R includes Jul concentration similar
+  to h16/h17 fragility. Kill criteria extended: if h19 live-accepted trades reach
+  n≥10 with net/trade < 0, drop h19 (revert to [14,16,17]). Config comment updated;
+  dry-load verified; loader test 1/1.

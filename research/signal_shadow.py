@@ -60,6 +60,9 @@ SideMode = Literal["fade", "fade_short_only", "follow", "long"]
 # Checkpoint bars for per-horizon MAE/MFE snapshots (5m bars).
 MAE_CHECKPOINT_BARS: dict[int, str] = {36: "3h", 72: "6h", 144: "12h", 288: "24h"}
 PNL_CHECKPOINT_BARS: dict[int, str] = {12: "1h", 24: "2h"}
+# Post-exit observation window: keep tracking each closed shadow trade for 24h
+# (288 x 5m bars) after its exit so MFE/MAE are not censored at close.
+POST_EXIT_BARS = 288
 
 ENTRY_QUALITY_COLUMNS: tuple[tuple[str, str], ...] = (
     ("spread_bps", "REAL"),
@@ -729,6 +732,22 @@ class SignalShadow:
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_setup_r_path_setup ON setup_r_path(setup_id)"
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS trade_r_path (
+                trade_id INTEGER,
+                phase TEXT,
+                bar_num INTEGER,
+                r_high REAL,
+                r_low REAL,
+                r_close REAL,
+                PRIMARY KEY (trade_id, phase, bar_num)
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trade_r_path_trade ON trade_r_path(trade_id)"
+        )
         self._migrate_forward_horizons()
         self._migrate_shadow_trades()
         self.conn.commit()
@@ -784,12 +803,24 @@ class SignalShadow:
             ("funding_rate_btc", "REAL"),
             ("funding_rate_symbol", "REAL"),
             ("is_weekend", "INTEGER"),
+            ("post_bars", "INTEGER DEFAULT 0"),
+            ("post_mfe_atr", "REAL DEFAULT 0"),
+            ("post_mae_atr", "REAL DEFAULT 0"),
         ):
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
         for col, typ in ENTRY_QUALITY_COLUMNS:
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
+        if "post_bars" not in existing:
+            # One-time stamp: closed trades that predate post-exit tracking have
+            # no forward window left to observe; mark their window as elapsed so
+            # only newly-closed trades are tracked from their real exit bar.
+            self.conn.execute(
+                "UPDATE shadow_trades SET post_bars=? "
+                "WHERE status='closed' AND exit_time IS NOT NULL",
+                (POST_EXIT_BARS,),
+            )
 
     def _would_live_accept(
         self,
@@ -1035,6 +1066,7 @@ class SignalShadow:
         self._advance_open("setup_snapshots", symbol, bar.high, bar.low, bar.close)
         self._process_pending_entries(symbol, bar)
         self._manage_shadow_trades(symbol, bar)
+        self._advance_post_exits(symbol, bar.high, bar.low, bar.close)
 
         f = self._features(candles_5m, st)
 
@@ -1279,6 +1311,21 @@ class SignalShadow:
             if fav > float(r["run_mfe_atr"] or 0.0):
                 mfe_peak_bar = bars_held
 
+            self.conn.execute(
+                """
+                INSERT OR REPLACE INTO trade_r_path
+                    (trade_id, phase, bar_num, r_high, r_low, r_close)
+                VALUES (?, 'open', ?, ?, ?, ?)
+                """,
+                (
+                    tid,
+                    bars_held,
+                    fav,
+                    adv,
+                    self._signed_pnl_atr(side, entry, close, atr),
+                ),
+            )
+
             fill_next_open = r["fill_price_next_open"]
             if bars_held == 1:
                 fill_next_open = float(bar.open)
@@ -1381,6 +1428,51 @@ class SignalShadow:
                     f"UPDATE shadow_trades SET {', '.join(sets)} WHERE id=?",
                     vals,
                 )
+
+    def _advance_post_exits(self, symbol: str, high: float, low: float, close: float):
+        """Advance post-exit MFE/MAE windows for closed trades of this symbol.
+
+        Keeps tracking for POST_EXIT_BARS (24h) after close so analysis sees
+        what price did after the strategy flat-lined — the censoring that
+        hides post-exit runners/dips in run_mfe_atr/run_mae_atr.
+        Entry-referenced ATR units, same convention as run_* columns.
+        """
+        rows = self.conn.execute(
+            """
+            SELECT id, side, entry_price, atr, post_bars, post_mfe_atr, post_mae_atr
+            FROM shadow_trades
+            WHERE symbol=? AND status='closed' AND post_bars < ?
+            """,
+            (symbol, POST_EXIT_BARS),
+        ).fetchall()
+        for r in rows:
+            atr = float(r["atr"] or 0.0)
+            if atr <= 0:
+                continue
+            entry = float(r["entry_price"])
+            nb = int(r["post_bars"] or 0) + 1
+            fav, adv = self._trade_path_atr(r["side"], entry, atr, high, low)
+            pmfe = max(float(r["post_mfe_atr"] or 0.0), fav)
+            pmae = min(float(r["post_mae_atr"] or 0.0), adv)
+            self.conn.execute(
+                "UPDATE shadow_trades SET post_bars=?, post_mfe_atr=?, post_mae_atr=? "
+                "WHERE id=?",
+                (nb, pmfe, pmae, r["id"]),
+            )
+            self.conn.execute(
+                """
+                INSERT OR REPLACE INTO trade_r_path
+                    (trade_id, phase, bar_num, r_high, r_low, r_close)
+                VALUES (?, 'post', ?, ?, ?, ?)
+                """,
+                (
+                    r["id"],
+                    nb,
+                    fav,
+                    adv,
+                    self._signed_pnl_atr(r["side"], entry, close, atr),
+                ),
+            )
 
     def _shadow_trade_exists(self, symbol: str, strategy: str) -> bool:
         open_n = self.conn.execute(

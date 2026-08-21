@@ -430,11 +430,23 @@ class Bitana:
         self.watchdog.register("websocket", ws_task, critical=True)
         self.watchdog.register("reconciliation", recon_task, critical=True)
         self.watchdog.register("candle_verify", candle_verify_task, critical=False)
-        self.watchdog.register("time_sync", time_sync_task, critical=False)
+        self.watchdog.register(
+            "time_sync", time_sync_task, critical=False,
+            # time_sync heartbeats once per server_time_sync_interval_s (300s).
+            # Default 30s interval → stale threshold 90s < 300s, so it tripped
+            # "heartbeat stale" every cycle. Match the interval to the real cadence.
+            heartbeat_interval_s=self.cfg.data.server_time_sync_interval_s / 2.0,
+        )
         self.watchdog.register("equity_update", equity_update_task, critical=True)
         self.watchdog.register("telegram", telegram_task, critical=False)
         if self.cfg.mode == "live":
-            self.watchdog.register("listen_key", listen_key_task, critical=False)
+            self.watchdog.register(
+                "listen_key", listen_key_task, critical=False,
+                # listen_key runs once per 1800s. Default 30s interval →
+                # stale threshold 90s < 1800s, so it tripped "heartbeat stale"
+                # every cycle (same false-positive as time_sync). Match interval.
+                heartbeat_interval_s=1800.0,
+            )
 
         if self.force_pipeline is not None and not self.force_pipeline.read_only:
             async def force_order_task():

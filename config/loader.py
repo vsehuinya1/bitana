@@ -48,6 +48,11 @@ class SessionBurstRule(BaseModel):
     pos_imb_only: bool = False
     neg_imb_only: bool = False
     hours: list[int] | None = None
+    # Per-regime hour override. Maps btc regime name -> hour list. When the
+    # current regime matches a key, it replaces `hours` for that regime only.
+    # Falls back to `hours` for regimes not present here. (NY bull: [14,15] vs
+    # neutral default [16,17].)
+    regime_hours: dict[str, list[int]] | None = None
     exclude_weekdays: list[int] | None = None  # 0=Mon .. 6=Sun (UTC bar time)
     min_imb: float = 0.0
     min_cascade_strength: float = 0.0
@@ -55,6 +60,9 @@ class SessionBurstRule(BaseModel):
     min_n_confirms: int = 1
     min_decile: int = 2
     stop_atr: float = 10.0
+    # Per-regime stop override (e.g. NY bull 8 ATR vs neutral default 10 ATR).
+    # Falls back to `stop_atr` for regimes not present here.
+    regime_stop_atr: dict[str, float] | None = None
     tp_atr: float = 3.0
     time_bars: int = 6
     time_exit_only: bool = False
@@ -65,6 +73,11 @@ class SessionBurstRule(BaseModel):
     # When set, skip entries whose BTC regime age (4h bars since last flip)
     # exceeds this many bars. None = no age gate.
     max_regime_age_bars: int | None = None
+    # Multiplier on base risk_pct for this session's entries. Default 1.0 = no
+    # change. Inert plumbing for win-rate-scaled equity sizing: the sizing path
+    # must be wired to consume it AND a WR source must clear a sample floor
+    # (>=30 closed, >=5 days, top-day <=40%) before any value != 1.0 ships.
+    risk_multiplier: float = 1.0
 
 
 class LiqBurstFollowConfig(BaseModel):
