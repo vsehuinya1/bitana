@@ -168,6 +168,8 @@ class ShadowStrategy:
     trail_trigger_r: float | None = None
     limit_entry_atr: float | None = None  # resting limit offset from signal close (ATR)
     limit_entry_max_bars: int = 36  # 5m bars to wait for fill (default 3h)
+    scale_in_atr: float | None = None  # one add-on unit at entry ∓ this many ATR (adverse side)
+    scale_after_bars: int = 12  # earliest 5m bar the scale leg is eligible (default 1h)
 
 
 # Quality floor for 3h/6h follow/fade shadow variants (blocks WLD-style noise).
@@ -325,6 +327,15 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy(
         "ny_flush_buy_24h", "burst", "follow", 10.0, 999.0, time_bars=288,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+    ),
+    # G0 (Aug 21): scale-in variant. Resting add-on unit from bar 12 (1h): if price
+    # trades 0.5 ATR adverse of entry, add ONCE at the level (blended avg entry);
+    # SL/time anchors stay on the FIRST entry. Paired baseline = ny_flush_buy_4h.
+    # Expected scale-fill rate ~14%/entry (v9 Jun 9 replay). Checkpoint Sep 13.
+    ShadowStrategy(
+        "ny_flush_buy_4h_scalein", "burst", "follow", 10.0, 999.0, time_bars=48,
+        sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+        scale_in_atr=0.5, scale_after_bars=12,
     ),
     # Asia short-liq squeeze: after price pumps on short liquidations, short the pump (4h only).
     ShadowStrategy(
@@ -806,6 +817,7 @@ class SignalShadow:
             ("post_bars", "INTEGER DEFAULT 0"),
             ("post_mfe_atr", "REAL DEFAULT 0"),
             ("post_mae_atr", "REAL DEFAULT 0"),
+            ("scale_filled_price", "REAL"),
         ):
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
@@ -1285,7 +1297,7 @@ class SignalShadow:
             """
             SELECT id, strategy, side, entry_price, stop_price, tp_price, atr,
                    bars_held, time_bars, time_exit_only, run_mae_atr, run_mfe_atr,
-                   bars_to_mfe_peak, fill_price_next_open
+                   bars_to_mfe_peak, fill_price_next_open, scale_filled_price
             FROM shadow_trades WHERE symbol=? AND status='open'
             """,
             (symbol,),
@@ -1374,6 +1386,40 @@ class SignalShadow:
                 exit_price = close
                 pnl_atr = (close - entry) / atr if side == "LONG" else (entry - close) / atr
                 exit_reason = "time"
+
+            # Scale-in add-on (G0 Aug 21): from scale_after_bars onward, a resting
+            # limit at entry ∓ scale_in_atr*ATR (adverse side) fills ONCE and blends
+            # the average entry. SL/time anchors stay on the FIRST entry; exits are
+            # evaluated pre-scale on the trigger bar (conservative stop-first).
+            # Post-scale, pnl/MFE/MAE/path rows measure vs the blended entry — the
+            # paired baseline is the unscaled sibling variant.
+            if (
+                exit_reason is None
+                and spec is not None
+                and spec.scale_in_atr is not None
+                and r["scale_filled_price"] is None
+                and bars_held >= int(spec.scale_after_bars)
+                and atr > 0
+            ):
+                level = (
+                    entry - spec.scale_in_atr * atr
+                    if side == "LONG"
+                    else entry + spec.scale_in_atr * atr
+                )
+                filled = low <= level if side == "LONG" else high >= level
+                if filled:
+                    blended = (entry + level) / 2.0
+                    self.conn.execute(
+                        "UPDATE shadow_trades SET entry_price=?, scale_filled_price=? "
+                        "WHERE id=?",
+                        (blended, level, tid),
+                    )
+                    self.conn.commit()
+                    entry = blended
+                    logger.info(
+                        "➕ [SHADOW SCALE-IN] Strategy=%s Symbol=%s leg2=%.6f avg=%.6f",
+                        strategy, symbol, level, blended,
+                    )
 
             horizon_updates: list[str] = []
             horizon_vals: list[float] = []

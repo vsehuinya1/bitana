@@ -198,9 +198,9 @@ Notes:
 | London `follow_3h_london` + Late `fade_6h_late` expansion | G0; quality floor active | Aug 9 earliest if ≥ 20 fresh OOS | concentration fails; or no fills for 2 weeks → park |
 | 1h time-exit variants (`ny_flush_buy_1h`, `asia_pump_short_1h`, t12) | G0 | after ≥ 15 post-fix accepted OOS each | < baseline 4h paired Δavg, or day-concentrated |
 | Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, gate inert) | Aug 23 read; enable only after OOS confirm | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0) |
-| NY scale-in +0.5 ATR @ 1h | G0 | Aug 16–23 (needs n ≥ 30) | scale-in net ≤ plain single-entry, or day-concentrated |
+| NY scale-in +0.5 ATR @ 1h (`ny_flush_buy_4h_scalein`) | G0 | wired Aug 21 (was uninstrumented); read Sun Sep 13 or n ≥ 30 scaled fills | scale-in net ≤ plain single-entry (paired vs `ny_flush_buy_4h`), or day-concentrated |
 | Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
-| Funding-rate / OI-delta conditioning | G0 | Aug 16 (≥ 3 wk enriched fields) | conditioning adds < +0.5 ATR vs baseline, or unstable sign across weeks |
+| Funding-rate / OI-delta conditioning | G0 | **Sep 6 read** (fields live Jul 1 funding / Jul 14 OI; ≥99% coverage Aug; Aug 16 checkpoint lapsed unevaluated — see log Aug 21) | conditioning adds < +0.5 ATR vs baseline, or unstable sign across weeks |
 | Cluster breadth / market-wide liq flow filter | G0 | Sep 6 checkpoint (after candidate cap-3 trusted) | no incremental edge vs single-symbol cap-3, or concentration fails |
 | Weekend NY h21 bear (`ny_flush_buy_4h`, Sat/Sun, hour 21) | G0 (measure only) | Sep 6 weekend verdict | n<15, or paired Δavg ≤ 0 vs weekday, or top-day >40% |
 | London h12 neutral (`london_burst_fade`) | G0 (measure only) | Sep 6 | top-day >40% (current: Aug19 +3.77R, Jul23 +2.88R dominate), or n<15 |
@@ -357,3 +357,17 @@ TP sensitivity on London: TP=2.0 wash
   to h16/h17 fragility. Kill criteria extended: if h19 live-accepted trades reach
   n≥10 with net/trade < 0, drop h19 (revert to [14,16,17]). Config comment updated;
   dry-load verified; loader test 1/1.
+- **Aug 21 (evening) — funding/OI + scale-in checkpoints re-registered; scale-in actually instrumented.**
+  Audit finding: funding/OI enrichment was NOT missing — `funding_rate_symbol` live since Jul 1
+  (coverage 97.5% Jul → 99.5% Aug), `oi_delta_30m_pct` since Jul 14 (46.1% Jul → 99.4% Aug). The Aug 16
+  checkpoint failed as PROCESS (no read computed on the day), not instrumentation; OI's ≥3-wk floor matured
+  ~Aug 4. Re-registered: **Sun Sep 6 read**, kill criteria unchanged. Scale-in WAS genuinely unwired
+  (zero `*scale*` rows in shadow_trades; recorder had no add-on support). Wired `ny_flush_buy_4h_scalein`
+  into the shadow recorder: resting add-on unit eligible from bar 12 (1h) onward, fill at entry ∓ 0.5 ATR
+  (adverse side), one add max, blended avg entry persisted via new `scale_filled_price` column; SL/time
+  anchors stay on the FIRST entry; exits evaluated pre-scale on the trigger bar (conservative stop-first);
+  post-scale pnl/MFE/MAE/path rows measure vs blended entry. Paired baseline `ny_flush_buy_4h`; expected
+  scale-fill rate ~14%/entry (v9 Jun 9 replay). Checkpoint **Sun Sep 13 or n ≥ 30 scaled fills**, kill
+  unchanged. Harness restart cost assessed ≈ zero: shadow open rows are DB-backed and resume management
+  on the next bar; v5 paper book recovers positions/equity from its own tables on boot. Synthetic validation:
+  fill/blend, no-touch, stop-first-same-bar, pre-bar-12 ineligibility — all pass; portfolio tests 2/2.
