@@ -193,19 +193,19 @@ Notes:
 |---|---|---|---|
 | ~~Asia HMM {H2,H5} gate~~ | **KILLED Aug 1** | — | OOS avg −1.92 on n=15 (extended); see decision log |
 | 4/6/8 ATR stop variants (Asia + full-session NY) | G0 (first read done; **not G1**) | Aug 9 NY day re-count; Aug 30 G2 | no variant beats 10 ATR with **positive** OOS by Aug 30; NY still <5 live-like days → extend |
-| Bull Asia short | provisional live at 4%; formal G1 → G2 | current bull/neutral window review (Asia live-like Jul20–30 still red) | negative in next / current multi-day bull window |
+| ~~Bull Asia short~~ | **SUPERSEDED Aug 22** — not live; asia session gated to `allowed_btc_regimes: ["neutral"]`, bull-regime shadow shorts (n=66) all predate the gate change | — | — |
 | NY quality floor (`follow_3h_all` ∩ session=ny vs `ny_flush_buy_4h`) | G0 | after ≥ 15 post-fix accepted OOS; Aug review | < +0.5 ATR improvement vs paired baseline, or candidate < +1.0, or day-concentrated |
 | London `follow_3h_london` + Late `fade_6h_late` expansion | G0; quality floor active | Aug 9 earliest if ≥ 20 fresh OOS | concentration fails; or no fills for 2 weeks → park |
 | 1h time-exit variants (`ny_flush_buy_1h`, `asia_pump_short_1h`, t12) | G0 | after ≥ 15 post-fix accepted OOS each | < baseline 4h paired Δavg, or day-concentrated |
 | Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, gate inert) | Aug 23 read; enable only after OOS confirm | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0) |
 | NY scale-in +0.5 ATR @ 1h (`ny_flush_buy_4h_scalein`) | G0 | wired Aug 21 (was uninstrumented); read Sun Sep 13 or n ≥ 30 scaled fills | scale-in net ≤ plain single-entry (paired vs `ny_flush_buy_4h`), or day-concentrated |
 | Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
-| Funding-rate / OI-delta conditioning | G0 | **Sep 6 read** (fields live Jul 1 funding / Jul 14 OI; ≥99% coverage Aug; Aug 16 checkpoint lapsed unevaluated — see log Aug 21) | conditioning adds < +0.5 ATR vs baseline, or unstable sign across weeks |
+| OI-flush long rule: LONG entries with `oi_delta_30m_pct` < −1% (funding leg KILLED Aug 21 read — see log) | G0 (early off-cycle read done Aug 21: Δ +0.26/trade, n=464, 6/6 wk pos, all 4 sessions pos, top-day 17%) | **Sun Sep 6 fresh-window confirm** (Aug 22–Sep 5 data only): fresh LONG OI<−1% Δ ≥ +0.1/trade on n ≥ 100 | fresh-window Δ ≤ 0, top-day >40%, or vol_z-matched control erases edge (flush-longs run hot: volz 4.7 vs 2.2 all-longs) |
 | Cluster breadth / market-wide liq flow filter | G0 | Sep 6 checkpoint (after candidate cap-3 trusted) | no incremental edge vs single-symbol cap-3, or concentration fails |
 | Weekend NY h21 bear (`ny_flush_buy_4h`, Sat/Sun, hour 21) | G0 (measure only) | Sep 6 weekend verdict | n<15, or paired Δavg ≤ 0 vs weekday, or top-day >40% |
 | London h12 neutral (`london_burst_fade`) | G0 (measure only) | Sep 6 | top-day >40% (current: Aug19 +3.77R, Jul23 +2.88R dominate), or n<15 |
 | Asia D10 @ h5 retained (`max_decile` NOT applied) | G0 (no code — filter-plan correction) | next variance scan | h5 D10 n<15 or avg<+0.1 after fresh OOS |
-| Monday risk bump (session `risk_multiplier` override) | G0 (plumbing inert) | Aug 25 | Monday premium not reproduced OOS, or WR source fails sample floor |
+| Monday risk bump (session risk_multiplier override) | G0 (measurement wired; **action path NOT wired** — loader parses `risk_multiplier` but no consumer in burst-follow engine/order path; enabling = new code) | Aug 25 | Monday premium not reproduced OOS, or WR source fails sample floor |
 
 **Open register slot:** uncapped as of Aug 19. Candidates only via pre-registration
 before outcome compute; every entry must carry a kill criterion. No auto-fill of
@@ -371,3 +371,42 @@ TP sensitivity on London: TP=2.0 wash
   unchanged. Harness restart cost assessed ≈ zero: shadow open rows are DB-backed and resume management
   on the next bar; v5 paper book recovers positions/equity from its own tables on boot. Synthetic validation:
   fill/blend, no-touch, stop-first-same-bar, pre-bar-12 ineligibility — all pass; portfolio tests 2/2.
+- **Aug 21 (late) — funding/OI checkpoint READ EARLY (off-cycle). Funding leg KILLED; OI leg narrowed to long-side flush rule.**
+  Universe: closed shadow trades with both fields, primary books only (12 books, n=15,354 paired; stop-variant
+  books excluded — they re-count the same entries and would pseudo-replicate).
+  - Funding sign conditioning: dead (pooled Δ −0.005 / +0.002 vs baseline). Extreme |funding| ≥ p95 (0.00015):
+    flips sign by side (L −0.15 n=950, S +0.13 n=601) and unstable across weeks (SHORT +0.37 W29 → −0.66 W32 →
+    −0.83 W33). Kill criterion "unstable sign across weeks" met → funding leg closed.
+  - OI-delta buckets pooled: <−1% +0.248 | [−1,0) +0.034 | [0,+1] −0.042 | >+1% −0.192 — the >+1% bucket is
+    80% of net on ONE day (Aug 19) → rejected as day-concentrated artifact.
+  - Survivor: **LONG & OI<−1%** — Δ +0.264/trade, n=464, **6/6 weeks positive** (W28–W33: +0.16/+0.15/+0.35/
+    +0.41/+0.37/+0.14), positive in all 4 sessions (NY +0.16, Asia +0.24, London +0.62, Late +0.22), top day
+    17% of net (Aug 20). Mechanism: buying into open-interest capitulation washout; shorting into it is NOT
+    reliable (SHORT OI<−1%: Δ −0.45 pooled but only 2/4 weeks → veto case rejected). Below the original +0.5
+    promotion bar → stays G0, narrowed hypothesis, fresh-window confirm Sep 6.
+  - Caveats: (a) flush-longs run hotter vol_z (avg 4.67 vs 2.23 all-longs) — vol_z-matched control is part of
+    Sep 6 kill criteria; (b) independent measurement check vs the external PM2 `oi-collector` (hermes_lab,
+    `oi_live.db`, BTC/ETH/SOL/XRP only, oi_history fresh to <1h): shadow `oi_delta_30m_pct` agrees
+    (r=0.721, median |Δ| 0.164pp, mean bias −0.002pp, n=2,083 pairs) → shadow OI field validated; collector's
+    funding_history remains sparse/broken for alts and its funding cross-check is inconclusive (r=0.05,
+    likely predicted-vs-settled timing mismatch) — collector usable as OI sanity check on 4 symbols only.
+- **Aug 22 — register wiring audit** (funding/OI fresh-window confirm deferred to Sep 6 as planned).
+  Checked every active register row for claimed instrumentation vs actual data flow.
+  - Row "Monday risk bump" was marked "plumbing inert" — FALSE. `risk_multiplier` is parsed by
+    config/loader.py but has NO consumer in the burst-follow engine/order path (only swing_break_engine
+    has its own sizing hook, different system). If the Aug 25 read confirms a Monday premium, enabling
+    it requires NEW code. Register wording corrected to "action path NOT wired".
+  - Row "Bull Asia short" claimed provisional-live at 4% but the asia session has been gated to
+    neutral-only (`allowed_btc_regimes: ["neutral"]`) in live config — marked SUPERSEDED; bull-regime
+    shadow shorts (n=66) all predate the gate change. Register active rows now 13 (was 14) vs cap 10.
+  - Regime age gate verified genuinely plumbed (loader default `max_regime_age_bars=None` +
+    consumer at liq_burst_follow_engine.py:290) — no gap, gate inert by design until OOS confirm.
+  - Healthy/measurable, no action: cluster_breadth & market_liq_flow_usd 100% coverage on Aug closed
+    rows (11,235/11,286); weekend NY h21 cell already n=29 (+0.398 avg) ≥ floor ahead of Sep 6;
+    london h12 n=295; ny_flush_buy_1h accepted n=58 (+0.381) readable; follow_3h_all NY accepted n=9
+    (<15, correctly waiting).
+  - Two books flagged against their own kill criteria, formal calls at Sun Aug 23 read:
+    (1) fade_6h_late starving + bleeding — 3 fills since Aug 1 (−1.13 / −1.19 / −10R full stop Aug 20);
+    strict "no fills for 2 weeks → park" not yet triggered but trajectory failing.
+    (2) asia_pump_short_1h kill criterion MET on accepted OOS since Jul 23: n=70, WR 39%, avg −0.831 vs
+    paired 4h baseline n=130, WR 48%, avg −0.400 (Δ −0.43, variant worse than baseline).
