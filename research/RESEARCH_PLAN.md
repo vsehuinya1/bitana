@@ -184,10 +184,14 @@ Notes:
    its pre-registered criteria. One decision per hypothesis per week — no daily
    peeking for promotion decisions (daily ops monitoring is separate).
 4. **New hypotheses:** pre-register BEFORE computing outcomes; must state the
-   mechanism (who is on the other side, why does the effect persist). Cap: 10 active.
+   mechanism (who is on the other side, why does the effect persist). No cap on
+   active count (removed Aug 22) — the binding constraint is kill-criterion quality.
 5. **Ship:** approved live changes deploy Monday. Update the decision log.
 
-## Active register (max 10)
+## Active register (no cap)
+
+Cap removed Aug 22 (user call): hypothesis count no longer limited; discipline
+shifts entirely to pre-registration + kill criteria per row.
 
 | Hypothesis | Gate | Next checkpoint | Kill criteria |
 |---|---|---|---|
@@ -198,6 +202,7 @@ Notes:
 | London `follow_3h_london` + Late `fade_6h_late` expansion | G0; quality floor active | Aug 9 earliest if ≥ 20 fresh OOS | concentration fails; or no fills for 2 weeks → park |
 | 1h time-exit variants (`ny_flush_buy_1h`, `asia_pump_short_1h`, t12) | G0 | after ≥ 15 post-fix accepted OOS each | < baseline 4h paired Δavg, or day-concentrated |
 | Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, gate inert) | Aug 23 read; enable only after OOS confirm | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0) |
+| Path-conditioned bull gate (V-flip veto): bull-regime entries tradeable only when previous regime ≠ bear ("V-flip bulls"), else require age ≥ 12 | G0 registered Aug 22 pre-outcome. Basis: full-window native-4h chain — be→bu runs n=30 median life 2b / P(reach a12) 7% vs ne→bu n=43 median 18b / 65%; mirror bu→be median 2 vs be→ne 26. Mechanism: V-flips are EMA200 whipsaws in high-vol bottoms; burst-follow enters exactly these. **Measurement only** — prev-state not plumbed anywhere (loader/engine have no prev-regime input); enabling = new code. Age-matched comparison REQUIRED: path must beat the age gate's information, else it is the same claim restated | first age-matched Δ read Sun Sep 6 (alongside OI confirm); formal call n ≥ 15 accepted entries per origin class or 4 weeks, whichever first | age-matched Δavg(neutral-born − bear-born bulls) ≤ +0.2R at n≥15/class, or effect fully subsumed by Sunday's age-gate verdict (then fold into that row), or fresh-window-only samples contradict full window once n≥10 |
 | NY scale-in +0.5 ATR @ 1h (`ny_flush_buy_4h_scalein`) | G0 | wired Aug 21 (was uninstrumented); read Sun Sep 13 or n ≥ 30 scaled fills | scale-in net ≤ plain single-entry (paired vs `ny_flush_buy_4h`), or day-concentrated |
 | Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
 | OI-flush long rule: LONG entries with `oi_delta_30m_pct` < −1% (funding leg KILLED Aug 21 read — see log) | G0 (early off-cycle read done Aug 21: Δ +0.26/trade, n=464, 6/6 wk pos, all 4 sessions pos, top-day 17%) | **Sun Sep 6 fresh-window confirm** (Aug 22–Sep 5 data only): fresh LONG OI<−1% Δ ≥ +0.1/trade on n ≥ 100 | fresh-window Δ ≤ 0, top-day >40%, or vol_z-matched control erases edge (flush-longs run hot: volz 4.7 vs 2.2 all-longs) |
@@ -410,3 +415,18 @@ TP sensitivity on London: TP=2.0 wash
     strict "no fills for 2 weeks → park" not yet triggered but trajectory failing.
     (2) asia_pump_short_1h kill criterion MET on accepted OOS since Jul 23: n=70, WR 39%, avg −0.831 vs
     paired 4h baseline n=130, WR 48%, avg −0.400 (Δ −0.43, variant worse than baseline).
+- **Aug 22 (late) — Markov refresh on clean native-4h series; Jul 17 duration/survival stats SUPERSEDED.**
+  Recomputed the ADX14>25 + EMA200 regime chain (engines/btc_regime.py methodology, completed bars,
+  WARMUP=200 discarded) over Aug 2024–Aug 2026 plus fresh window Jul 18–Aug 22.
+  Finding: `research/markov_regime_analysis.md` §2–§4 built 4h bars from 1h klines → run fragmentation;
+  its dwell times are ~4× too short (neutral mean 7.8b/max 39b claimed vs 29.1b/max 121b actual; bull
+  5.5b/max 35b vs 14.5b/max 71b). Occupancy was robust (49.7/25.2/25.1 vs 50.1/24.1/25.8 ✓) and the
+  edge×regime×age tables (§6, straight from shadow DB) are unaffected. Doc §9 dynamic-gate config was
+  calibrated against fragmented runs → unvalidated; the registered age-gate read (Sun Aug 23) judges on
+  live OOS trades regardless, so no plan change. Validation: current bull run since Aug 19 12:00 = 16
+  completed bars vs shadow age 15 (±1 convention ✓); label agreement vs 18,787 shadow entries since
+  Jul 18 = 91.6%, residual explained by live detector pricing the incomplete bar (btc_regime.py:35).
+  Fresh window: neutral-heavy (60.7%), bull occupancy 15.2% with mean run only 8.0b, churn 0.40/day
+  (vs 0.30 baseline), zero bull age cells n≥10 → Sun's gate verdict must come from trade-level samples
+  only. Clean full-window survival: bull P(survive+4|age) 66% young → 89% (a13-18) → 79% (a19+, n=408).
+  Numbers: `/root/hermes_lab/markov_refresh_results_20260822.md`. Do NOT cite doc §3/§4 going forward.
