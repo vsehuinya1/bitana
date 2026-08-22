@@ -211,6 +211,7 @@ shifts entirely to pre-registration + kill criteria per row.
 | London h12 neutral (`london_burst_fade`) | G0 (measure only) | Sep 6 | top-day >40% (current: Aug19 +3.77R, Jul23 +2.88R dominate), or n<15 |
 | Asia D10 @ h5 retained (`max_decile` NOT applied) | G0 (no code — filter-plan correction) | next variance scan | h5 D10 n<15 or avg<+0.1 after fresh OOS |
 | Monday risk bump (session risk_multiplier override) | G0 (measurement wired; **action path NOT wired** — loader parses `risk_multiplier` but no consumer in burst-follow engine/order path; enabling = new code) | Aug 25 | Monday premium not reproduced OOS, or WR source fails sample floor |
+| Bear-regime enablement — **NY flush-buy only** (ny session `allowed_btc_regimes` [neutral,bull] → +bear; london & asia EXCLUDED by pre-registered screen) | G0 registered Aug 22 pre-outcome. Basis — bear cohort fresh 14d: ny_flush_24h +0.193R/n44, 8h +0.184/n43, 4h_s4 +0.122/n64; live-book variant `ny_flush_buy_4h` +0.038/n53 thin-pos; full window confirms (+0.07–0.28). Screen exclusions: london `burst_follow` bear fresh −0.00R/n314 → stays bull-only; `asia_pump_short_4h` bear fresh −0.104/n28 → stays neutral-only. Promotion = config-only flip, no engine code | Promotion gate G0→G2 at Sep 6: Aug 23–Sep 5 bear cohort of ny_flush_4h family avg > +0.05R/trade on n≥15, no single symbol >60% of cohort PnL, bear occupancy ≥8% of window bars (underpowered → roll forward, not fail) | Kill (any one): fresh-window bear avg ≤ 0 at n≥20; post-flip live bear cohort ≤ −0.3R/trade at n≥15 after ≥14d exposure; one symbol >70% of live bear PnL; bear-enabled fortnight trips equity brake or raises peak-DD >15% |
 
 **Open register slot:** uncapped as of Aug 19. Candidates only via pre-registration
 before outcome compute; every entry must carry a kill criterion. No auto-fill of
@@ -430,3 +431,23 @@ TP sensitivity on London: TP=2.0 wash
   (vs 0.30 baseline), zero bull age cells n≥10 → Sun's gate verdict must come from trade-level samples
   only. Clean full-window survival: bull P(survive+4|age) 66% young → 89% (a13-18) → 79% (a19+, n=408).
   Numbers: `/root/hermes_lab/markov_refresh_results_20260822.md`. Do NOT cite doc §3/§4 going forward.
+- **Aug 22 (late) — Bear-regime enablement registered G0 (NY-only); scope narrowed by fresh-window
+  screen; pre-Sunday ops notes.**
+  Blanket "enable bear everywhere" FAILED the screen: london book (`burst_follow` LONG) bear fresh-14d
+  −0.004R/trade on n=314 (full window +0.008 — never had a bear edge); `asia_pump_short_4h` bear fresh
+  −0.104/n28. What survives: ny_flush family in bear — fresh 24h +0.193/n44, 8h +0.184/n43, 4h_s4
+  +0.122/n64, live-book 4h base +0.038/n53; full window confirms (+0.07–0.28). Registered NY-only G0
+  with promotion gate + kills (see register). Expected live contribution if promoted: **+0.3–0.6R/wk**
+  (not the +0.5–1.5R first quoted — that used a full-window aggregate the per-book split rejects).
+  Ops notes for Sun Aug 23 read:
+  (1) v5 shadow harness still on OLD london config (time_bars=6) — shadow london fills no longer proxy
+  live (24). Restart harness AFTER Sunday's read so its window stays clean; log the config split point.
+  Restart cost = seconds (DB-backed open rows recover).
+  (2) London 120m exit: expect ZERO OOS signal Sunday (live since Fri; exclude_weekdays [5,6] = no
+  weekend london fills). First paired Δ read Sun Sep 6 — do not judge Sunday.
+  (3) Current bull is a V-flip (be→bu Aug 19 12:00, age ~17). P(still bull Sun) ≈ 20–29%. Pre-commit:
+  age-gate read runs regardless of regime state Sunday; if flipped, read proceeds on the fresh be→*
+  sample — more informative, not less.
+  (4) Query pitfall reminder: yaml exclude_weekdays Python 0=Mon vs SQL %w 0=Sun — inverted a cell
+  verdict once before.
+
