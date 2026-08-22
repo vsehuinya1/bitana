@@ -633,6 +633,35 @@ class V5ForwardTest:
         await self.rest.start()
         await self.alerts.initialize()
 
+        # Delisting guard: drop symbols Binance no longer trades (SETTLING / DELIVERING /
+        # pre-trading) so their OI/kline fetches stop hard-erroring (-4108). Config stays
+        # source of truth; this only skips dead tickers for the current run.
+        try:
+            exinfo = await self.rest.get_exchange_info()
+            trading = {
+                s["symbol"] for s in exinfo.get("symbols", [])
+                if s.get("status") == "TRADING" and s.get("contractType") == "PERPETUAL"
+            }
+            dead = [s for s in self.all_symbols if s not in trading]
+            for sym in dead:
+                logger.warning(
+                    "Universe filtered: not TRADING on Binance, skipped this run",
+                    symbol=sym,
+                    tier="tier_c_experimental" if sym in self.experimental_symbols else "tier_a",
+                )
+            if dead:
+                self.symbols = [s for s in self.symbols if s in trading]
+                self.all_symbols = [s for s in self.all_symbols if s in trading]
+                self.experimental_symbols = {s for s in self.experimental_symbols if s in trading}
+                logger.warning(
+                    "Universe filtered (delisting guard)",
+                    removed=len(dead), remaining=len(self.all_symbols),
+                    removed_symbols=dead,
+                )
+        except Exception as e:
+            # Non-fatal: never block shadow collection because the guard itself failed
+            logger.warning("Delisting guard failed, continuing with full universe", error=str(e))
+
         # Signal handlers
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):

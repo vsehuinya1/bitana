@@ -102,7 +102,7 @@ class BinanceRestClient:
                     if resp.status >= 400:
                         logger.error(
                             "Binance API error",
-                            status=resp.status, path=path, response=data,
+                            status=resp.status, path=path, params=params, response=data,
                         )
                         if resp.status in (502, 503) and attempt < 2:
                             await asyncio.sleep(2 ** attempt)
