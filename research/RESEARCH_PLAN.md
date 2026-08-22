@@ -509,3 +509,27 @@ TP sensitivity on London: TP=2.0 wash
   there means losing less, not making money. Any future asymmetric-confirm candidate = new G0
   with pinned cell set and fill floor chosen BEFORE outcome compute; post-hoc best-of-40
   selection must not inherit this row's kill lines.
+
+---
+
+## Aug 22 (day) — Full-sample expectancy mining (33k closed trades)
+
+Exit-side replay on pathed trades: calibration passed 96.1% exact, but ALL exit levers died robustness
+(path base = Aug 20-21 only). Pivoted to full-sample entry features + external OI join.
+
+Ranked levers (full detail: /root/hermes_lab/MINING_RESULTS.md):
+- L1 fade-trend-gate: pooled fade-shorts E +0.00/+0.05/-1.24 across ADX 15-25/25-35/>=35; >=35 bucket = single
+  event (Aug 20-22), 24/27 symbols negative, 529 would-live trades ~-600R. Tier B for cutoff, Tier A for gradient.
+- L2 low-vol-brake: fade-shorts q1-rvol24 E=-1.13 (n=1,868) vs mid +0.08; mirror long-follows q1 +0.96. Tier A.
+- L3 OI: shadow oi_delta validated vs oi_live.db (corr .46, n=6,327). LONG-follow after -1..0% flush +0.295
+  (n=3,097, biggest-n edge found); SHORT-fade at >=+1% -1.20. Deep flush <-1% hurts follows (-0.27).
+- L4 asia_pump funding gate: pos_hi funding -1.64 (n=113) vs pos_lo +0.55. Day-concentration check pending.
+- L5 winners-run: giveback_share 0.32-0.53 all books; ny_flush_24h realized +1.63 vs time-exit +5.93. Paper-sim only.
+- L6 removals: burst_follow SHORT unrescuable (-0.11 flat); setup_follow LONG dead weight.
+
+DRAFT G0s (register before next weekly loop):
+- G0-A block SHORT fades when btc_adx>=35 OR oi30m>=+1% | kill: blocked-set fwd E>0 | success: >=2R/wk avoided,
+  <20% positive-fade cut | window 4wk or n>=100 blocked.
+- G0-B block SHORT fades when rvol24<0.065 (separate arm for attribution).
+- G0-C block asia_pump_short_4h when funding>=0.0001.
+- G0-D paper-sim trailing/extended hold on ny_flush_buy_24h + follow_* | kill: giveback_share worsens.
