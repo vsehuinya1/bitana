@@ -212,6 +212,7 @@ shifts entirely to pre-registration + kill criteria per row.
 | Asia D10 @ h5 retained (`max_decile` NOT applied) | G0 (no code — filter-plan correction) | next variance scan | h5 D10 n<15 or avg<+0.1 after fresh OOS |
 | Monday risk bump (session risk_multiplier override) | G0 (measurement wired; **action path NOT wired** — loader parses `risk_multiplier` but no consumer in burst-follow engine/order path; enabling = new code) | Aug 25 | Monday premium not reproduced OOS, or WR source fails sample floor |
 | Bear-regime enablement — **NY flush-buy only** (ny session `allowed_btc_regimes` [neutral,bull] → +bear; london & asia EXCLUDED by pre-registered screen) | G0 registered Aug 22 pre-outcome. Basis — bear cohort fresh 14d: ny_flush_24h +0.193R/n44, 8h +0.184/n43, 4h_s4 +0.122/n64; live-book variant `ny_flush_buy_4h` +0.038/n53 thin-pos; full window confirms (+0.07–0.28). Screen exclusions: london `burst_follow` bear fresh −0.00R/n314 → stays bull-only; `asia_pump_short_4h` bear fresh −0.104/n28 → stays neutral-only. Promotion = config-only flip, no engine code | Promotion gate G0→G2 at Sep 6: Aug 23–Sep 5 bear cohort of ny_flush_4h family avg > +0.05R/trade on n≥15, no single symbol >60% of cohort PnL, bear occupancy ≥8% of window bars (underpowered → roll forward, not fail) | Kill (any one): fresh-window bear avg ≤ 0 at n≥20; post-flip live bear cohort ≤ −0.3R/trade at n≥15 after ≥14d exposure; one symbol >70% of live bear PnL; bear-enabled fortnight trips equity brake or raises peak-DD >15% |
+| ~~Confirmed/delayed entry for burst books~~ | **KILLED Aug 22 night replay** (own kill criteria). Validated harness: 3503/3606 exact match, Σdiff +3.7R on −360R, exit mix reproduced. Grid Δ/signal: A +0.054 / B0.25 +0.073 / B0.5 +0.067 / B0.75 +0.041 / C +0.068 — three variants cleared the +0.05 gate BUT: (1) take-rate 33–56% < 70% floor → kill #2 fires; (2) flagship damage — london h8-13 bull LONG dE/fill **−0.249** (base +0.286/n148 → var +0.037/n83), ny LONG −0.059, london SHORT −0.060; (3) weekly concentration: net +242R of which W34 alone +237R (crisis week, base −414R→−178R) while W30 cost −72R — regime insurance, not expectancy. Per-fill E stays negative in every variant (best −0.059). o2-fill robustness check passed (gap≈0 median, Δ/signal +0.064 unchanged) | — | see decision log; asymmetric session-scoped confirm (apply ONLY to bleeding cells: ny SHORT, late LONG, asia LONG; never london LONG/late SHORT) is a DIFFERENT hypothesis — needs fresh pre-registration if pursued, no retrofit |
 
 **Open register slot:** uncapped as of Aug 19. Candidates only via pre-registration
 before outcome compute; every entry must carry a kill criterion. No auto-fill of
@@ -450,4 +451,46 @@ TP sensitivity on London: TP=2.0 wash
   sample — more informative, not less.
   (4) Query pitfall reminder: yaml exclude_weekdays Python 0=Mon vs SQL %w 0=Sun — inverted a cell
   verdict once before.
+- **Aug 22 (late II) — MAE lifecycle analysis: tight-stop/re-entry family KILLED on data; early-adversity
+  gradient discovered; confirmed-entry G0 registered.**
+  Data: causal `run_mae_atr`/`run_mfe_atr` (33,181 closed trades since Jun 27) + full-life `trade_r_path`
+  on n=456 burst_follow trades Jul15+. Findings:
+  - Burst-book MAE histogram is UNIMODAL (49% <1 ATR, thin tail P(>6)≈0.3–2.5%) — there is no separable
+    "deep-tail mode" for a stop to isolate. Static tight-stop counterfactuals: burst_follow loses at every
+    k∈[1..5]; best case anywhere = london_burst_fade k=1–2 at +0.019…+0.093R upper bound with P(stop)=54% —
+    a wash. **Tighter stops + re-entry: closed as a family** (also v9 precedent: scale-fill starvation 14%).
+  - Re-entry fuel after time exits is thin: P(post-exit continuation ≥ +2 ATR) ≈ 5–6% on 5m books.
+  - The real structure: book expectancy IS the MAE split — full-life shallow-half +0.97R vs deep-half
+    −1.05R (n=5784); quartiles monotone +1.24/+0.70/−0.13/−1.97. Early adversity is causal info:
+    bar-1 MAE<0.5 → E=+0.37/n270 vs ≥0.5 → E=−0.80/n186; bar-3 MAE≥2 → E=−2.23/n92.
+  - BUT exit-side abort cannot harvest it: aborting at −1.25 (thr 1.0 + slippage) to avoid losses averaging
+    −1.31 nets only +0.03R/trade (wash); k=6 variants negative. Threshold-crossers often partially recover.
+  - t0 features predict the split only weakly (best: cluster_breadth≥4 E=−0.19/n1810 vs breadth1 +0.01;
+    regime_age 13–48 −0.18; cascade_active −0.18). The first bar itself is the strongest predictor →
+    the tradable form is CONFIRMED/DELAYED ENTRY (skip if first post-signal bar closes adverse), not abort,
+    not t0 filters. Registered G0 with replay gate + kill criteria (see register). Naive bound Δ≈+0.33R/trade;
+    realistic ≈ +0.15–0.25R after winner-delay cost.
+  - 4h flush books are the mirror case: deep MAE is the FEATURE (ny_flush_24h 45% MAE>6 ATR, E=+1.63);
+    their mae_3h lift (early quiet → E=+5.62 vs rough → −1.03) is management-side info only.
 
+
+
+- **Aug 22 (night III) — Confirmed/delayed-entry G0 KILLED by own replay.** Validated exact-price
+  paired replay on burst_follow Jul15→now (3,606 signals, 27 symbols, baseline reproduced: 3503/3606
+  exact, Σdiff +3.7R on −360R, exit mix 3302/273/31 vs actual). Grid Δ/signal cleared +0.05 gate for
+  B0.25/B0.5/C (+0.067…+0.073) but three kills fire regardless:
+  (1) take-rate 33–56% < 70% floor — same starvation mechanism that died in v9;
+  (2) flagship population damage: london h8-13 bull LONG dE/fill −0.249 (base +0.286/n148 →
+      variant +0.037/n83) — the confirm skips exactly the momentum winners; ny LONG −0.059,
+      london SHORT −0.060;
+  (3) net +242R is 98% one week (W34 crisis: base −414R → var −178R) and W30 gave back −72R of a
+      good week — the rule is crisis insurance bought with good-week tax, not per-trade edge;
+      per-fill E negative in every variant (best −0.059).
+  Fill realism checked: close→next-open gap ≈ 0 median (o2-fill Δ/signal +0.064 ≈ unchanged), so
+  the kill is NOT a fill-model artifact.
+  Naive path-lift upper bound (+0.33R/trade from Aug 22 late II) was an over-estimate because it
+  priced winners at the ORIGINAL entry; delayed fills re-anchor TP/SL higher and eat the run.
+  Residual observation, NOT retrofitted into this row: improvement concentrates in bleeding cells
+  (late LONG +0.289/fill, asia LONG +0.133, ny SHORT +0.090). A session-scoped asymmetric confirm
+  is a different hypothesis requiring fresh pre-registration if ever pursued. Harness scripts kept
+  at /root/hermes_lab/confirmed_entry_replay.py (+part2), kline cache /tmp/kcache_bf/.
