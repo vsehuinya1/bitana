@@ -16,7 +16,6 @@ symbols:
     - RUNEUSDT
     - FETUSDT
     - DOTUSDT
-    - TONUSDT
     - SOLUSDT
     - 1000LUNCUSDT
     - ENAUSDT
@@ -35,7 +34,22 @@ symbols:
 
   tier_b: []
 
-  tier_c_experimental: []
+  tier_c_experimental:
+    # G0 watch-only wire-in 2026-08-22 (OWL): full scan+logging, is_experimental=1,
+    # excluded from core paper stats until floors met (n>=15, >=5d, +E both scopes)
+    - DOGEUSDT
+    - SUIUSDT
+    - LINKUSDT
+    - BCHUSDT
+    - AAVEUSDT
+    - AVAXUSDT
+    - TRUMPUSDT
+    - PENGUUSDT
+    - HYPEUSDT
+    - PUMPUSDT
+    # TON perp delisted (SETTLING, -4108 on OI fetch); successor ticker GRAM relisted
+    # ~2026-07-02. New ticker = zero record -> enters via G0 like everything else.
+    - GRAMUSDT
 
 risk:
   max_leverage: 10
