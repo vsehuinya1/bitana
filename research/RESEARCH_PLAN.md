@@ -533,3 +533,12 @@ DRAFT G0s (register before next weekly loop):
 - G0-B block SHORT fades when rvol24<0.065 (separate arm for attribution).
 - G0-C block asia_pump_short_4h when funding>=0.0001.
 - G0-D paper-sim trailing/extended hold on ny_flush_buy_24h + follow_* | kill: giveback_share worsens.
+
+## G0 WIRED 2026-08-22T14:10Z - gate cluster forward read
+Writer untouched (v5_forward_test.py -> signal_shadow.py unchanged; no restart).
+Frozen thresholds in VIEW gate_g0 (storage/signal_shadow.db): ADX>=35, rvol24<=q1=0.0648,
+OI d30m>=+1% (short block) and <=-1% (long flush arm), asia_pump% funding>=1bp, late-session longs,
+burst_follow SHORT book. Forward-only cutoff 2026-08-22T14:10.
+Read: python3 research/gate_weekly_read.py        (forward window)
+      python3 research/gate_weekly_read.py --all  (backfill reconcile)
+Floors n>=15 AND >=5 days/cell; kill: E<=-0.30 confirmed -> live-config proposal; E>=+0.30 falsified.
