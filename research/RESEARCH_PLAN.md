@@ -1,6 +1,6 @@
 # Bitana Research Plan
 
-_Last updated: Sun 2026-08-16. Live config: v1.1.1 (`bf434ed`; Asia neutral-only + NY h16-17 pilot uncommitted). Register expanded to max 10._
+_Last updated: Sun 2026-08-23 (weekly audit #5). Live config: Asia neutral-only 4h + NY bull h[14,16,17,19] + London bull `burst_follow` h8-13 (TP3/SL10/120m exit, since Aug 21). Register uncapped._
 _Companion prompt for deep research sessions: `research/QUANT_RESEARCH_PROMPT.md`._
 _Weekend block artifacts: `research/output/reports/stop_variant_first_read_2026-08-01.csv`, `hmm_oos_validation_2026-08-01.csv`, `hmm_oos_decision_2026-08-01.json`, `weekend_aug1_bundle.json`. Runner: `research/weekend_aug1_analysis.py`._
 
@@ -120,6 +120,7 @@ or day-concentration fails. Killed ideas go to the decision log below.
   cap-3 + concentration checks.
 - **Sun Aug 16 — weekend read #1** (measurement; live Asia/NY weekends remain off).
 - **Sun Aug 16–23 —** NY scale-in decision (measurement/backlog; needs ≥ 30 samples).
+- **Sun Aug 23 — weekly audit #5** executed (decision log at EOF).
 - **Sun Aug 30 —** stop-variant decision: replace 10 ATR only if a variant clears G2.
 
 #### Stop-variant first read (Aug 1) — **RESULT: no live change**
@@ -199,11 +200,11 @@ shifts entirely to pre-registration + kill criteria per row.
 | 4/6/8 ATR stop variants (Asia + full-session NY) | G0 (first read done; **not G1**) | Aug 9 NY day re-count; Aug 30 G2 | no variant beats 10 ATR with **positive** OOS by Aug 30; NY still <5 live-like days → extend |
 | ~~Bull Asia short~~ | **SUPERSEDED Aug 22** — not live; asia session gated to `allowed_btc_regimes: ["neutral"]`, bull-regime shadow shorts (n=66) all predate the gate change | — | — |
 | NY quality floor (`follow_3h_all` ∩ session=ny vs `ny_flush_buy_4h`) | G0 | after ≥ 15 post-fix accepted OOS; Aug review | < +0.5 ATR improvement vs paired baseline, or candidate < +1.0, or day-concentrated |
-| London `follow_3h_london` + Late `fade_6h_late` expansion | G0; quality floor active | Aug 9 earliest if ≥ 20 fresh OOS | concentration fails; or no fills for 2 weeks → park |
-| 1h time-exit variants (`ny_flush_buy_1h`, `asia_pump_short_1h`, t12) | G0 | after ≥ 15 post-fix accepted OOS each | < baseline 4h paired Δavg, or day-concentrated |
-| Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, gate inert) | Aug 23 read; enable only after OOS confirm | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0) |
+| London `follow_3h_london` expansion (Late `fade_6h_late` half **CLOSED Aug 23**) | G0; quality floor active | parked until continuous quality-floor fills appear | concentration fails; or no fills for 2 weeks → park |
+| Time-exit variants — `ny_flush_buy_1h` ALIVE (accepted n77 +0.215 vs 4h −0.393, Δ +0.61 → cap-3 G1 eval queued); ~~`asia_pump_short_1h`~~ / ~~`asia_pump_short_2h`~~ **KILLED Aug 23** (−0.385/n84, −1.216/n57 vs baseline −0.126/n137) | G0 | ny-1h G1 eval next loop | survivor kill: < baseline 4h paired Δavg, or day-concentrated |
+| Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, inert); **Aug 23 read: EXTEND → Sep 6** — fresh cell n=99/2d avg −0.45 (day floor unmet); side-asymmetric: SHORT −1.86/n48 vs LONG +0.87/n51, whole-cell cut nets +0.45/trade but kills LONG winners | Sep 6 re-read; enable only after OOS confirm on ≥3 days | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0); SHORT-only refinement = NEW pre-registration |
 | Path-conditioned bull gate (V-flip veto): bull-regime entries tradeable only when previous regime ≠ bear ("V-flip bulls"), else require age ≥ 12 | G0 registered Aug 22 pre-outcome. Basis: full-window native-4h chain — be→bu runs n=30 median life 2b / P(reach a12) 7% vs ne→bu n=43 median 18b / 65%; mirror bu→be median 2 vs be→ne 26. Mechanism: V-flips are EMA200 whipsaws in high-vol bottoms; burst-follow enters exactly these. **Measurement only** — prev-state not plumbed anywhere (loader/engine have no prev-regime input); enabling = new code. Age-matched comparison REQUIRED: path must beat the age gate's information, else it is the same claim restated | first age-matched Δ read Sun Sep 6 (alongside OI confirm); formal call n ≥ 15 accepted entries per origin class or 4 weeks, whichever first | age-matched Δavg(neutral-born − bear-born bulls) ≤ +0.2R at n≥15/class, or effect fully subsumed by Sunday's age-gate verdict (then fold into that row), or fresh-window-only samples contradict full window once n≥10 |
-| NY scale-in +0.5 ATR @ 1h (`ny_flush_buy_4h_scalein`) | G0 | wired Aug 21 (was uninstrumented); read Sun Sep 13 or n ≥ 30 scaled fills | scale-in net ≤ plain single-entry (paired vs `ny_flush_buy_4h`), or day-concentrated |
+| NY scale-in +0.5 ATR @ 1h (`ny_flush_buy_4h_scalein`) | G0 | wired Aug 21; 23 scaled fills @ Aug 23 (< 30); read Sun Sep 13 or n ≥ 30 scaled fills | scale-in net ≤ plain single-entry (paired vs `ny_flush_buy_4h`), or day-concentrated |
 | Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
 | OI-flush long rule: LONG entries with `oi_delta_30m_pct` < −1% (funding leg KILLED Aug 21 read — see log) | G0 (early off-cycle read done Aug 21: Δ +0.26/trade, n=464, 6/6 wk pos, all 4 sessions pos, top-day 17%) | **Sun Sep 6 fresh-window confirm** (Aug 22–Sep 5 data only): fresh LONG OI<−1% Δ ≥ +0.1/trade on n ≥ 100 | fresh-window Δ ≤ 0, top-day >40%, or vol_z-matched control erases edge (flush-longs run hot: volz 4.7 vs 2.2 all-longs) |
 | Cluster breadth / market-wide liq flow filter | G0 | Sep 6 checkpoint (after candidate cap-3 trusted) | no incremental edge vs single-symbol cap-3, or concentration fails |
@@ -542,3 +543,24 @@ burst_follow SHORT book. Forward-only cutoff 2026-08-22T14:10.
 Read: python3 research/gate_weekly_read.py        (forward window)
       python3 research/gate_weekly_read.py --all  (backfill reconcile)
 Floors n>=15 AND >=5 days/cell; kill: E<=-0.30 confirmed -> live-config proposal; E>=+0.30 falsified.
+
+---
+
+## Sun 2026-08-23 — Weekly audit #5 (04:45–05:15Z)
+
+**Integrity:** writer live (last entry 04:39Z); 34,514 rows / 79 open / 0 stale >3d. Enrichment coverage Aug16+ closed (n=6,568): oi_delta 99.0%; funding/breadth/liq-flow/spread/post_mfe 100%. v5 harness clean since Sat 17:03Z restart (0 ERROR, 0 −4108) — NOTE: harness restarted BEFORE Sunday's read contrary to the ops note, so its London-config split point is Sat 17:03Z (no weekend London fills either side, window effectively clean). Live unit up since Fri 19:20:33 (NRestarts=0) BUT Friday it flapped 10× through the London window (07:52→09:52; one stop-timeout hang → SIGKILL 09:33) and logged ZERO live fills vs 33 shadow-accepted London trades (+4.71R) — reconciliation UNRESOLVED, verify vs Binance userTrades Monday. Zero live fills since Fri 19:20 is expected (weekend off).
+
+**Age-unit correction:** `shadow_trades.btc_regime_age_bars` counts 4H bars (cross-check: bull age 15-16 bars on Aug 22 vs Markov refresh ✓). Earlier hour-based readings ("ages 1–2h") were wrong ×12 and are superseded.
+
+**Checkpoint calls:**
+1. **Regime age gate — EXTEND to Sep 6.** Toxic cell (neutral, age 6-12 bars, NY h14-21): fresh Aug16+ n=99/2 days avg −0.452 (day floor 2<3 unmet); since Jul18 n=291/8d avg −0.141 — original −0.75 does not reproduce at strength. Side split (last 14d): cell SHORT −1.857/n48/net −89 vs LONG +0.87/n51/net +44 — the real signal is "neutral mid-age NY SHORT"; a whole-cell cut nets ≈ +0.45/trade but removes 51 LONG entries. SHORT-only refinement = new pre-registration if pursued.
+2. **Time-exit variants:** `asia_pump_short_1h` **KILLED** (accepted OOS Jul23+: n=84, −0.385, WR44%, net −32.4 vs paired 4h n=137 −0.126 WR51%; Δ −0.26; ladder < +0.2 also fired). `asia_pump_short_2h` **KILLED** (n=57, −1.216, net −69.3, Δ −1.09). `ny_flush_buy_1h` **SURVIVES** (n=77, +0.215, WR58.4% vs baseline −0.393, Δ +0.61) → cap-3 G1 evaluation queued next loop; `ny_flush_buy_2h` n=53 +0.164 same direction, thinner. Structural read: NY flush buys want shorter holds; Asia pump shorts want the full 4h.
+3. **`fade_6h_late` CLOSED/parked.** Edge already killed Aug 19; fresh evidence seals it — 5 fills since Aug 1 net −20.17 including TWO −10R max-loss stops (Aug 20 + Aug 22). All-time n=78 +157.93 = essentially one July week. Stopped tracking; London half of the row remains parked on quality-floor fills.
+4. **Stop ladder interim (no decision; Aug 30 G2 stands).** Live-like fresh Aug16+: Asia base −1.447/n30 vs s4 −0.888 / s6 −0.862 / s8 −0.954 (variants +0.49…+0.59 better, absolute still red); NY base +0.143/n16/4d vs s4 +0.29 / s6 +0.427 / s8 +0.177. Relative-improve pattern persists; NY day count still 4<5.
+5. **Weekend measurement (feeds Sep 6):** base-arm Sat 13:00→now n=331, net −12.5, avg −0.038. Weekend NY-h21 bear cell n=44 (+15 wk/wk), 7 days, avg +0.751, net +33.0 — floor met, concentration check at verdict. Tier_c day-2: TRUMP −0.497/n72 (worst), DOGE +2.408/n59, HYPE +1.21/n46, PUMP +0.64/n43; GRAM 0 rows. None near graduation floors (≥5 days needed).
+6. **Gate cluster forward read** (wired Aug22T14:10, forward-only): closed n=951, Σ +370R, E +0.39; ALL arms day-floor ✗ → accumulating, no calls. arm_fund1bp blocked-set E +2.79/n41 tracks FALSIFIED (consistent w/ funding kill Aug 21); arm_burst_s E −0.19 (bleed direction confirmed); arm_rvolq1 n=0 BENIGN — 0/961 shorts had rvol24 ≤ 0.0648 in the hot-vol window; arm healthy.
+7. **OI-flush G0:** fresh-window tracker Aug22T00+ (LONG oi<−1%, all books pooled, RAW avg — not the registered Δ metric): n=311, −0.095, 2 days. Will clear n≥100 well before Sep 6; proper Δ vs non-flush longs computed at the Sep 6 verdict.
+8. **NY quality floor:** `follow_3h_all` ∩ NY accepted since Jul23 n=12 (+1.766 avg, net +21.2) — still <15, keep waiting. follow-family since Aug 1 broadly green (3h_all +44.3/n45, 6h_all +22.8/n42).
+9. **Scale-in** 23 fills < 30 → Sep 13 stands. **Monday risk bump** read due Tue Aug 25; action path STILL unwired (loader parses, no consumer — enabling = new code).
+
+**Variance flags (last 14d, |avg|≥0.5, n≥15, outside known axes):** neutral a>48h late LONG −1.20/n41 · bull a<24h NY SHORT −1.13/n30 · bear a<24h late SHORT −0.62/n90 · bull a>48h late SHORT −0.85/n40 · neutral a<24h asia LONG −0.69/n80. No action without pre-registration.
