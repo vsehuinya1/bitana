@@ -202,7 +202,7 @@ shifts entirely to pre-registration + kill criteria per row.
 | NY quality floor (`follow_3h_all` ∩ session=ny vs `ny_flush_buy_4h`) | G0 | after ≥ 15 post-fix accepted OOS; Aug review | < +0.5 ATR improvement vs paired baseline, or candidate < +1.0, or day-concentrated |
 | London `follow_3h_london` expansion (Late `fade_6h_late` half **CLOSED Aug 23**) | G0; quality floor active | parked until continuous quality-floor fills appear | concentration fails; or no fills for 2 weeks → park |
 | Time-exit variants — `ny_flush_buy_1h` ALIVE (accepted n77 +0.215 vs 4h −0.393, Δ +0.61 → cap-3 G1 eval queued); ~~`asia_pump_short_1h`~~ / ~~`asia_pump_short_2h`~~ **KILLED Aug 23** (−0.385/n84, −1.216/n57 vs baseline −0.126/n137) | G0 | ny-1h G1 eval next loop | survivor kill: < baseline 4h paired Δavg, or day-concentrated |
-| Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, inert); **Aug 23 read: EXTEND → Sep 6** — fresh cell n=99/2d avg −0.45 (day floor unmet); side-asymmetric: SHORT −1.86/n48 vs LONG +0.87/n51, whole-cell cut nets +0.45/trade but kills LONG winners | Sep 6 re-read; enable only after OOS confirm on ≥3 days | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0); SHORT-only refinement = NEW pre-registration |
+| Regime age gate (`max_regime_age_bars`; neutral 24-48h NY toxic) | G0 (plumbing live, inert); **Aug 23 read: EXTEND → Sep 6** — fresh cell n=99/2d avg −0.45 (day floor unmet); side-asymmetric: SHORT −1.86/n48 vs LONG +0.87/n51, whole-cell cut nets +0.45/trade but kills LONG winners | Sep 6 re-read; enable only after OOS confirm on ≥3 days | toxic cell not reproduced OOS, or gate cuts valid winners (paired Δ ≤ 0); SHORT-only refinement **PRE-REGISTERED Aug 23 → see §PREREG-AGESHORT at EOF** |
 | Path-conditioned bull gate (V-flip veto): bull-regime entries tradeable only when previous regime ≠ bear ("V-flip bulls"), else require age ≥ 12 | G0 registered Aug 22 pre-outcome. Basis: full-window native-4h chain — be→bu runs n=30 median life 2b / P(reach a12) 7% vs ne→bu n=43 median 18b / 65%; mirror bu→be median 2 vs be→ne 26. Mechanism: V-flips are EMA200 whipsaws in high-vol bottoms; burst-follow enters exactly these. **Measurement only** — prev-state not plumbed anywhere (loader/engine have no prev-regime input); enabling = new code. Age-matched comparison REQUIRED: path must beat the age gate's information, else it is the same claim restated | first age-matched Δ read Sun Sep 6 (alongside OI confirm); formal call n ≥ 15 accepted entries per origin class or 4 weeks, whichever first | age-matched Δavg(neutral-born − bear-born bulls) ≤ +0.2R at n≥15/class, or effect fully subsumed by Sunday's age-gate verdict (then fold into that row), or fresh-window-only samples contradict full window once n≥10 |
 | NY scale-in +0.5 ATR @ 1h (`ny_flush_buy_4h_scalein`) | G0 | wired Aug 21; 23 scaled fills @ Aug 23 (< 30); read Sun Sep 13 or n ≥ 30 scaled fills | scale-in net ≤ plain single-entry (paired vs `ny_flush_buy_4h`), or day-concentrated |
 | Asia/NY weekend tradability | measurement → G0 | Aug 16 read; Sep 6 verdict | weekend paired Δavg ≤ 0 vs weekday, or concentration fails |
@@ -564,3 +564,42 @@ Floors n>=15 AND >=5 days/cell; kill: E<=-0.30 confirmed -> live-config proposal
 9. **Scale-in** 23 fills < 30 → Sep 13 stands. **Monday risk bump** read due Tue Aug 25; action path STILL unwired (loader parses, no consumer — enabling = new code).
 
 **Variance flags (last 14d, |avg|≥0.5, n≥15, outside known axes):** neutral a>48h late LONG −1.20/n41 · bull a<24h NY SHORT −1.13/n30 · bear a<24h late SHORT −0.62/n90 · bull a>48h late SHORT −0.85/n40 · neutral a<24h asia LONG −0.69/n80. No action without pre-registration.
+
+---
+
+## PREREG-AGESHORT — Pre-registration 2026-08-23: Regime age gate, SHORT-only refinement (`age_gate_short_only`)
+
+Registered: Sun 2026-08-23 (commit with this edit) · Stage: G0 measurement · Forward-only window starts **2026-08-24T00:00Z** · Parent row: "Regime age gate" (register). No gate code exists for this variant at registration time; nothing wired.
+
+### Motivation (in-sample, disclosed up front)
+This is a POST-HOC refinement carved out of the same 14d window that weakened the parent row's strong form. Disclosed basis: neutral × age 6-12 bars (24-48h, `btc_regime_age_bars`, 4H units) × NY h14-21 splits by side — SHORT n=48 avg −1.857 / net −89 vs LONG n=51 avg +0.87 / net +44. Whole-cell cut nets ≈ +0.45/trade but removes 51 winning LONG entries. Claim under test: the toxic signal is **SHORT-only**, and cutting only SHORTs dominates both no-gate and whole-cell alternatives.
+
+### Hypothesis
+In neutral regime, NY h14-21, entries at regime-age 6-12 4h-bars carry negative expectancy for SHORTS specifically; LONGs in the identical cell do not.
+
+### Population & cell definition (identical to parent row for comparability)
+- Source: `shadow_trades` status='closed' (full closed set per house convention, NOT would_live_accept subset), all books.
+- Cell T: side=SHORT ∧ btc_regime=neutral ∧ btc_regime_age_bars ∈ [6,12] ∧ session=ny ∧ hour_utc ∈ [14,21].
+- Control C1: side=SHORT, same session/regime/hours, age OUTSIDE [6,12] (<6 or >12).
+- Mirror M: side=LONG inside cell T (diagnostic only, not a promote requirement by itself).
+
+### Paired arms (identical trade set, three-way)
+A = no gate · B = whole-cell cut (parent row's rule, both sides blocked) · C = SHORT-only cut. Decision prefers simplicity: if C does not clearly beat B, ship nothing new.
+
+### Floors (ALL required before any call)
+n ≥ 30 cell-T trades · ≥ 5 distinct entry days · top-day < 40% of arm-C avoided-PnL · effect survives `btc_realized_vol_24h` tercile control (present in middle tercile, not exclusively the hottest) · unit sanity: ages reported in 4H bars only.
+
+### Promote criteria (all floors + all three)
+1. Δavg(T − C1) ≤ −0.30R fresh-window (deliberately stricter than parent's reproduction bar — post-hoc origin demands it);
+2. cell-LONG avg ≥ +0.20R fresh (cutting M would measurably hurt — otherwise fold back into parent's whole-cell row);
+3. C beats B by ≥ +0.10R/trade on the paired set (else B-or-nothing on simplicity grounds).
+Promote ⇒ write side-conditional gate proposal (G1→G2 ladder; NEW loader/engine code — side-aware `max_regime_age_bars`). Code written ONLY after promote, never at registration.
+
+### Kill criteria (any ONE kills)
+Fresh Δavg(T − C1) ≥ 0 · cell-LONG ALSO ≤ −0.30R (signal is whole-cell after all → fold into parent row) · top-day > 40% · rvol control erases effect · n < 15 by Sep 20 → dead-sample park (no silent extensions beyond one).
+
+### Peeking policy
+Weekly Sunday loop may report **counts only** (n, distinct days) before Sep 6 — no R-values. First expectancy read **Sun Sep 6** in parallel with parent row's OOS confirm. Formal call **Sun Sep 20**; if floors unmet on n, ONE extension to Oct 4, then park.
+
+### Honesty notes
+Discovered in-sample on the exact window cited above; the −1.86 figure will regress toward the mean. Thresholds (−0.30, three-way dominance, vol control, day-concentration) are sized for a post-hoc find, not a fresh hypothesis. If Sep 6 shows T between −0.30 and 0, the correct output is "not confirmed", not a lower bar.
