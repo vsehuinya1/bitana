@@ -212,7 +212,7 @@ burst_follow:
       # Aug 24: WIRED noTP/180m (time_bars 36, tp 999) on owner instruction pre-window
       #   (~07:54Z, before first eligible entry). Mirrors PREREG-LONDHOLD T1 arm
       #   (+0.099R/tr weekday core n115 vs live TP3@120m +0.071; 58% wr; trend-day
-      #   concentrated). Shadow UNCHANGED at TP3@120m — reader baseline/validation intact.
+      #   concentrated). Shadow UNCHANGED at TP3@30m (6-bar; verified 2026-08-24 via hold-time dist max=30min all days + 38/38 replay match on the day's LONGs) — reader baseline/validation intact.
       shadow_strategy: burst_follow
       side_mode: follow
       pos_imb_only: true

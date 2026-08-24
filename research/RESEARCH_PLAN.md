@@ -671,7 +671,7 @@ Owner instructed wiring London bull to the 180m hold BEFORE first eligible entry
 `tp_atr 3.0→999.0` (=noTP per config convention), `time_bars 24→36` (=180m @5m bars).
 Backup: config/live_burst_ny_asia.yaml.pre_wire_20260824.
 Consequences for PREREG-LONDHOLD (test design INTACT):
-- Shadow UNCHANGED at TP3@120m → recorded `pnl_atr` and reader baseline/validation gate still bind to the old exit rule. Reader unaffected.
+- Shadow UNCHANGED at TP3@30m (verified: holds ≤30min every day; LONG replay 38/38 Aug24) → recorded `pnl_atr` and reader baseline/validation gate still bind to the old exit rule. Reader unaffected.
 - Baseline arm is now a FROZEN COUNTERFACTUAL (replayed TP3@120m), not actual live. Δ(T1−baseline) grades the candidate against the retired exit rule — which is the question that matters.
 - Deployment preceded the forward verdict: this is an in-sample leaderboard action (+0.099R/tr weekday core n115; 58% wr; trend-day concentrated; excl-Aug21 +0.089 vs +0.048). Prereg stays alive to grade it; kill criteria (meanΔ ≤ −0.05 with floors) can now also trigger a REVERT recommendation.
 - Accepted trade-off: −6pp win-rate, fatter right tail, no TP cap ⇒ larger single-trade dispersion on live equity.
