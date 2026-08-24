@@ -2,10 +2,11 @@
 """gate_weekly_read.py — G0 forward-read on the gate cluster.
 Reads VIEW gate_g0 (frozen thresholds, see wire_gates.py) restricted to
 FORWARD_ONLY_AT and later. Floors per cell: n>=15 AND >=5 distinct days.
-Also emits the PREREG-AGESHORT block (RESEARCH_PLAN.md EOF, commit fadc44f):
-counts-only until FIRST_R_READ, then full paired deltas per prereg criteria.
+Also emits the PREREG-AGESHORT block (RESEARCH_PLAN.md EOF, commit fadc44f)
+and the PREREG-LONDHOLD block (commit post-435433e): counts-only until
+FIRST_R_READ, then full paired replay deltas per prereg criteria.
 Usage: python3 research/gate_weekly_read.py [--all]   (--all includes backfill
-for the gate_g0 cluster ONLY; the PREREG-AGESHORT window is always forward-only)
+for the gate_g0 cluster ONLY; prereg windows are always forward-only)
 """
 import sqlite3, sys
 from datetime import datetime, timezone
@@ -141,4 +142,181 @@ else:
         print("insufficient rows for delta.")
 
 print("\nPREREG-AGESHORT: formal call Sun Sep 20; one extension max (Oct 4); dead-sample park below.")
+
+# ---------------------------------------------------------------------------
+# PREREG-LONDHOLD — registered 2026-08-24T05:45Z, BEFORE first eligible entry
+# (London h8 => earliest possible 2026-08-24T08:0xZ; zero look-back).
+# Pop  : burst_follow/london/LONG/bull, hour 8-13 UTC, Mon-Fri, dedup;
+#        liq_imb>=0.5 ASSERTED (guard, not filter — held on all 193 in-sample).
+# Arms : LIVE = pnl_atr/stop_atr (canonical R)
+#        T1   = replay SL10, NO TP, time-exit at 36th 5m bar close (180m)  [primary]
+#        T2   = replay SL10/TP3, hold 48b (240m) if entry hour 8-11 else 24b [secondary]
+#        noTP@120m & TP2@120m printed DESCRIPTIVE ONLY (no promotion path).
+# Replay semantics FROZEN to validated harness (commit 435433e): entry index =
+# bisect_right(bar_opens, entry_ms); collision order STOP-FIRST; time exit =
+# Nth bar close; replay ATR-units / stop_atr -> R. Baseline validation gate:
+# TP3@6bar replay must match stored R on >=90% of forward pairs (|dR|<0.05),
+# else read VOID (counts only). Incomplete pairs excluded, must be <=10%.
+# Promote: meanDelta >= +0.05 R/tr AND floors(n_pairs>=30, days>=5,
+#          top-day<=40% of sumD, LIVE-leg E>=0) AND validation gate.
+#          T2 additionally requires h8-11 cell pairs >= 20.
+# Kill   : meanDelta <= -0.05 R/tr with floors met -> keep live, park question.
+#          LIVE E<0 with floors -> ARM-LEVEL REGRESSION, exit tuning moot.
+# Peek   : counts ONLY before 2026-09-06. First R-read Sep 6; formal call
+#          Sep 20; ONE extension max (Oct 4).
+# Power note: in-sample point estimate meanD(T1)=+0.028 R/tr < promote bar.
+# Expected outcome absent a truly larger effect is NO-PROMOTION (keep live);
+# this prereg catches a real >=+0.05 edge or kills the leaderboard — it is
+# NOT sized to confirm the in-sample estimate.
+# ---------------------------------------------------------------------------
+import os as _os, json as _json, time as _time, urllib.request as _ureq
+from collections import defaultdict as _dd, Counter as _ddc
+
+LH_FROM     = '2026-08-24T00:00'
+LH_FIRST_R  = '2026-09-06'
+LH_BARS     = _os.environ.get('LONDHOLD_BARS', '/tmp/london_bull_bars.json')
+SL, TP      = 10.0, 3.0
+con.row_factory = sqlite3.Row   # LONDHOLD block uses keyed access
+c.row_factory = sqlite3.Row     # cursor predates this block -> must set per-cursor
+
+def _ts(s): return int(datetime.fromisoformat(s).timestamp() * 1000)
+
+def _fetch(sym, a, b):
+    out, cur = [], a
+    while cur < b:
+        url = ("https://fapi.binance.com/fapi/v1/klines?symbol=%s&interval=5m&startTime=%d&limit=1500" % (sym, cur))
+        raw = None
+        for att in range(3):
+            try:
+                with _ureq.urlopen(url, timeout=20) as resp: raw = _json.loads(resp.read())
+                break
+            except Exception:
+                if att == 2: raise
+                _time.sleep(2)
+        if not raw: break
+        out.extend((int(k[0]), float(k[2]), float(k[3]), float(k[4])) for k in raw)
+        nxt = int(raw[-1][0]) + 300_000
+        if nxt <= cur: break
+        cur = nxt
+        if len(raw) < 1500: break
+        _time.sleep(0.05)
+    return sorted(set(out))
+
+def _replay(bars, entry_ms, ep, atr, sl, tp, n_bars):
+    import bisect as _b
+    i = _b.bisect_right([x[0] for x in bars], entry_ms); w = 0
+    for (ot, h, l, cl) in bars[i:]:
+        w += 1
+        if l <= ep - sl * atr: return -sl, "sl", w
+        if tp is not None and h >= ep + tp * atr: return tp, "tp", w
+        if w == n_bars: return (cl - ep) / atr, "time", w
+    return None, "incomplete", w
+
+print(f"\n=== PREREG-LONDHOLD forward read (window >= {LH_FROM}; always forward-only) ===")
+_lh = c.execute("""SELECT symbol, side, entry_time, entry_price, atr, pnl_atr, stop_atr,
+    hour, liq_imb, CAST(strftime('%w', entry_time) AS INT) dow FROM shadow_trades
+    WHERE strategy='burst_follow' AND session='london' AND side='LONG'
+    AND btc_trend_state='bull' AND entry_time>=?""", (LH_FROM,)).fetchall()
+_n_open = c.execute(f"""SELECT COUNT(*) FROM shadow_trades
+    WHERE strategy='burst_follow' AND session='london' AND side='LONG'
+    AND btc_trend_state='bull' AND status!='closed' AND entry_time>='{LH_FROM}'""").fetchone()[0]
+_seen, pop, _ximb = set(), [], 0
+for r in _lh:
+    k = (r["symbol"], r["entry_time"], r["side"])
+    if k in _seen: continue
+    _seen.add(k)
+    if r["dow"] not in (1, 2, 3, 4, 5): continue
+    if r["liq_imb"] is not None and r["liq_imb"] < 0.5: _ximb += 1; continue
+    pop.append(r)
+_days = len({r["entry_time"][:10] for r in pop})
+_syms = len({r["symbol"] for r in pop})
+print(f"eligible closed: n={len(pop)} days={_days} syms={_syms} open={_n_open} excl_imb_guard={_ximb}")
+if _ximb: print("GUARD: imb<0.5 rows excluded — investigate live gate drift.")
+_sa = sorted(r["stop_atr"] or 10.0 for r in pop)
+if _sa: print(f"unit guard (stop_atr): med={_sa[len(_sa)//2]} min={_sa[0]} max={_sa[-1]}")
+
+peeking_lh = datetime.now(timezone.utc) < datetime.fromisoformat(LH_FIRST_R + 'T00:00:00+00:00')
+if peeking_lh or not pop:
+    print("[peek policy: R suppressed]" if peeking_lh else "[peek policy: no closed pairs yet]")
+    hh = _ddc(int(r["hour"]) for r in pop if r["hour"] is not None)
+    print("hour hist:", dict(sorted(hh.items())) if hh else "-")
+    if peeking_lh: print("counts only until 2026-09-06.")
+else:
+    try:
+        store = {}
+        if _os.path.exists(LH_BARS):
+            store = {s: (v[0], v[1], [tuple(b) for b in v[2]]) for s, v in _json.load(open(LH_BARS)).items()}
+        bysym = _dd(list)
+        for r in pop: bysym[r["symbol"]].append(r)
+        for sym, trs in bysym.items():
+            lo = min(_ts(t["entry_time"]) for t in trs) - 120_000
+            hi = max(_ts(t["entry_time"]) for t in trs) + 52 * 300_000
+            if sym in store and store[sym][0] <= lo and store[sym][1] >= hi: continue
+            if sym in store and store[sym][0] <= lo:
+                s0, s1, bars = store[sym]
+                store[sym] = (s0, hi, sorted(set(bars + _fetch(sym, s1 + 300_000, hi))))
+            else:
+                store[sym] = (lo, hi, _fetch(sym, lo, hi))
+        _json.dump({s: (v[0], v[1], [list(b) for b in v[2]]) for s, v in store.items()}, open(LH_BARS, "w"))
+    except Exception as e:
+        print(f"BAR FETCH FAILED ({e}) — R-read deferred, counts above stand."); pop = []
+    if pop:
+        # validation gate: TP3@6bar baseline vs stored canonical R
+        ok = inc = 0
+        for r in pop:
+            v, _, _ = _replay(store[r["symbol"]][2], _ts(r["entry_time"]), r["entry_price"], r["atr"], SL, TP, 6)
+            if v is None: inc += 1; continue
+            if abs(v / (r["stop_atr"] or 10.0) - r["pnl_atr"] / (r["stop_atr"] or 10.0)) < 0.05: ok += 1
+        vr, ir = ok / len(pop), inc / len(pop)
+        print(f"validation gate: {ok}/{len(pop)} match ({vr:.0%}), incomplete={inc} ({ir:.0%})")
+        def arm(tpv, nb_fn, label):
+            ds = []
+            for r in pop:
+                v, _, _ = _replay(store[r["symbol"]][2], _ts(r["entry_time"]), r["entry_price"], r["atr"], SL, tpv, nb_fn(int(r["hour"])))
+                if v is None: continue
+                ds.append((r["entry_time"][:10], int(r["hour"]),
+                           v / (r["stop_atr"] or 10.0) - r["pnl_atr"] / (r["stop_atr"] or 10.0)))
+            return label, ds
+        eL = sum(r["pnl_atr"] / (r["stop_atr"] or 10.0) for r in pop) / len(pop)
+        arms = [arm(None, lambda h: 36, "T1 noTP@180m"),
+                arm(TP, lambda h: 48 if h <= 11 else 24, "T2 cond-hold"),
+                arm(None, lambda h: 24, "desc noTP@120m"),
+                arm(2.0, lambda h: 24, "desc TP2@120m")]
+        print(f"LIVE leg: n={len(pop)} E={eL:+.4f} R/tr")
+        print(f"{'arm':16s} {'n':>5} {'meanD':>8} {'sumD':>8} {'wrD':>5} {'days':>5} {'top-day':>8} verdict")
+        for label, ds in arms:
+            desc = label.startswith("desc")
+            n = len(ds); md = sum(d for _, _, d in ds) / n if n else 0.0
+            sd = sum(d for _, _, d in ds)
+            dys = _dd(float)
+            for dy, _, d in ds: dys[dy] += d
+            td, tv = (max(dys.items(), key=lambda kv: kv[1]) if sd > 0 else ("-", 0)) if dys else ("-", 0)
+            share = tv / sd if sd > 0 else float('nan')
+            fl = n >= 30 and len(dys) >= 5
+            if desc:
+                verd = "descriptive (no path)"
+            elif vr < 0.90 or ir > 0.10:
+                verd = "READ VOID (gate fail)"
+            elif not fl:
+                verd = "ACCUMULATING"
+            elif md <= -0.05:
+                verd = "KILL (keep live)"
+            elif eL < 0:
+                verd = "ARM-REGRESSION (tuning moot)"
+            elif md >= 0.05 and not (share == share and share > 0.40):
+                extra_ok = True
+                if label.startswith("T2"):
+                    ncell = sum(1 for _, h, _ in ds if 8 <= h <= 11)
+                    extra_ok = ncell >= 20
+                    verd = "PROMOTE-CRITERIA MET" + ("" if extra_ok else f" (early-cell n={ncell}<20)")
+                else:
+                    verd = "PROMOTE-CRITERIA MET"
+            else:
+                verd = "INCONCLUSIVE"
+            print(f"{label:16s} {n:>5} {md:>+8.4f} {sd:>+8.2f} "
+                  f"{100 * sum(1 for _, _, d in ds if d > 0) / n if n else 0:>4.0f}% {len(dys):>5} "
+                  f"{(td + f' {share:.0%}') if td != '-' else '-':>8} {verd}")
+        print("promote = floors + meanD>=+0.05R/tr + LIVE E>=0 + gate; T2 needs h8-11 pairs>=20.")
+        print("PREREG-LONDHOLD: formal call Sun Sep 20; one extension max (Oct 4).")
+
 con.close()

@@ -630,3 +630,36 @@ TP3@120m +0.071 | TP2@120m +0.074 | TP1.5 +0.064 | **noTP@120m +0.080 | noTP@180
 Consistency noTP@180m vs live: better 5/9 days, 3/5 weeks (W30 −0.84, W31 −0.54); survives excl-Aug21 (+0.089 vs +0.048/tr). Cost: wr 64→58%, larger chop-day losses (Jul23 −0.87Δ, Jul29 −0.54Δ).
 Provenance note: the historical "+32R" reference cell = Σ pnl_atr in ATR-units through Aug20 (n=83) = **+3.2R canonical**. Sun Aug23 alone = +11 ATR-u = +1.1R (n16); Sat Aug22 = −0.01R (n62) — weekend avg≈0 is one flat Saturday, two data points total.
 Status: noTP@180m is an in-sample leaderboard on 9 distinct days with trend-day concentration — NOT wired; candidate for PREREG-LONDHOLD forward test alongside hour-conditional-hold arm.
+
+## PREREG-LONDHOLD — London-bull exit refinement
+**Registered:** 2026-08-24T05:45Z. **Status:** ACTIVE, forward-only.
+**Registration integrity:** window FROM=2026-08-24T00:00 but population is London h8-13 UTC Mon-Fri ⇒ earliest eligible entry is 2026-08-24T08:0xZ, i.e. ~2.2h AFTER this registration. Zero look-back by construction.
+
+**Motivation.** In-sample exit grid (weekday core n=115, 9 days): live TP3@120m = +0.071 R/tr; noTP@180m = +0.099 (leaderboard); hour-conditional hold underpowered (~20 trades/cell). Exit refinement is the lowest-ranked lever in the E²/V ladder — this prereg uses a deliberately conservative promote bar ABOVE the in-sample point estimate.
+
+**Population binding (exact):**
+`shadow_trades WHERE status='closed' AND strategy='burst_follow' AND session='london' AND side='LONG' AND btc_trend_state='bull' AND entry_time>='2026-08-24T00:00'`, dedup(symbol, entry_time, side), weekday dow∈{1..5}. `liq_imb>=0.5` is an ASSERTED GUARD (held on all 193 in-sample rows; live gate enforces it) — violating rows are excluded and counted, never silently kept.
+
+**Metric bindings (frozen to validated harness, commit 435433e, 193/193 exact):**
+- LIVE leg: `R_live = pnl_atr / stop_atr` (canonical reader metric)
+- Replay legs: 5m klines (fapi), entry index = bisect_right(bar_opens, entry_ms); collision order **STOP-FIRST**; time exit = Nth bar close; `R_arm = replay_atr_units / stop_atr`
+- Paired endpoint per trade: Δ = R_arm − R_live
+- Validation gate at every R-read: TP3@6-bar baseline replay must match stored R on ≥90% of pairs (|dR|<0.05) and incomplete pairs ≤10%, else the read is VOID → counts only
+
+**Arms:**
+- **T1 (primary):** SL10, no TP, hold 36 bars (180m). meanΔ(T1−LIVE) decides.
+- **T2 (secondary):** SL10/TP3 kept, hold 48 bars if entry hour ∈ [8,11], else 24 bars. Evaluated only if T1 not promoted.
+- Descriptive-only (no promotion path, anti forked-path): noTP@120m, TP2@120m.
+
+**Floors (both arms):** n_pairs ≥ 30; distinct days ≥ 5; top-day ≤40% of ΣΔ; LIVE-leg E ≥ 0 in window (else ARM-LEVEL REGRESSION — exit tuning moot, route to arm review).
+
+**Decision rule:**
+- PROMOTE arm → propose wire change: meanΔ ≥ **+0.05 R/tr** with all floors + validation gate. T2 additionally requires early-cell (h8-11) n_pairs ≥ 20.
+- KILL arm: meanΔ ≤ −0.05 with floors met → keep live, park question permanently.
+- Else INCONCLUSIVE → keep live.
+
+**Peek policy & timeline:** counts ONLY (n/days/symbols/hour-hist, no R values) until 2026-09-06T00:00Z. First R-read Sun Sep 6. Formal call Sun Sep 20. ONE extension max → Oct 4, then park.
+
+**Power honesty:** in-sample point estimate meanΔ(T1) = +0.028 R/tr < promote bar +0.05. Absent a truly larger effect the expected outcome is NO-PROMOTION (keep live config). This prereg exists to catch a real ≥+0.05 edge or kill the leaderboard — it is NOT sized to confirm the in-sample estimate.
+
+**Non-goals:** no wire change before promotion; no post-hoc arm substitution; descriptive arms may be quoted but carry no decision weight.
