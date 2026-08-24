@@ -624,3 +624,9 @@ Hour×horizon: h13 decays with hold (+0.074→+0.040→+0.027); h11 improves (+0
 Caveats: 9 distinct days, in-sample optimization, topday Aug21 = 51% of 120m net, bull episodes only.
 
 **Verdict**: current live London-bull arm config is the argmax of the tested grid — no immediate change. Candidate refinement (UNDERPOWERED, n~20/cell): hour-conditional hold (≤h11 extended to ~180m, h13 capped short). If pursued → preregister PREREG-LONDHOLD counts-only forward; do NOT wire from this read.
+
+### Addendum (2026-08-24b): TP-vs-hold head-to-head (weekday core n=115, SL10)
+TP3@120m +0.071 | TP2@120m +0.074 | TP1.5 +0.064 | **noTP@120m +0.080 | noTP@180m +0.099** R/trade. Removing the TP entirely dominates every TP level tested; longer hold adds more.
+Consistency noTP@180m vs live: better 5/9 days, 3/5 weeks (W30 −0.84, W31 −0.54); survives excl-Aug21 (+0.089 vs +0.048/tr). Cost: wr 64→58%, larger chop-day losses (Jul23 −0.87Δ, Jul29 −0.54Δ).
+Provenance note: the historical "+32R" reference cell = Σ pnl_atr in ATR-units through Aug20 (n=83) = **+3.2R canonical**. Sun Aug23 alone = +11 ATR-u = +1.1R (n16); Sat Aug22 = −0.01R (n62) — weekend avg≈0 is one flat Saturday, two data points total.
+Status: noTP@180m is an in-sample leaderboard on 9 distinct days with trend-day concentration — NOT wired; candidate for PREREG-LONDHOLD forward test alongside hour-conditional-hold arm.
