@@ -243,6 +243,11 @@ class LiqBurstFollowEngine:
             return False, None
 
         side = _resolve_side(rule.side_mode, imb)
+        if rule.allowed_side and side is not None and side.value != rule.allowed_side:
+            logger.debug(
+                "Burst session skip", symbol=symbol, session=session, reason="side_pin",
+            )
+            return False, None
         return side is not None, side
 
     async def evaluate(

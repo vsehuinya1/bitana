@@ -1,0 +1,59 @@
+# v66 Liq-Burst Continuation — parallel paper track (separate from v65-revert)
+# Thesis: short-liq hourly burst >=35% of trailing 24h -> LONG continuation 8h
+
+symbols:
+  tier_a:
+    - NEARUSDT
+    - ZECUSDT
+    - ADAUSDT
+    - WLDUSDT
+    - UNIUSDT
+    - NMRUSDT
+    - PENDLEUSDT
+    - ARBUSDT
+    - RENDERUSDT
+    - RUNEUSDT
+    - FETUSDT
+    - DOTUSDT
+    - TONUSDT
+    - SOLUSDT
+    - 1000LUNCUSDT
+    - ENAUSDT
+    - 1000PEPEUSDT
+    - XRPUSDT
+    - FILUSDT
+    - BNBUSDT
+    - TAOUSDT
+    - CHZUSDT
+    - DASHUSDT
+    - QNTUSDT
+    - ICPUSDT
+    - XLMUSDT
+    - APTUSDT
+    - ETHUSDT
+
+risk:
+  max_positions: 4
+  max_per_symbol: 1
+  max_risk_pct: 0.005
+
+initial_equity: 10000.0
+
+burst:
+  share_min: 0.35
+  dir_dom: 0.70
+  min_trail_usd: 100000.0
+  stop_atr: 3.0
+  hold_bars: 96
+  dedup_hours: 4
+
+telegram:
+  session_report_hour_utc: 22
+  session_report_minute_utc: 5
+
+fees:
+  taker_bps: 4.5
+  slippage_bps: 2.0
+
+coinalyze:
+  api_key: "be291954-992e-489d-8ab5-5d34a0dfcf41"

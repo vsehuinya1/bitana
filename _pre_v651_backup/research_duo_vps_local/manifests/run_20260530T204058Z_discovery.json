@@ -1,0 +1,1201 @@
+{
+  "artifacts": {
+    "cohort_definitions": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "note": "",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time). NOT the same as bd_gate_live \u2014 audit count matches entry >= May 27 10:00 UTC, not 21:00.",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "The 8-trade gap vs bd_gate_live are entries between 10:00\u201321:00 UTC on May 27 (before BD gate deployment, after an earlier May 27 boundary the audit likely used).",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75 (63 trades); count verified against VPS DB 2026-05-30",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "v5_db": "/root/bitana/storage/v5_forward_test.db",
+    "v5_db_sha256": "c540bf052a7ef05aea98d3feb1535417c9694c99a9d95cf8e5c0354d760609dd",
+    "v5_schema": {
+      "duplicate_keys": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "dup_key",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "created_at",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          }
+        ],
+        "row_count": 273
+      },
+      "equity_snapshots": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "id",
+            "notnull": false,
+            "pk": true,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 1,
+            "name": "timestamp",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "equity",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 3,
+            "name": "open_positions",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 4,
+            "name": "unrealized_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          }
+        ],
+        "row_count": 259
+      },
+      "liq_cache": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "symbol",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "date",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "total_liq",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 3,
+            "name": "long_liq",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 4,
+            "name": "short_liq",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 5,
+            "name": "close",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 6,
+            "name": "updated_at",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          }
+        ],
+        "row_count": 5500
+      },
+      "open_positions": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "trade_uuid",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "symbol",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "side",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 3,
+            "name": "entry_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 4,
+            "name": "quantity",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 5,
+            "name": "orig_quantity",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 6,
+            "name": "leverage",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 7,
+            "name": "stop_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 8,
+            "name": "init_stop",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 9,
+            "name": "tp1_hit",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 10,
+            "name": "trail_active",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 11,
+            "name": "candles_held",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 12,
+            "name": "entry_time",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 13,
+            "name": "rpnl",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 14,
+            "name": "fees",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 15,
+            "name": "btc_aligned",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 16,
+            "name": "confirmations",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 17,
+            "name": "mae",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 18,
+            "name": "mfe",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 19,
+            "name": "aggression",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 20,
+            "name": "decile",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          }
+        ],
+        "row_count": 1
+      },
+      "state": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "key",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "value",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          }
+        ],
+        "row_count": 139
+      },
+      "trades": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "id",
+            "notnull": false,
+            "pk": true,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 1,
+            "name": "trade_uuid",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "symbol",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 3,
+            "name": "side",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 4,
+            "name": "entry_time",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 5,
+            "name": "exit_time",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 6,
+            "name": "entry_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 7,
+            "name": "exit_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 8,
+            "name": "quantity",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 9,
+            "name": "leverage",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 10,
+            "name": "stop_dist",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 11,
+            "name": "pnl_usd",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 12,
+            "name": "pnl_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 13,
+            "name": "fees",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 14,
+            "name": "hold_candles",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 15,
+            "name": "exit_reason",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 16,
+            "name": "tp1_hit",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 17,
+            "name": "equity_after",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 18,
+            "name": "btc_aligned",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 19,
+            "name": "confirmations",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 20,
+            "name": "mae",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 21,
+            "name": "mfe",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 22,
+            "name": "duplicate_key",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 23,
+            "name": "aggression",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 24,
+            "name": "decile",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 25,
+            "name": "is_experimental",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          }
+        ],
+        "row_count": 258
+      }
+    },
+    "v6_db": "/root/bitana/storage/v6_telemetry.db",
+    "v6_db_sha256": "8fd496ccc8a81f82ee07335d3c5d9e31412ad152dfc329cc5b1830ed71bb08d7",
+    "v6_schema": {
+      "exit_attribution": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "trade_uuid",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "exit_time",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "exit_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 3,
+            "name": "exit_reason",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 4,
+            "name": "pnl_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 5,
+            "name": "hold_bars",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 6,
+            "name": "mae",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 7,
+            "name": "mfe",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 8,
+            "name": "mfe_bar",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 9,
+            "name": "mae_bar",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 10,
+            "name": "exit_session",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 11,
+            "name": "r_at_midpoint",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 12,
+            "name": "structural_invalidation_count",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 13,
+            "name": "momentum_reversal_count",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 14,
+            "name": "optimal_exit_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 15,
+            "name": "exit_efficiency",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          }
+        ],
+        "row_count": 170
+      },
+      "post_exit": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "trade_uuid",
+            "notnull": true,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "bars_after",
+            "notnull": true,
+            "pk": true,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 2,
+            "name": "timestamp",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 3,
+            "name": "price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 4,
+            "name": "hypothetical_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          }
+        ],
+        "row_count": 7221
+      },
+      "r_path": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "trade_uuid",
+            "notnull": true,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "bar_index",
+            "notnull": true,
+            "pk": true,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 2,
+            "name": "timestamp",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 3,
+            "name": "price",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 4,
+            "name": "unrealized_r",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 5,
+            "name": "mae_so_far",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 6,
+            "name": "mfe_so_far",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 7,
+            "name": "atr",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 8,
+            "name": "consecutive_red",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 9,
+            "name": "above_ema",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 10,
+            "name": "above_range_high",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 11,
+            "name": "vol_trail_level",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 12,
+            "name": "struct_trail_level",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          }
+        ],
+        "row_count": 26919
+      },
+      "regime_snapshots": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "timestamp",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "btc_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 2,
+            "name": "n_cascades_active",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 3,
+            "name": "n_open_positions",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 4,
+            "name": "total_symbols",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 5,
+            "name": "equity",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          }
+        ],
+        "row_count": 1777
+      },
+      "shadow_exits": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "id",
+            "notnull": false,
+            "pk": true,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 1,
+            "name": "trade_uuid",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "shadow_name",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 3,
+            "name": "trigger_bar",
+            "notnull": true,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 4,
+            "name": "trigger_time",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 5,
+            "name": "trigger_price",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 6,
+            "name": "shadow_r",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 7,
+            "name": "actual_exit_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 8,
+            "name": "actual_exit_bar",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 9,
+            "name": "delta_r",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 10,
+            "name": "post_trigger_mfe",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          }
+        ],
+        "row_count": 18853
+      },
+      "trade_entries": {
+        "columns": [
+          {
+            "cid": 0,
+            "name": "trade_uuid",
+            "notnull": false,
+            "pk": true,
+            "type": "TEXT"
+          },
+          {
+            "cid": 1,
+            "name": "symbol",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 2,
+            "name": "side",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 3,
+            "name": "entry_time",
+            "notnull": true,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 4,
+            "name": "entry_price",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 5,
+            "name": "stop_price",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 6,
+            "name": "risk_per_unit",
+            "notnull": true,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 7,
+            "name": "decile",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 8,
+            "name": "aggression",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 9,
+            "name": "cascade_strength",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 10,
+            "name": "cascade_active",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 11,
+            "name": "liq_direction_imb",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 12,
+            "name": "ret_5d",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 13,
+            "name": "confirmations",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 14,
+            "name": "n_confirmations",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 15,
+            "name": "vol_z",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 16,
+            "name": "imb_z",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 17,
+            "name": "atr",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 18,
+            "name": "atr_pct",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 19,
+            "name": "risk_pct",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 20,
+            "name": "range_high",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 21,
+            "name": "ema_value",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 22,
+            "name": "session",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 23,
+            "name": "equity_at_entry",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 24,
+            "name": "open_positions_at_entry",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          },
+          {
+            "cid": 25,
+            "name": "btc_price",
+            "notnull": false,
+            "pk": false,
+            "type": "REAL"
+          },
+          {
+            "cid": 26,
+            "name": "created_at",
+            "notnull": false,
+            "pk": false,
+            "type": "TEXT"
+          },
+          {
+            "cid": 27,
+            "name": "is_experimental",
+            "notnull": false,
+            "pk": false,
+            "type": "INTEGER"
+          }
+        ],
+        "row_count": 145
+      }
+    }
+  },
+  "config": {
+    "cohorts": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).\n",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time). NOT the same as bd_gate_live \u2014 audit count matches entry >= May 27 10:00 UTC, not 21:00.\n",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "The 8-trade gap vs bd_gate_live are entries between 10:00\u201321:00 UTC on May 27 (before BD gate deployment, after an earlier May 27 boundary the audit likely used).\n",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75 (63 trades); count verified against VPS DB 2026-05-30",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "expected_tables": {
+      "v5": [
+        "trades",
+        "open_positions",
+        "state",
+        "duplicate_keys",
+        "equity_snapshots",
+        "liq_cache"
+      ],
+      "v6": [
+        "trade_entries",
+        "r_path",
+        "shadow_exits",
+        "exit_attribution",
+        "post_exit",
+        "regime_snapshots"
+      ]
+    },
+    "paths": {
+      "datasets_dir": "research_duo/datasets",
+      "manifests_dir": "research_duo/manifests",
+      "symbol_config": "config/v5_forward_test.yaml",
+      "v5_db": "storage/v5_forward_test.db",
+      "v6_db": "storage/v6_telemetry.db"
+    },
+    "pipeline_version": "0.1.1",
+    "random_seed": 42
+  },
+  "created_at": "2026-05-30T20:40:58.438359+00:00",
+  "git_commit": "7a6267f17723237a6cc9971f7e9e9e494b6a0a39",
+  "pipeline_version": "0.1.1",
+  "qa": {
+    "open_positions_with_r_path": [
+      "2cbb6bcd-83e7-4d3f-832a-42c9919088b8"
+    ],
+    "orphan_r_path_count": 1,
+    "orphan_r_path_investigations": [
+      {
+        "classification": "open_position",
+        "explanation": "r_path telemetry for a live position not yet written to v5.trades. Expected: trade_entries + r_path logged at entry; trades row appears only on close.",
+        "in_v5_open_positions": true,
+        "in_v5_trades": false,
+        "open_position": {
+          "candles_held": 4,
+          "entry_price": 1.854471,
+          "entry_time": "2026-05-30T20:19:59.999000+00:00",
+          "side": "LONG",
+          "symbol": "TONUSDT",
+          "trade_uuid": "2cbb6bcd-83e7-4d3f-832a-42c9919088b8"
+        },
+        "trade_uuid": "2cbb6bcd-83e7-4d3f-832a-42c9919088b8",
+        "uuid_format_valid": true,
+        "v6_exit_attribution": null,
+        "v6_r_path": {
+          "bars": 4,
+          "first_ts": "2026-05-30T20:24:59.999000+00:00",
+          "last_ts": "2026-05-30T20:39:59.999000+00:00",
+          "max_bar": 4,
+          "min_bar": 1
+        },
+        "v6_trade_entry": {
+          "entry_time": "2026-05-30T20:19:59.999000+00:00",
+          "side": "LONG",
+          "symbol": "TONUSDT"
+        }
+      }
+    ],
+    "orphan_r_path_summary": {
+      "open_position": 1
+    },
+    "orphan_r_path_uuids": [
+      "2cbb6bcd-83e7-4d3f-832a-42c9919088b8"
+    ],
+    "trades_without_r_path_count": 88,
+    "trades_without_r_path_sample": [
+      "01e208dd-857f-48db-84d2-8fd7606e153c",
+      "0602669b-32bb-4117-b561-13a02c821c76",
+      "065db4b8-2cbb-42fb-8db5-a684dd63c0e7",
+      "067be626-2113-43e7-974a-47c6de0de4d8",
+      "071d504f-a4ce-40e3-865f-6b2946cc04c6",
+      "08af90e5-266b-4523-93f8-1d4c3b8b6c86",
+      "08fd4f49-2b75-4d80-b30a-4fbd25bc8bbd",
+      "0b2cd86d-aac1-4761-b53e-455f71503395",
+      "0b7ca43e-4009-4c07-985d-a6d765e947b4",
+      "0f92d93f-c97d-450d-b7ad-42906c1f6946"
+    ],
+    "v5_closed_trades": 258,
+    "v5_open_positions": 1,
+    "v6_available": true,
+    "v6_r_path_trades": 171
+  },
+  "stage": "discovery",
+  "warnings": [
+    "Orphan r_path UUID 2cbb6bcd\u2026 is an open position (TONUSDT) \u2014 harmless, not a data bug."
+  ]
+}

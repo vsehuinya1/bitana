@@ -1,0 +1,7 @@
+V65 SCALE-IN (ws_merged)
+trades=backtest_output/v65_ws_merged_28_trades.csv
+rpath=backtest_output/v6_bt_rpath_v645_ws_merged.csv
+probe=0.25 add=0.75 scale_if_mfe>=0.3R by bar3
+
+full:      n=156 avg=+0.416R test_n=63 test=+0.251R KEEP
+scale_in:  n=156 avg=+0.164R test_n=63 test=+0.066R scale_rate=34.0% KEEP

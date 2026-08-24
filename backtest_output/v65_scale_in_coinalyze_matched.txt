@@ -1,0 +1,7 @@
+V65 SCALE-IN (coinalyze_matched)
+trades=/root/bitana/backtest_output/v6_bt_trades_v645_coinalyze_28.csv
+rpath=/root/bitana/backtest_output/v6_bt_rpath_v645_coinalyze_28.csv
+probe=0.25 add=0.75 scale_if_mfe>=0.3R by bar3
+
+full:      n=156 avg=+0.416R test_n=63 test=+0.251R KEEP
+scale_in:  n=156 avg=+0.164R test_n=63 test=+0.066R scale_rate=34.0% KEEP

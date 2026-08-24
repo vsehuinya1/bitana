@@ -1,0 +1,71 @@
+=== v6.5-revert backtest 2026-06-11 03:17:08 UTC ===
+entry: V5 strict (vol_z>3, imb_z>2, body>=0.60, impulse>=0.30, min_confirms=4)
+filters: v6.2 deciles (D1,D2,D5-D9; D1/D2 imb|vol), BD>-2%, NY 14-22 UTC
+exits: V5 vol_trail (RESEARCH_V5_EXITS=1)
+symbols: 28 proven V5 universe
+
+mode: V6.4.5_DEPLOYED | entry: v645 | liq_source: coinalyze
+symbols: 28 usable of 28 configured
+liq_lag_days: 1 (completed days only)
+  10/28 symbols | trades=49
+  20/28 symbols | trades=99
+
+saved 132 trades, 2994 r_path rows → v6_bt_trades_v645.csv
+=== v6.5-revert backtest 2026-06-11 03:17:08 UTC ===
+entry: V5 strict (vol_z>3, imb_z>2, body>=0.60, impulse>=0.30, min_confirms=4)
+filters: v6.2 deciles (D1,D2,D5-D9; D1/D2 imb|vol), BD>-2%, NY 14-22 UTC
+exits: V5 vol_trail (RESEARCH_V5_EXITS=1)
+symbols: 28 proven V5 universe
+
+
+KILL | n=132 full=+0.149R (+19.6R) wr=58%
+OOS test_n=53 test=-0.049R (-2.6R) test_wr=49%
+pass=False (need test_n>=50, test_avg>0.0, full_avg>-0.05)
+
+--- by decile ---
+  D1: n=60 avg=+0.286R tot=+17.14R wr=57%
+  D2: n=25 avg=+0.014R tot=+0.35R wr=52%
+  D5: n=18 avg=-0.160R tot=-2.88R wr=56%
+  D6: n=5 avg=+0.026R tot=+0.13R wr=80%
+  D7: n=9 avg=+0.754R tot=+6.78R wr=78%
+  D8: n=10 avg=-0.196R tot=-1.96R wr=50%
+  D9: n=5 avg=+0.013R tot=+0.06R wr=80%
+
+--- by exit reason ---
+  vol_trail: n=76 tot=+72.72R avg=+0.957R
+  stop_loss: n=55 tot=-55.00R avg=-1.000R
+  decay: n=1 tot=+1.92R avg=+1.915R
+
+--- by symbol (all) ---
+  ENAUSDT: n=8 tot=+11.09R avg=+1.386R
+  APTUSDT: n=4 tot=+6.62R avg=+1.654R
+  ICPUSDT: n=3 tot=+6.10R avg=+2.034R
+  FETUSDT: n=4 tot=+4.47R avg=+1.117R
+  RENDERUSDT: n=4 tot=+2.65R avg=+0.663R
+  1000LUNCUSDT: n=5 tot=+2.18R avg=+0.437R
+  DASHUSDT: n=3 tot=+1.71R avg=+0.569R
+  UNIUSDT: n=2 tot=+1.53R avg=+0.765R
+  DOTUSDT: n=8 tot=+1.37R avg=+0.171R
+  XRPUSDT: n=5 tot=+1.31R avg=+0.263R
+  ADAUSDT: n=5 tot=+1.16R avg=+0.231R
+  ZECUSDT: n=10 tot=+1.12R avg=+0.112R
+  PENDLEUSDT: n=6 tot=+0.87R avg=+0.144R
+  NMRUSDT: n=5 tot=+0.19R avg=+0.038R
+  XLMUSDT: n=4 tot=-0.18R avg=-0.044R
+  1000PEPEUSDT: n=2 tot=-0.53R avg=-0.264R
+  QNTUSDT: n=2 tot=-0.64R avg=-0.322R
+  TONUSDT: n=4 tot=-0.86R avg=-0.216R
+  RUNEUSDT: n=2 tot=-0.95R avg=-0.476R
+  ETHUSDT: n=5 tot=-1.03R avg=-0.207R
+  WLDUSDT: n=6 tot=-1.68R avg=-0.280R
+  BNBUSDT: n=4 tot=-1.80R avg=-0.449R
+  TAOUSDT: n=8 tot=-1.80R avg=-0.226R
+  ARBUSDT: n=5 tot=-2.01R avg=-0.402R
+  SOLUSDT: n=7 tot=-2.52R avg=-0.361R
+  CHZUSDT: n=4 tot=-2.74R avg=-0.685R
+  NEARUSDT: n=4 tot=-3.00R avg=-0.749R
+  FILUSDT: n=3 tot=-3.00R avg=-1.000R
+
+saved v65_revert_trades.csv
+
+saved v65_revert_results.txt, v65_revert_summary.csv

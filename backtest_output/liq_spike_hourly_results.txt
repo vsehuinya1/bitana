@@ -1,0 +1,86 @@
+=== HOURLY LIQ SPIKE STUDY 2026-06-11 04:01 UTC ===
+events: 2704 | symbols: 21 | 2026-01-01..2026-05-21
+dedup 4h | min trail $100,000 | fwd in ATR(14,5m) units
+qualify: n>=80, |mean|>=0.15 ATR, sign(train)==sign(test), |t|>=2
+
+--- tier>=10% long_dom (n=1703) ---
+  + 1h: mean=-0.045 t=-1.0 hit=48% | train=-0.104 test=+0.038
+  + 2h: mean=-0.255 t=-3.8 hit=46% | train=-0.348 test=-0.124  <-- QUALIFIES
+  + 4h: mean=-0.441 t=-4.6 hit=45% | train=-0.689 test=-0.092  <-- QUALIFIES
+  + 8h: mean=-0.607 t=-4.6 hit=47% | train=-0.875 test=-0.230  <-- QUALIFIES
+  +24h: mean=-0.228 t=-0.9 hit=49% | train=-1.134 test=+1.049
+  risk: med dd24h=-6.30 med ru24h=+5.23
+
+--- tier>=10% short_dom (n=912) ---
+  + 1h: mean=+0.131 t=+1.7 hit=47% | train=+0.118 test=+0.152
+  + 2h: mean=+0.127 t=+1.2 hit=46% | train=+0.069 test=+0.227
+  + 4h: mean=+0.096 t=+0.6 hit=46% | train=+0.116 test=+0.061
+  + 8h: mean=+0.695 t=+2.7 hit=49% | train=+0.848 test=+0.432  <-- QUALIFIES
+  +24h: mean=-0.031 t=-0.1 hit=44% | train=+0.034 test=-0.143
+  risk: med dd24h=-5.61 med ru24h=+6.31
+
+--- tier>=10% mixed (n=89) ---
+  + 1h: mean=-0.130 t=-0.5 hit=37% | train=-0.167 test=-0.084
+  + 2h: mean=-0.242 t=-0.7 hit=40% | train=-0.457 test=+0.021
+  + 4h: mean=-0.290 t=-0.7 hit=48% | train=-0.885 test=+0.439
+  + 8h: mean=-0.386 t=-0.8 hit=49% | train=-1.096 test=+0.483
+  +24h: mean=-0.565 t=-0.6 hit=46% | train=-1.392 test=+0.449
+  risk: med dd24h=-4.42 med ru24h=+4.27
+
+--- tier>=20% long_dom (n=850) ---
+  + 1h: mean=-0.035 t=-0.6 hit=50% | train=-0.000 test=-0.078
+  + 2h: mean=-0.130 t=-1.5 hit=49% | train=-0.179 test=-0.069
+  + 4h: mean=-0.188 t=-1.5 hit=48% | train=-0.474 test=+0.167
+  + 8h: mean=-0.397 t=-2.4 hit=48% | train=-0.729 test=+0.014
+  +24h: mean=+0.163 t=+0.5 hit=52% | train=-0.719 test=+1.254
+  risk: med dd24h=-5.59 med ru24h=+4.76
+
+--- tier>=20% short_dom (n=422) ---
+  + 1h: mean=+0.196 t=+1.8 hit=48% | train=+0.265 test=+0.076
+  + 2h: mean=+0.224 t=+1.4 hit=46% | train=+0.166 test=+0.324
+  + 4h: mean=+0.141 t=+0.6 hit=47% | train=+0.191 test=+0.055
+  + 8h: mean=+1.060 t=+2.8 hit=50% | train=+1.322 test=+0.605  <-- QUALIFIES
+  +24h: mean=+0.660 t=+1.4 hit=46% | train=+0.652 test=+0.674
+  risk: med dd24h=-5.20 med ru24h=+6.49
+
+--- tier>=20% mixed (n=32) ---
+  + 1h: mean=+0.008 t=+0.0 hit=38% | train=+0.101 test=-0.127
+  + 2h: mean=+0.776 t=+1.4 hit=47% | train=+0.729 test=+0.845
+  + 4h: mean=+0.301 t=+0.5 hit=53% | train=+0.291 test=+0.316
+  + 8h: mean=+0.999 t=+1.6 hit=62% | train=+0.298 test=+2.024
+  +24h: mean=+0.594 t=+0.4 hit=53% | train=-0.444 test=+2.112
+  risk: med dd24h=-2.62 med ru24h=+5.63
+
+--- tier>=35% long_dom (n=427) ---
+  + 1h: mean=+0.053 t=+0.6 hit=52% | train=+0.108 test=-0.010
+  + 2h: mean=+0.134 t=+1.1 hit=52% | train=+0.070 test=+0.206
+  + 4h: mean=+0.085 t=+0.5 hit=51% | train=-0.290 test=+0.511
+  + 8h: mean=+0.004 t=+0.0 hit=50% | train=-0.348 test=+0.403
+  +24h: mean=+0.723 t=+1.8 hit=55% | train=+0.119 test=+1.408
+  risk: med dd24h=-4.68 med ru24h=+4.57
+
+--- tier>=35% short_dom (n=171) ---
+  + 1h: mean=+0.257 t=+1.5 hit=48% | train=+0.187 test=+0.361
+  + 2h: mean=+0.127 t=+0.5 hit=47% | train=-0.079 test=+0.431
+  + 4h: mean=-0.055 t=-0.2 hit=44% | train=-0.095 test=+0.003
+  + 8h: mean=+0.939 t=+1.8 hit=50% | train=+1.221 test=+0.522
+  +24h: mean=+1.539 t=+2.3 hit=51% | train=+1.772 test=+1.195  <-- QUALIFIES
+  risk: med dd24h=-4.60 med ru24h=+7.10
+
+--- events by 3h block (descriptive) ---
+  00-02: n=344 fwd4h=-0.433
+  03-05: n=250 fwd4h=-0.406
+  06-08: n=287 fwd4h=-0.781
+  09-11: n=272 fwd4h=-0.708
+  12-14: n=486 fwd4h=-0.239
+  15-17: n=424 fwd4h=+0.243
+  18-20: n=314 fwd4h=+0.135
+  21-23: n=327 fwd4h=-0.156
+
+QUALIFYING CELLS:
+  tier>=10% long_dom +2h: -0.255 ATR (t=-3.8)
+  tier>=10% long_dom +4h: -0.441 ATR (t=-4.6)
+  tier>=10% long_dom +8h: -0.607 ATR (t=-4.6)
+  tier>=10% short_dom +8h: +0.695 ATR (t=+2.7)
+  tier>=20% short_dom +8h: +1.060 ATR (t=+2.8)
+  tier>=35% short_dom +24h: +1.539 ATR (t=+2.3)

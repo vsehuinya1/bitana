@@ -1,0 +1,51 @@
+=== v65 FOLLOW-UP 2026-06-10 08:16:51 UTC ===
+
+=== v65 ASIA-28 2026-06-10 08:17:23 UTC ===
+session: Asia 0–8 UTC | symbols: 28 proven | entry/exits: v65-revert
+
+KEEP | n=160 full=+0.376R (+60.2R) wr=63%
+OOS test_n=64 test=+0.442R (+28.3R) test_wr=66%
+pass=True (need test_n>=50, test_avg>0.0, full_avg>-0.05)
+
+--- by hour (Asia 0–8) ---
+  00 UTC: n=26 avg=+0.262R tot=+6.82R
+  01 UTC: n=28 avg=+0.667R tot=+18.67R
+  02 UTC: n=16 avg=-0.020R tot=-0.31R
+  03 UTC: n=19 avg=+0.085R tot=+1.61R
+  04 UTC: n=20 avg=+0.240R tot=+4.79R
+  05 UTC: n=15 avg=+1.626R tot=+24.39R
+  06 UTC: n=13 avg=+0.383R tot=+4.98R
+  07 UTC: n=23 avg=-0.031R tot=-0.72R
+
+--- by symbol ---
+  NEARUSDT: n=5 tot=+9.90R avg=+1.980R
+  TAOUSDT: n=11 tot=+7.57R avg=+0.688R
+  DOTUSDT: n=10 tot=+6.67R avg=+0.667R
+  ARBUSDT: n=7 tot=+5.70R avg=+0.815R
+  QNTUSDT: n=4 tot=+4.48R avg=+1.119R
+  RUNEUSDT: n=2 tot=+4.41R avg=+2.205R
+  XRPUSDT: n=9 tot=+3.54R avg=+0.393R
+  PENDLEUSDT: n=7 tot=+3.47R avg=+0.495R
+  ETHUSDT: n=4 tot=+3.42R avg=+0.855R
+  ENAUSDT: n=6 tot=+3.29R avg=+0.549R
+  UNIUSDT: n=4 tot=+3.01R avg=+0.753R
+  1000LUNCUSDT: n=6 tot=+2.81R avg=+0.468R
+  TONUSDT: n=6 tot=+2.65R avg=+0.442R
+  FETUSDT: n=6 tot=+2.56R avg=+0.427R
+  ADAUSDT: n=3 tot=+2.06R avg=+0.688R
+  XLMUSDT: n=6 tot=+1.32R avg=+0.219R
+  WLDUSDT: n=8 tot=+1.24R avg=+0.155R
+  ICPUSDT: n=3 tot=+1.19R avg=+0.395R
+  DASHUSDT: n=4 tot=+1.13R avg=+0.282R
+  ZECUSDT: n=9 tot=+0.04R avg=+0.004R
+  RENDERUSDT: n=4 tot=-0.32R avg=-0.079R
+  BNBUSDT: n=4 tot=-0.35R avg=-0.087R
+  SOLUSDT: n=7 tot=-0.43R avg=-0.062R
+  FILUSDT: n=7 tot=-0.91R avg=-0.130R
+  CHZUSDT: n=5 tot=-1.21R avg=-0.243R
+  1000PEPEUSDT: n=3 tot=-1.96R avg=-0.654R
+  NMRUSDT: n=7 tot=-2.06R avg=-0.294R
+  APTUSDT: n=3 tot=-3.00R avg=-1.000R
+
+============================================================
+

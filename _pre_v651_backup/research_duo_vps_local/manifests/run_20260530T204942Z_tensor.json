@@ -1,0 +1,115 @@
+{
+  "artifacts": {
+    "channels": [
+      "unrealized_r_path",
+      "mfe_so_far_path",
+      "mae_so_far_path",
+      "delta_r_path",
+      "mfe_velocity_path",
+      "vol_trail_distance_path",
+      "struct_trail_distance_path"
+    ],
+    "row_count": 171,
+    "trade_tensor_parquet": "/root/bitana/research_duo/tensors/trade_tensor.parquet",
+    "trade_tensor_sha256": "6f084c2a1f8ab0109c1b85116603d0861661c65e11544c16f7130b887642bc90"
+  },
+  "config": {
+    "cohorts": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).\n",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time).\n",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "Audit count matches entry >= May 27 10:00 UTC, not the 21:00 BD gate deployment time.\n",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "expected_tables": {
+      "v5": [
+        "trades",
+        "open_positions",
+        "state",
+        "duplicate_keys",
+        "equity_snapshots",
+        "liq_cache"
+      ],
+      "v6": [
+        "trade_entries",
+        "r_path",
+        "shadow_exits",
+        "exit_attribution",
+        "post_exit",
+        "regime_snapshots"
+      ]
+    },
+    "paths": {
+      "datasets_dir": "research_duo/datasets",
+      "features_dir": "research_duo/features",
+      "manifests_dir": "research_duo/manifests",
+      "symbol_config": "config/v5_forward_test.yaml",
+      "tensors_dir": "research_duo/tensors",
+      "v5_db": "storage/v5_forward_test.db",
+      "v6_db": "storage/v6_telemetry.db"
+    },
+    "phase2": {
+      "features": {
+        "early_slope_end_bar": 5,
+        "stale_epsilon_r": 0.001,
+        "threshold_rs": [
+          0.1,
+          0.3,
+          0.5
+        ]
+      },
+      "r_path": {
+        "lag_correction": false,
+        "velocity_window": 3
+      },
+      "tensor": {
+        "max_bars": 512,
+        "optional_trail_channels": true
+      }
+    },
+    "pipeline_version": "0.2.0",
+    "random_seed": 42
+  },
+  "created_at": "2026-05-30T20:49:42.502318+00:00",
+  "git_commit": "7a6267f17723237a6cc9971f7e9e9e494b6a0a39",
+  "pipeline_version": "0.2.0",
+  "qa": {
+    "channel_sources": {
+      "delta_r_path": "delta_r",
+      "mae_so_far_path": "mae_so_far",
+      "mfe_so_far_path": "mfe_so_far",
+      "mfe_velocity_path": "mfe_velocity",
+      "struct_trail_distance_path": "struct_trail_distance",
+      "unrealized_r_path": "unrealized_r",
+      "vol_trail_distance_path": "vol_trail_distance"
+    },
+    "channels": [
+      "unrealized_r_path",
+      "mfe_so_far_path",
+      "mae_so_far_path",
+      "delta_r_path",
+      "mfe_velocity_path",
+      "vol_trail_distance_path",
+      "struct_trail_distance_path"
+    ],
+    "max_bars": 512,
+    "normalization": "none",
+    "pad_value": "NaN",
+    "trade_count": 171,
+    "truncated_trades": 6
+  },
+  "stage": "tensor",
+  "warnings": []
+}

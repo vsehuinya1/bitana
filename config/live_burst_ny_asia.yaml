@@ -215,6 +215,9 @@ burst_follow:
       #   concentrated). Shadow UNCHANGED at TP3@30m (6-bar; verified 2026-08-24 via hold-time dist max=30min all days + 38/38 replay match on the day's LONGs) — reader baseline/validation intact.
       shadow_strategy: burst_follow
       side_mode: follow
+      # Aug 24 (owner): structural LONG-only pin. pos_imb_only already made this
+      #   de-facto true; pin makes it explicit and immune to future imb/side_mode edits.
+      allowed_side: LONG
       pos_imb_only: true
       min_imb: 0.5
       exclude_weekdays: [5, 6]

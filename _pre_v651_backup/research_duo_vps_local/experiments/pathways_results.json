@@ -1,0 +1,43 @@
+{
+  "cohort": "closed trades with r_path telemetry",
+  "n_trades": 170,
+  "note": "Observational metrics only. No recommendations or rule generation.",
+  "pathways": {
+    "confirmed_mfe_0_3r_within_10_bars": {
+      "avg_loss_r": -0.886107142857143,
+      "avg_win_r": 0.9227263157894737,
+      "cohens_d_pnl_vs_complement": 0.8112868612796621,
+      "complement_expectancy_r": -0.5326346153846153,
+      "expectancy_r": 0.15534242424242423,
+      "n": 66,
+      "n_complement": 104,
+      "pathway": "MFE>=0.3R within 10 bars",
+      "total_r": 10.2526,
+      "win_rate": 0.5757575757575758
+    },
+    "high_recovery_gt_1r_posthoc": {
+      "avg_loss_r": -0.9277681818181821,
+      "avg_win_r": 0.8206708333333332,
+      "cohens_d_pnl_vs_complement": 1.1505632573199132,
+      "complement_expectancy_r": -0.6412270000000001,
+      "expectancy_r": 0.2711614285714285,
+      "n": 70,
+      "n_complement": 100,
+      "pathway": "mae_recovery>=1.0R (post-hoc)",
+      "total_r": 18.981299999999994,
+      "win_rate": 0.6857142857142857
+    }
+  },
+  "separability": {
+    "confirmed_mfe_0_3r_within_10_bars": {
+      "cohens_d_max_mae": null,
+      "cohens_d_max_mfe": 1.4852938143052765,
+      "cohens_d_pnl_r": 0.8112868612796621
+    },
+    "high_recovery_gt_1r_posthoc": {
+      "cohens_d_max_mae": null,
+      "cohens_d_max_mfe": 1.846513713719348,
+      "cohens_d_pnl_r": 1.1505632573199132
+    }
+  }
+}

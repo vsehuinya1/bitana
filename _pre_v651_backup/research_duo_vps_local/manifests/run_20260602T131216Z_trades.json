@@ -1,0 +1,272 @@
+{
+  "artifacts": {
+    "cohort_definitions": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "note": "",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time).",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "Audit count matches entry >= May 27 10:00 UTC, not the 21:00 BD gate deployment time.",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "row_count": 306,
+    "trades_parquet": "/root/bitana/research_duo/datasets/trades_reconstructed.parquet",
+    "trades_parquet_sha256": "290b39bcbb754bd589be907928bf263c1a2a0e4461477237c510929fea87de8f"
+  },
+  "config": {
+    "cohorts": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).\n",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time).\n",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "Audit count matches entry >= May 27 10:00 UTC, not the 21:00 BD gate deployment time.\n",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "expected_tables": {
+      "v5": [
+        "trades",
+        "open_positions",
+        "state",
+        "duplicate_keys",
+        "equity_snapshots",
+        "liq_cache"
+      ],
+      "v6": [
+        "trade_entries",
+        "r_path",
+        "shadow_exits",
+        "exit_attribution",
+        "post_exit",
+        "regime_snapshots"
+      ]
+    },
+    "paths": {
+      "clustering_dir": "research_duo/clustering",
+      "datasets_dir": "research_duo/datasets",
+      "experiments_dir": "research_duo/experiments",
+      "features_dir": "research_duo/features",
+      "manifests_dir": "research_duo/manifests",
+      "reports_dir": "research_duo/reports",
+      "states_dir": "research_duo/states",
+      "symbol_config": "config/v5_forward_test.yaml",
+      "tensors_dir": "research_duo/tensors",
+      "v5_db": "storage/v5_forward_test.db",
+      "v6_db": "storage/v6_telemetry.db"
+    },
+    "phase2": {
+      "features": {
+        "early_slope_end_bar": 5,
+        "stale_epsilon_r": 0.001,
+        "threshold_rs": [
+          0.1,
+          0.3,
+          0.5
+        ]
+      },
+      "r_path": {
+        "lag_correction": false,
+        "velocity_window": 3
+      },
+      "tensor": {
+        "max_bars": 512,
+        "optional_trail_channels": true
+      }
+    },
+    "phase3": {
+      "cluster_k": [
+        3,
+        5,
+        7
+      ],
+      "early_classifier": {
+        "feature_cutoff_bar": 10
+      },
+      "explosive": {
+        "max_bars_to_mfe": 15,
+        "mfe_threshold_r": 1.0
+      },
+      "pathways": {
+        "confirmed_max_bars": 10,
+        "confirmed_mfe_r": 0.3,
+        "recovery_min_r": 1.0
+      },
+      "random_seed": 42
+    },
+    "phase4": {
+      "bootstrap_samples": 1000,
+      "early_bars": [
+        3,
+        5,
+        7,
+        10
+      ],
+      "final_holdout_trades": 15,
+      "min_fold_validation_n": 8,
+      "min_pathway_n": 5,
+      "min_train_trades": 30,
+      "pathways": {
+        "max_bars": 10,
+        "primary_threshold_r": 0.3,
+        "thresholds": [
+          0.3,
+          0.5
+        ]
+      },
+      "post_gate_only": false,
+      "random_seed": 42,
+      "validation_chunk": 10
+    },
+    "phase5": {
+      "bd_buckets": [
+        -999,
+        -2,
+        0,
+        2,
+        999
+      ],
+      "early_dead_max_mfe_r": 0.3,
+      "early_dead_window_bars": 10,
+      "explosive_max_bars": 15,
+      "explosive_mfe_r": 1.0,
+      "mfe10_buckets": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        999
+      ],
+      "random_seed": 42
+    },
+    "pipeline_version": "0.5.0",
+    "random_seed": 42
+  },
+  "created_at": "2026-06-02T13:12:16.963665+00:00",
+  "git_commit": "7a6267f17723237a6cc9971f7e9e9e494b6a0a39",
+  "pipeline_version": "0.5.0",
+  "qa": {
+    "cohort_counts": {
+      "post_gate": 103,
+      "post_gate_audit_v2_aligned": 111
+    },
+    "cohort_definitions": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "note": "",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time).",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "Audit count matches entry >= May 27 10:00 UTC, not the 21:00 BD gate deployment time.",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "confirmation_mismatches": 0,
+    "post_gate_gap_vs_audit": {
+      "count": 8,
+      "explanation": "Trades in audit-aligned cohort (entry >= May 27 10:00 UTC) but NOT in bd_gate_live (entry >= May 27 21:00 UTC). These entered after an audit-era boundary but before the documented BD gate deployment time.",
+      "sample": [
+        {
+          "entry_time": "2026-05-27T10:29:59.999000+00:00",
+          "exit_time": "2026-05-27T11:59:59.999000+00:00",
+          "pnl_r": -1.0143,
+          "symbol": "HYPEUSDT",
+          "trade_uuid": "95ff9aaa-8acf-482b-b9e0-b79f4ab7817e"
+        },
+        {
+          "entry_time": "2026-05-27T12:19:59.999000+00:00",
+          "exit_time": "2026-05-27T12:24:59.999000+00:00",
+          "pnl_r": -0.021,
+          "symbol": "LTCUSDT",
+          "trade_uuid": "0d9b9c55-a857-4a23-8a6c-ff5a0082f3cf"
+        },
+        {
+          "entry_time": "2026-05-27T12:39:59.999000+00:00",
+          "exit_time": "2026-05-27T13:44:59.999000+00:00",
+          "pnl_r": -1.0092,
+          "symbol": "GRASSUSDT",
+          "trade_uuid": "064a4c72-07ef-4419-963d-70535b736517"
+        },
+        {
+          "entry_time": "2026-05-27T12:39:59.999000+00:00",
+          "exit_time": "2026-05-27T16:34:59.999000+00:00",
+          "pnl_r": 0.2831,
+          "symbol": "NMRUSDT",
+          "trade_uuid": "ee6ed06d-10a6-4af9-b33c-04fd1ed5a982"
+        },
+        {
+          "entry_time": "2026-05-27T13:49:59.999000+00:00",
+          "exit_time": "2026-05-27T15:59:59.999000+00:00",
+          "pnl_r": 1.0697,
+          "symbol": "UNIUSDT",
+          "trade_uuid": "8ffa10a9-1672-4bc7-8762-58c5c3fd9552"
+        },
+        {
+          "entry_time": "2026-05-27T15:59:59.999000+00:00",
+          "exit_time": "2026-05-27T16:39:59.999000+00:00",
+          "pnl_r": -1.0138,
+          "symbol": "DASHUSDT",
+          "trade_uuid": "b461e048-2470-44c8-884e-b61110bd6be3"
+        },
+        {
+          "entry_time": "2026-05-27T19:24:59.999000+00:00",
+          "exit_time": "2026-05-27T20:24:59.999000+00:00",
+          "pnl_r": -0.617,
+          "symbol": "LTCUSDT",
+          "trade_uuid": "a7e1dd10-3b4c-4ffe-900c-b83f9b5b0cc0"
+        },
+        {
+          "entry_time": "2026-05-27T20:49:59.999000+00:00",
+          "exit_time": "2026-05-27T21:29:59.999000+00:00",
+          "pnl_r": -1.02,
+          "symbol": "HYPEUSDT",
+          "trade_uuid": "22aa10e4-7a31-4620-813b-c641ef0fff9e"
+        }
+      ]
+    },
+    "post_gate_rule": {
+      "cohort_key": "post_gate",
+      "cutoff": "2026-05-27T21:00:00+00:00",
+      "description": "post_gate=true when entry_time >= cutoff. All rows in v5.trades are closed trades by definition.",
+      "field": "entry_time",
+      "name": "bd_gate_live",
+      "requires_closed": true,
+      "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+    },
+    "post_gate_trades": 103,
+    "telemetry_complete": 186,
+    "total_trades": 306,
+    "with_r_path": 218
+  },
+  "stage": "trades",
+  "warnings": []
+}

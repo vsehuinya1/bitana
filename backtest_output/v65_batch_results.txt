@@ -1,0 +1,32 @@
+=== v65 BATCH RESEARCH 2026-06-10 06:35:11 UTC ===
+symbols available: 28=28 57=57
+
+1 ws_merged_28: KEEP n=156 full=+0.416R test=+0.251R
+1 coinalyze_28: KEEP n=156 full=+0.416R test=+0.251R
+   (prior coinalyze run: n=156 full=+0.416R test=+0.251R)
+2 scale_in_coinalyze: SKIP (missing trades or rpath)
+2 scale_in_ws_merged: SKIP (missing trades or rpath)
+3 universe57_ny: KEEP n=222 full=+0.322R test=+0.048R
+3 universe57_london: KILL n=189 full=+0.241R test=-0.087R
+3 universe57_asia: KEEP n=241 full=+0.351R test=+0.355R
+
+Per-symbol OOS (ws_merged 28, n>=3):
+          n       avg     tot
+symbol                       
+TONUSDT   3  1.265233  3.7957
+ICPUSDT   5  1.257560  6.2878
+WLDUSDT   5  0.447600  2.2380
+ZECUSDT   7  0.255343  1.7874
+SOLUSDT   5  0.238520  1.1926
+FILUSDT   3 -0.315167 -0.9455
+CHZUSDT   3 -0.362667 -1.0880
+NEARUSDT  4 -0.449750 -1.7990
+
+Worst:
+          n       avg     tot
+symbol                       
+ZECUSDT   7  0.255343  1.7874
+SOLUSDT   5  0.238520  1.1926
+FILUSDT   3 -0.315167 -0.9455
+CHZUSDT   3 -0.362667 -1.0880
+NEARUSDT  4 -0.449750 -1.7990

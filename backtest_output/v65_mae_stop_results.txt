@@ -1,0 +1,24 @@
+=== v65 MAE / STOP STUDY ===
+trades=v6_bt_trades_v645_coinalyze_28.csv rpath=v6_bt_rpath_v645_coinalyze_28.csv matched=156/156
+
+Winners: n=105 avg_mae=-0.235R p50=-0.070R p90=+0.000R
+Losers:  n=51 avg_mae=-1.038R p50=-0.996R
+Stop_loss exits: n=51 (all should be ~-1R)
+
+Winners MAE below threshold (% of winners):
+  MAE < -0.25R: 38%
+  MAE < -0.50R: 22%
+  MAE < -0.75R: 10%
+  MAE < -1.00R: 0%
+
+Implication (current stop = 2.5 ATR ≈ -1R):
+  p90 winner MAE is +0.00R — tightening stop below 0.5R would clip winners.
+
+--- by decile (winner MAE p50) ---
+  D1: n=47 mae_p50=-0.156R avg_R=+1.305R
+  D2: n=13 mae_p50=-0.051R avg_R=+1.491R
+  D5: n=14 mae_p50=-0.319R avg_R=+0.773R
+  D6: n=6 mae_p50=+0.000R avg_R=+0.863R
+  D7: n=11 mae_p50=-0.056R avg_R=+1.021R
+  D8: n=5 mae_p50=+0.000R avg_R=+0.610R
+  D9: n=9 mae_p50=-0.277R avg_R=+0.536R

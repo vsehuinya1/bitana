@@ -1,0 +1,2 @@
+probe ETHUSDT 2025-12-30: 0 buckets
+ABORT: 5min history does not reach backtest window

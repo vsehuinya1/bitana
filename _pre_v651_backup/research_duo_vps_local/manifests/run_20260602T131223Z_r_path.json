@@ -1,0 +1,412 @@
+{
+  "artifacts": {
+    "r_path_long_parquet": "/root/bitana/research_duo/datasets/r_path_long.parquet",
+    "r_path_long_sha256": "eec220746316a3ce201fbc46cca3bc524e3a8c16e977ef958afb249250e8bde3",
+    "row_count": 27716
+  },
+  "config": {
+    "cohorts": {
+      "post_gate": {
+        "cutoff": "2026-05-27T21:00:00+00:00",
+        "description": "Trades entered on or after the BD < -2% gate went live (v6.4.1-hotfix handoff).\n",
+        "field": "entry_time",
+        "name": "bd_gate_live",
+        "reference": "BITANA_CURRENT_STATE handoff; report \u00a74 Change B deployment time",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed (row exists in trades table)"
+      },
+      "post_gate_audit_v2_aligned": {
+        "cutoff": "2026-05-27T10:00:00+00:00",
+        "description": "Reverse-engineered cutoff that reproduces audit report \u00a75 post-gate count (63 at report time).\n",
+        "field": "entry_time",
+        "name": "audit_report_v2_post_gate",
+        "note": "Audit count matches entry >= May 27 10:00 UTC, not the 21:00 BD gate deployment time.\n",
+        "reference": "BITANA_V6_AUDIT_REPORT_v2.md \u00a75",
+        "rule": "v5.trades WHERE entry_time >= cutoff AND trade is closed"
+      }
+    },
+    "expected_tables": {
+      "v5": [
+        "trades",
+        "open_positions",
+        "state",
+        "duplicate_keys",
+        "equity_snapshots",
+        "liq_cache"
+      ],
+      "v6": [
+        "trade_entries",
+        "r_path",
+        "shadow_exits",
+        "exit_attribution",
+        "post_exit",
+        "regime_snapshots"
+      ]
+    },
+    "paths": {
+      "clustering_dir": "research_duo/clustering",
+      "datasets_dir": "research_duo/datasets",
+      "experiments_dir": "research_duo/experiments",
+      "features_dir": "research_duo/features",
+      "manifests_dir": "research_duo/manifests",
+      "reports_dir": "research_duo/reports",
+      "states_dir": "research_duo/states",
+      "symbol_config": "config/v5_forward_test.yaml",
+      "tensors_dir": "research_duo/tensors",
+      "v5_db": "storage/v5_forward_test.db",
+      "v6_db": "storage/v6_telemetry.db"
+    },
+    "phase2": {
+      "features": {
+        "early_slope_end_bar": 5,
+        "stale_epsilon_r": 0.001,
+        "threshold_rs": [
+          0.1,
+          0.3,
+          0.5
+        ]
+      },
+      "r_path": {
+        "lag_correction": false,
+        "velocity_window": 3
+      },
+      "tensor": {
+        "max_bars": 512,
+        "optional_trail_channels": true
+      }
+    },
+    "phase3": {
+      "cluster_k": [
+        3,
+        5,
+        7
+      ],
+      "early_classifier": {
+        "feature_cutoff_bar": 10
+      },
+      "explosive": {
+        "max_bars_to_mfe": 15,
+        "mfe_threshold_r": 1.0
+      },
+      "pathways": {
+        "confirmed_max_bars": 10,
+        "confirmed_mfe_r": 0.3,
+        "recovery_min_r": 1.0
+      },
+      "random_seed": 42
+    },
+    "phase4": {
+      "bootstrap_samples": 1000,
+      "early_bars": [
+        3,
+        5,
+        7,
+        10
+      ],
+      "final_holdout_trades": 15,
+      "min_fold_validation_n": 8,
+      "min_pathway_n": 5,
+      "min_train_trades": 30,
+      "pathways": {
+        "max_bars": 10,
+        "primary_threshold_r": 0.3,
+        "thresholds": [
+          0.3,
+          0.5
+        ]
+      },
+      "post_gate_only": false,
+      "random_seed": 42,
+      "validation_chunk": 10
+    },
+    "phase5": {
+      "bd_buckets": [
+        -999,
+        -2,
+        0,
+        2,
+        999
+      ],
+      "early_dead_max_mfe_r": 0.3,
+      "early_dead_window_bars": 10,
+      "explosive_max_bars": 15,
+      "explosive_mfe_r": 1.0,
+      "mfe10_buckets": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        999
+      ],
+      "random_seed": 42
+    },
+    "pipeline_version": "0.5.0",
+    "random_seed": 42
+  },
+  "created_at": "2026-06-02T13:12:23.233842+00:00",
+  "git_commit": "7a6267f17723237a6cc9971f7e9e9e494b6a0a39",
+  "pipeline_version": "0.5.0",
+  "qa": {
+    "bar_continuity": {
+      "issues_sample": [
+        {
+          "bar_count": 68,
+          "expected_bars": 70,
+          "max_bar": 70,
+          "min_bar": 1,
+          "missing_bar_count": 2,
+          "missing_bars_sample": [
+            3,
+            33
+          ],
+          "monotonic": true,
+          "trade_uuid": "0fef747a-7f10-4af0-ae36-3e43ec7806fb"
+        },
+        {
+          "bar_count": 3060,
+          "expected_bars": 3086,
+          "max_bar": 3086,
+          "min_bar": 1,
+          "missing_bar_count": 26,
+          "missing_bars_sample": [
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            834,
+            835,
+            836,
+            837,
+            838,
+            839,
+            840,
+            841,
+            3074,
+            3075,
+            3076,
+            3077,
+            3078,
+            3079
+          ],
+          "monotonic": true,
+          "trade_uuid": "30fbebed-045a-445f-9c3b-180a8e1c2e5e"
+        },
+        {
+          "bar_count": 349,
+          "expected_bars": 362,
+          "max_bar": 362,
+          "min_bar": 1,
+          "missing_bar_count": 13,
+          "missing_bars_sample": [
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149
+          ],
+          "monotonic": true,
+          "trade_uuid": "413a7bda-14c1-4429-848a-c873144db926"
+        },
+        {
+          "bar_count": 2466,
+          "expected_bars": 2478,
+          "max_bar": 2478,
+          "min_bar": 1,
+          "missing_bar_count": 12,
+          "missing_bars_sample": [
+            2466,
+            2467,
+            2468,
+            2469,
+            2470,
+            2471,
+            2472,
+            2473,
+            2474,
+            2475,
+            2476,
+            2477
+          ],
+          "monotonic": true,
+          "trade_uuid": "45bb00a2-8837-4baa-8fd7-2ec7bb5fd2b7"
+        },
+        {
+          "bar_count": 2247,
+          "expected_bars": 2259,
+          "max_bar": 2259,
+          "min_bar": 1,
+          "missing_bar_count": 12,
+          "missing_bars_sample": [
+            2247,
+            2248,
+            2249,
+            2250,
+            2251,
+            2252,
+            2253,
+            2254,
+            2255,
+            2256,
+            2257,
+            2258
+          ],
+          "monotonic": true,
+          "trade_uuid": "4baff35f-6fc6-43ee-bf7c-ac9e310dc68e"
+        },
+        {
+          "bar_count": 229,
+          "expected_bars": 237,
+          "max_bar": 237,
+          "min_bar": 1,
+          "missing_bar_count": 8,
+          "missing_bars_sample": [
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187
+          ],
+          "monotonic": true,
+          "trade_uuid": "4e24cc91-19fd-45b4-97d2-ec71d2df4da1"
+        },
+        {
+          "bar_count": 404,
+          "expected_bars": 419,
+          "max_bar": 419,
+          "min_bar": 1,
+          "missing_bar_count": 15,
+          "missing_bars_sample": [
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151
+          ],
+          "monotonic": true,
+          "trade_uuid": "608362cc-3c84-445b-96d1-802b0ad588f0"
+        },
+        {
+          "bar_count": 487,
+          "expected_bars": 500,
+          "max_bar": 500,
+          "min_bar": 1,
+          "missing_bar_count": 13,
+          "missing_bars_sample": [
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149
+          ],
+          "monotonic": true,
+          "trade_uuid": "76973e55-1068-44fc-bb29-2f4c58a45dae"
+        },
+        {
+          "bar_count": 2448,
+          "expected_bars": 2460,
+          "max_bar": 2460,
+          "min_bar": 1,
+          "missing_bar_count": 12,
+          "missing_bars_sample": [
+            2448,
+            2449,
+            2450,
+            2451,
+            2452,
+            2453,
+            2454,
+            2455,
+            2456,
+            2457,
+            2458,
+            2459
+          ],
+          "monotonic": true,
+          "trade_uuid": "7abc5de4-a75e-43f4-9edf-71b8dc445f1b"
+        },
+        {
+          "bar_count": 468,
+          "expected_bars": 500,
+          "max_bar": 500,
+          "min_bar": 1,
+          "missing_bar_count": 32,
+          "missing_bars_sample": [
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            471,
+            472,
+            473,
+            474,
+            475
+          ],
+          "monotonic": true,
+          "trade_uuid": "81a67fe5-4bbd-445c-bc0b-91568524b2ea"
+        }
+      ],
+      "trades_with_missing_bars": 17,
+      "trades_with_monotonicity_violation": 0
+    },
+    "closed_trades_with_r_path": 218,
+    "distinct_trade_uuids": 224,
+    "lag_correction_applied": false,
+    "mfe_reconciliation": {
+      "abs_delta_gt_0.1r": 40,
+      "closed_trades_compared": 218,
+      "delta_max": 1.5004,
+      "delta_mean": 0.022132110091743117,
+      "delta_min": -1.2938,
+      "delta_p25": 0.0,
+      "delta_p50": 0.0,
+      "delta_p75": 0.0,
+      "delta_std": 0.25706285451378785,
+      "note": "delta = max(r_path.mfe_so_far) - trades.mfe; known 1-bar telemetry lag on some trades"
+    },
+    "total_r_path_rows": 27716,
+    "velocity_window": 3
+  },
+  "stage": "r_path",
+  "warnings": []
+}

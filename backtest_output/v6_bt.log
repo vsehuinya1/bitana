@@ -1,0 +1,40 @@
+symbols: 43 usable of 57 configured
+  10/43 symbols | trades=152
+  20/43 symbols | trades=356
+  30/43 symbols | trades=586
+  40/43 symbols | trades=716
+
+saved 759 trades, 6278 r_path rows
+/usr/local/lib/python3.12/dist-packages/pandas/core/computation/expressions.py:22: UserWarning: Pandas requires version '2.10.2' or newer of 'numexpr' (version '2.9.0' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+/usr/local/lib/python3.12/dist-packages/pandas/core/arrays/masked.py:56: UserWarning: Pandas requires version '1.4.2' or newer of 'bottleneck' (version '1.3.5' currently installed).
+  from pandas.core import (
+
+======================================================================
+LARGE-SAMPLE BACKTEST (Jan31–May21, base entries)  N=759
+======================================================================
+
+--- baseline exits ---
+ALL, recorded(v6.4.5 engine)                 N= 759 totR=  -84.70 avg=-0.112 WR=24%
+ALL, v6.4.5 offline (sanity)                 N= 759 totR=  -87.71 avg=-0.116 WR=24%
+ALL, markov offline                          N= 759 totR=  -77.40 avg=-0.102 WR=25%
+
+--- decile filter (the 'meat') ---
+D2+D6, v6.4.5                                N= 142 totR=  -28.78 avg=-0.203 WR=23%
+D2+D6, markov                                N= 142 totR=  -25.97 avg=-0.183 WR=20%
+D1 only, v6.4.5                              N= 492 totR=  -44.55 avg=-0.091 WR=25%
+
+--- sniper stack (session+ATR) ---
+sniper, all deciles, v6.4.5                  N= 160 totR=   -8.14 avg=-0.051 WR=26%
+sniper+flow, v6.4.5 (=deployed)              N=  13 totR=   -0.25 avg=-0.020 WR=38%
+sniper+D2D6, v6.4.5                          N=  19 totR=  -11.48 avg=-0.604 WR=11%
+sniper+D2D6, markov                          N=  19 totR=   -6.34 avg=-0.333 WR=11%
+
+--- per-decile (v6.4.5 exit) ---
+D1                                           N= 492 totR=  -44.55 avg=-0.091 WR=25%
+D2                                           N= 120 totR=  -27.59 avg=-0.230 WR=22%
+D5                                           N=  36 totR=   -0.98 avg=-0.027 WR=33%
+D6                                           N=  22 totR=   -1.19 avg=-0.054 WR=27%
+D7                                           N=  32 totR=  -11.05 avg=-0.345 WR=16%
+D8                                           N=  28 totR=   -3.34 avg=-0.119 WR=14%
+D9                                           N=  29 totR=   +0.99 avg=+0.034 WR=21%

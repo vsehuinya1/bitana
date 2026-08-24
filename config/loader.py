@@ -78,6 +78,9 @@ class SessionBurstRule(BaseModel):
     # must be wired to consume it AND a WR source must clear a sample floor
     # (>=30 closed, >=5 days, top-day <=40%) before any value != 1.0 ships.
     risk_multiplier: float = 1.0
+    # When set ("LONG" or "SHORT"), drop signals whose resolved side doesn't
+    # match. Structural side pin, independent of side_mode/imb conventions.
+    allowed_side: Literal["LONG", "SHORT"] | None = None
 
 
 class LiqBurstFollowConfig(BaseModel):

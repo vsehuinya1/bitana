@@ -675,3 +675,10 @@ Consequences for PREREG-LONDHOLD (test design INTACT):
 - Baseline arm is now a FROZEN COUNTERFACTUAL (replayed TP3@120m), not actual live. Δ(T1−baseline) grades the candidate against the retired exit rule — which is the question that matters.
 - Deployment preceded the forward verdict: this is an in-sample leaderboard action (+0.099R/tr weekday core n115; 58% wr; trend-day concentrated; excl-Aug21 +0.089 vs +0.048). Prereg stays alive to grade it; kill criteria (meanΔ ≤ −0.05 with floors) can now also trigger a REVERT recommendation.
 - Accepted trade-off: −6pp win-rate, fatter right tail, no TP cap ⇒ larger single-trade dispersion on live equity.
+
+## Amendment 2026-08-24T14:12Z — London bull pinned LONG-only (owner)
+Owner confirmed intent: London-bull arm is LONG-only; pump-cascade SHORTs are not part of the arm.
+- Live `config/live_burst_ny_asia.yaml` london rule: new structural field `allowed_side: LONG` (engine drops resolved-side mismatches, reason=side_pin). `pos_imb_only: true` retained — it already made live de-facto LONG-only; pin makes it explicit.
+- Shadow harness UNCHANGED (no pos_imb_only / no pin) → keeps recording both sides as counterfactual; lets us measure what the pin forgoes.
+- PREREG-LONDHOLD unaffected: reader binds side='LONG'.
+- Restart 14:11:30Z, stop 1s, journal clean. Note: shadow burst_follow london/bull fired 40 SHORTs today (+1.62R, WR53%) — live never would have taken them (pos_imb_only).

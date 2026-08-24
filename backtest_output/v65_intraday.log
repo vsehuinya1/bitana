@@ -1,0 +1,109 @@
+
+===== NY 14-22 UTC =====
+mode: V6.4.5_DEPLOYED | entry: v645 | liq_source: coinalyze
+symbols: 28 usable of 28 configured
+  10/28 symbols | trades=56
+  20/28 symbols | trades=112
+
+saved 149 trades, 3316 r_path rows → v6_bt_trades_v645_intraday_ny.csv
+
+===== ALL HOURS =====
+mode: V6.4.5_DEPLOYED | entry: v645 | liq_source: coinalyze
+symbols: 28 usable of 28 configured
+  10/28 symbols | trades=95
+  20/28 symbols | trades=196
+
+saved 268 trades, 5199 r_path rows → v6_bt_trades_v645_intraday_all.csv
+=== v65 INTRADAY rolling-24h cascade 2026-06-11 03:36 UTC ===
+context: completed days + rolling-24h hourly liq (live-computable, no lookahead)
+entry: V5 strict | exits: V5 vol_trail | symbols: proven 28
+
+===== NY 14-22 UTC =====
+KILL | n=149 full=+0.051R (+7.6R) wr=57%
+OOS test_n=60 test=-0.125R (-7.5R) test_wr=50%
+
+--- by decile ---
+  D1: n=70 avg=+0.139R tot=+9.74R wr=56%
+  D2: n=23 avg=+0.079R tot=+1.82R wr=52%
+  D5: n=20 avg=-0.169R tot=-3.39R wr=55%
+  D6: n=9 avg=-0.104R tot=-0.93R wr=67%
+  D7: n=12 avg=+0.138R tot=+1.66R wr=58%
+  D8: n=5 avg=-0.258R tot=-1.29R wr=40%
+  D9: n=10 avg=-0.004R tot=-0.04R wr=80%
+
+--- by symbol (top/bottom) ---
+  ENAUSDT: n=9 tot=+11.92R avg=+1.325R
+  ICPUSDT: n=5 tot=+6.29R avg=+1.258R
+  APTUSDT: n=6 tot=+3.72R avg=+0.620R
+  1000LUNCUSDT: n=7 tot=+3.39R avg=+0.484R
+  FETUSDT: n=5 tot=+2.77R avg=+0.553R
+  WLDUSDT: n=8 tot=+2.49R avg=+0.311R
+  ADAUSDT: n=3 tot=+2.47R avg=+0.822R
+  UNIUSDT: n=3 tot=+0.89R avg=+0.295R
+  ...
+  FILUSDT: n=5 tot=-1.51R avg=-0.302R
+  XRPUSDT: n=2 tot=-2.00R avg=-1.000R
+  TONUSDT: n=5 tot=-2.06R avg=-0.411R
+  ETHUSDT: n=5 tot=-2.39R avg=-0.478R
+  TAOUSDT: n=9 tot=-2.66R avg=-0.295R
+  NEARUSDT: n=6 tot=-3.80R avg=-0.633R
+  RENDERUSDT: n=4 tot=-4.00R avg=-1.000R
+  PENDLEUSDT: n=5 tot=-5.00R avg=-1.000R
+
+===== ALL HOURS =====
+KILL | n=268 full=-0.051R (-13.8R) wr=54%
+OOS test_n=108 test=-0.045R (-4.8R) test_wr=54%
+
+--- by hour (UTC) ---
+  00: n=12 avg=+0.012R tot=+0.15R
+  01: n=9 avg=+0.170R tot=+1.53R
+  02: n=13 avg=-0.334R tot=-4.35R
+  03: n=7 avg=-0.277R tot=-1.94R
+  04: n=14 avg=-0.277R tot=-3.88R
+  05: n=6 avg=-0.150R tot=-0.90R
+  06: n=12 avg=+0.027R tot=+0.32R
+  07: n=14 avg=-0.110R tot=-1.54R
+  08: n=8 avg=+0.351R tot=+2.81R
+  09: n=16 avg=-0.398R tot=-6.36R
+  10: n=8 avg=-0.368R tot=-2.94R
+  11: n=6 avg=-0.131R tot=-0.79R
+  12: n=18 avg=-0.151R tot=-2.71R
+  13: n=14 avg=-0.066R tot=-0.92R
+  14: n=8 avg=-0.148R tot=-1.18R
+  15: n=10 avg=+0.179R tot=+1.79R
+  16: n=12 avg=+0.192R tot=+2.31R
+  17: n=10 avg=+0.312R tot=+3.12R
+  18: n=13 avg=+0.631R tot=+8.21R
+  19: n=14 avg=-0.071R tot=-1.00R
+  20: n=7 avg=+0.153R tot=+1.07R
+  21: n=19 avg=+0.005R tot=+0.09R
+  22: n=9 avg=-0.573R tot=-5.16R
+  23: n=9 avg=-0.166R tot=-1.49R
+
+--- by decile ---
+  D1: n=112 avg=+0.042R tot=+4.68R wr=55%
+  D2: n=33 avg=-0.100R tot=-3.29R wr=45%
+  D5: n=33 avg=-0.304R tot=-10.03R wr=48%
+  D6: n=24 avg=-0.163R tot=-3.91R wr=54%
+  D7: n=17 avg=+0.191R tot=+3.25R wr=59%
+  D8: n=23 avg=-0.048R tot=-1.10R wr=48%
+  D9: n=26 avg=-0.129R tot=-3.37R wr=65%
+
+--- by symbol (top/bottom) ---
+  ENAUSDT: n=15 tot=+7.96R avg=+0.531R
+  ICPUSDT: n=9 tot=+7.48R avg=+0.831R
+  FETUSDT: n=11 tot=+4.65R avg=+0.423R
+  XRPUSDT: n=12 tot=+3.65R avg=+0.304R
+  APTUSDT: n=9 tot=+3.19R avg=+0.354R
+  QNTUSDT: n=6 tot=+2.44R avg=+0.407R
+  RUNEUSDT: n=6 tot=+2.16R avg=+0.359R
+  WLDUSDT: n=14 tot=+2.11R avg=+0.151R
+  ...
+  SOLUSDT: n=12 tot=-2.95R avg=-0.246R
+  ETHUSDT: n=8 tot=-3.07R avg=-0.384R
+  UNIUSDT: n=5 tot=-3.51R avg=-0.702R
+  ADAUSDT: n=7 tot=-3.95R avg=-0.564R
+  RENDERUSDT: n=10 tot=-4.68R avg=-0.468R
+  TAOUSDT: n=17 tot=-4.78R avg=-0.281R
+  PENDLEUSDT: n=8 tot=-5.28R avg=-0.660R
+  DOTUSDT: n=10 tot=-6.34R avg=-0.634R

@@ -1,0 +1,56 @@
+=== v65 ASIA-28 2026-06-11 03:19:55 UTC ===
+session: Asia 0–8 UTC | symbols: 28 proven | entry/exits: v65-revert
+
+mode: V6.4.5_DEPLOYED | entry: v645 | liq_source: coinalyze
+symbols: 28 usable of 28 configured
+liq_lag_days: 1 (completed days only)
+  10/28 symbols | trades=33
+  20/28 symbols | trades=78
+
+saved 113 trades, 2161 r_path rows → v6_bt_trades_v645_asia28.csv
+=== v65 ASIA-28 2026-06-11 03:19:55 UTC ===
+session: Asia 0–8 UTC | symbols: 28 proven | entry/exits: v65-revert
+
+KILL | n=113 full=-0.187R (-21.2R) wr=48%
+OOS test_n=46 test=-0.010R (-0.5R) test_wr=59%
+pass=False (need test_n>=50, test_avg>0.0, full_avg>-0.05)
+
+--- by hour (Asia 0–8) ---
+  00 UTC: n=17 avg=-0.207R tot=-3.52R
+  01 UTC: n=19 avg=+0.277R tot=+5.26R
+  02 UTC: n=13 avg=-0.355R tot=-4.62R
+  03 UTC: n=15 avg=-0.444R tot=-6.65R
+  04 UTC: n=12 avg=-0.179R tot=-2.15R
+  05 UTC: n=11 avg=-0.029R tot=-0.32R
+  06 UTC: n=11 avg=+0.009R tot=+0.10R
+  07 UTC: n=15 avg=-0.617R tot=-9.26R
+
+--- by symbol ---
+  TONUSDT: n=5 tot=+4.06R avg=+0.811R
+  ENAUSDT: n=5 tot=+3.19R avg=+0.637R
+  RUNEUSDT: n=4 tot=+2.85R avg=+0.714R
+  ETHUSDT: n=4 tot=+2.20R avg=+0.549R
+  ICPUSDT: n=3 tot=+1.19R avg=+0.395R
+  QNTUSDT: n=2 tot=+0.09R avg=+0.046R
+  BNBUSDT: n=2 tot=-0.11R avg=-0.054R
+  RENDERUSDT: n=2 tot=-0.25R avg=-0.126R
+  DASHUSDT: n=2 tot=-0.47R avg=-0.233R
+  PENDLEUSDT: n=4 tot=-0.69R avg=-0.172R
+  1000LUNCUSDT: n=4 tot=-0.84R avg=-0.209R
+  NEARUSDT: n=1 tot=-1.00R avg=-1.000R
+  UNIUSDT: n=1 tot=-1.00R avg=-1.000R
+  TAOUSDT: n=9 tot=-1.03R avg=-0.114R
+  ARBUSDT: n=3 tot=-1.06R avg=-0.353R
+  XLMUSDT: n=5 tot=-1.06R avg=-0.213R
+  CHZUSDT: n=7 tot=-1.11R avg=-0.159R
+  NMRUSDT: n=3 tot=-1.26R avg=-0.420R
+  FETUSDT: n=3 tot=-1.67R avg=-0.558R
+  APTUSDT: n=3 tot=-1.80R avg=-0.601R
+  1000PEPEUSDT: n=2 tot=-2.00R avg=-1.000R
+  WLDUSDT: n=6 tot=-2.06R avg=-0.343R
+  XRPUSDT: n=6 tot=-2.26R avg=-0.377R
+  FILUSDT: n=6 tot=-2.33R avg=-0.389R
+  ADAUSDT: n=3 tot=-3.00R avg=-1.000R
+  SOLUSDT: n=6 tot=-3.08R avg=-0.514R
+  ZECUSDT: n=6 tot=-3.22R avg=-0.537R
+  DOTUSDT: n=6 tot=-3.43R avg=-0.571R

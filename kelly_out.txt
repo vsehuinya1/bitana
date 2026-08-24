@@ -1,0 +1,8 @@
+WHOLE BOOK, gates stacked: n=23570 E[R]=+0.02357 E[R^2]=0.18235
+   fullKelly(empirical)=13.770%   fullKelly(winsor p0.5)=12.118%   naive m1/m2=12.925%
+   HALF-Kelly(empirical)=6.885%
+   E[log-growth]/trade @halfKelly=0.1204%
+would-live survivors: n=8059 E[R]=+0.01540 E[R^2]=0.17975
+   fullKelly(empirical)=8.893%   fullKelly(winsor p0.5)=7.575%   naive m1/m2=8.570%
+   HALF-Kelly(empirical)=4.447%
+   E[log-growth]/trade @halfKelly=0.0511%

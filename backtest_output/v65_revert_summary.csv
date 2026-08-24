@@ -1,0 +1,2 @@
+variant,n,full_avg,full_R,wr,test_n,test_avg,test_R,test_wr,pass,verdict
+v65_revert,132,0.1487189393939394,19.6309,0.5833333333333334,53,-0.049260377358490565,-2.6108,0.49056603773584906,False,KILL

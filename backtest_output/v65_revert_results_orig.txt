@@ -1,0 +1,56 @@
+=== v6.5-revert backtest 2026-06-10 03:35:54 UTC ===
+entry: V5 strict (vol_z>3, imb_z>2, body>=0.60, impulse>=0.30, min_confirms=4)
+filters: v6.2 deciles (D1,D2,D5-D9; D1/D2 imb|vol), BD>-2%, NY 14-22 UTC
+exits: V5 vol_trail (RESEARCH_V5_EXITS=1)
+symbols: 28 proven V5 universe
+
+
+KEEP | n=156 full=+0.416R (+64.8R) wr=67%
+OOS test_n=63 test=+0.251R (+15.8R) test_wr=62%
+pass=True (need test_n>=50, test_avg>0.0, full_avg>-0.05)
+
+--- by decile ---
+  D1: n=74 avg=+0.464R tot=+34.36R wr=64%
+  D2: n=23 avg=+0.408R tot=+9.38R wr=57%
+  D5: n=19 avg=+0.307R tot=+5.82R wr=74%
+  D6: n=8 avg=+0.397R tot=+3.18R wr=75%
+  D7: n=17 avg=+0.308R tot=+5.23R wr=65%
+  D8: n=6 avg=+0.342R tot=+2.05R wr=83%
+  D9: n=9 avg=+0.536R tot=+4.82R wr=100%
+
+--- by exit reason ---
+  vol_trail: n=104 tot=+113.93R avg=+1.096R
+  stop_loss: n=51 tot=-51.00R avg=-1.000R
+  decay: n=1 tot=+1.92R avg=+1.915R
+
+--- by symbol (all) ---
+  ENAUSDT: n=11 tot=+13.38R avg=+1.216R
+  APTUSDT: n=6 tot=+13.26R avg=+2.210R
+  TONUSDT: n=6 tot=+7.55R avg=+1.259R
+  ICPUSDT: n=5 tot=+6.29R avg=+1.258R
+  XLMUSDT: n=5 tot=+4.93R avg=+0.985R
+  ZECUSDT: n=12 tot=+4.84R avg=+0.403R
+  DOTUSDT: n=10 tot=+4.21R avg=+0.421R
+  PENDLEUSDT: n=6 tot=+3.45R avg=+0.575R
+  XRPUSDT: n=5 tot=+3.33R avg=+0.667R
+  ADAUSDT: n=4 tot=+2.60R avg=+0.650R
+  BNBUSDT: n=4 tot=+2.27R avg=+0.567R
+  ARBUSDT: n=7 tot=+2.19R avg=+0.313R
+  TAOUSDT: n=10 tot=+2.19R avg=+0.219R
+  NMRUSDT: n=6 tot=+1.31R avg=+0.218R
+  1000LUNCUSDT: n=5 tot=+1.30R avg=+0.261R
+  SOLUSDT: n=8 tot=+1.08R avg=+0.135R
+  WLDUSDT: n=8 tot=+0.54R avg=+0.068R
+  QNTUSDT: n=1 tot=+0.36R avg=+0.356R
+  CHZUSDT: n=7 tot=+0.02R avg=+0.004R
+  FETUSDT: n=3 tot=-0.25R avg=-0.083R
+  1000PEPEUSDT: n=2 tot=-0.47R avg=-0.234R
+  DASHUSDT: n=3 tot=-1.00R avg=-0.332R
+  RUNEUSDT: n=1 tot=-1.00R avg=-1.000R
+  RENDERUSDT: n=3 tot=-1.19R avg=-0.397R
+  UNIUSDT: n=3 tot=-1.29R avg=-0.430R
+  ETHUSDT: n=4 tot=-1.39R avg=-0.347R
+  FILUSDT: n=5 tot=-1.51R avg=-0.302R
+  NEARUSDT: n=6 tot=-2.16R avg=-0.360R
+
+saved v65_revert_trades.csv

@@ -1,0 +1,9 @@
+=== PHASE B: liq burst continuation 2026-06-11 04:03 UTC ===
+stop 3.0 ATR | hold 8h | fees 13bps RT | events: long=422 short=1703
+
+RULE_LONG  (short_dom >=20% -> long 8h):
+  KILL | n=422 full=+0.040R (+16.9R) wr=33% | OOS test_n=169 test=-0.322R (-54.4R) test_wr=24% | stops=56%
+RULE_SHORT (long_dom >=10% -> short 8h):
+  KILL | n=1703 full=-0.020R (-34.6R) wr=39% | OOS test_n=682 test=-0.096R (-65.2R) test_wr=40% | stops=49%
+COMBINED:
+  KILL | n=2125 full=-0.008R (-17.7R) wr=38% | OOS test_n=850 test=-0.156R (-132.6R) test_wr=36% | stops=50%

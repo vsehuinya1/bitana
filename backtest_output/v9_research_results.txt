@@ -1,0 +1,48 @@
+V9 TWO-STAGE SCALE-IN RESEARCH
+trades=backtest_output/v8_v645_trades.csv
+rpath=backtest_output/v6_bt_rpath_capture_all.csv
+probe=0.25 add=0.75 scale_if_mfe>=0.3R by bar3
+
+v645_full:      n=759 full=-0.116R test_n=304 test=-0.123R KILL
+v9_scale_in:    n=759 full=-0.028R test_n=304 test=-0.036R scale_rate=14.4% KILL
+scale_in_tier:  n=72 full=+0.045R test_n=29 test=+0.083R keep_symbols=6 KILL
+
+kill criteria: test_n>=50, test_avg>0.0, full_avg>-0.05
+
+TOP OOS symV9 TWO-STAGE SCALE-IN RESEARCH
+trades=backtest_output/v8_v645_trades.csv
+rpath=backtest_output/v6_bt_rpath_capture_all.csv
+probe=0.25 add=0.75 scale_if_mfe>=0.3R by bar3
+
+v645_full:      n=759 full=-0.116R test_n=304 test=-0.123R KILL
+v9_scale_in:    n=759 full=-0.028R test_n=304 test=-0.036R scale_rate=14.4% KILL
+scale_in_tier:  n=72 full=+0.045R test_n=29 test=+0.083R keep_symbols=6 KILL
+
+kill criteria: test_n>=50, test_avg>0.0, full_avg>-0.05
+
+TOP OOS symbols (scale-in, n>=5):
+           n    avg    tot
+symbol                    
+CRVUSDT   11 +0.126 +1.381
+ENAUSDT    8 +0.060 +0.482
+IRYSUSDT   8 +0.054 +0.429
+XRPUSDT   19 +0.029 +0.547
+RAVEUSDT   6 +0.015 +0.092
+NEARUSDT  20 +0.014 +0.275
+ZECUSDT    6 -0.011 -0.065
+DOTUSDT   22 -0.012 -0.261
+WIFUSDT    5 -0.014 -0.072
+APTUSDT    8 -0.017 -0.136
+
+BOTTOM OOS symbols:
+            n    avg    tot
+symbol                     
+KAITOUSDT  10 -0.076 -0.765
+WLDUSDT    14 -0.095 -1.335
+MEGAUSDT    8 -0.117 -0.937
+TAOUSDT     8 -0.130 -1.044
+BNBUSDT     6 -0.156 -0.937
+
+DECISION: KILL scale-in — no promote
+
+saved v9_research_results.txt and v9_research_summary.csv

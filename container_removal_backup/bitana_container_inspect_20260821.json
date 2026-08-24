@@ -1,0 +1,319 @@
+[
+    {
+        "Id": "a59d451e188dfd05a58f2e5a2519732967f0c71370280c3d7284a3854ce1ba62",
+        "Created": "2026-07-01T11:08:04.423223034Z",
+        "Path": "python",
+        "Args": [
+            "main.py",
+            "--mode",
+            "paper"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 3392930,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-07-01T11:08:04.572147025Z",
+            "FinishedAt": "0001-01-01T00:00:00Z",
+            "Health": {
+                "Status": "unhealthy",
+                "FailingStreak": 146068,
+                "Log": [
+                    {
+                        "Start": "2026-08-21T10:29:12.548824947Z",
+                        "End": "2026-08-21T10:29:12.674586617Z",
+                        "ExitCode": 1,
+                        "Output": "/bin/sh: 1: curl: not found\n"
+                    },
+                    {
+                        "Start": "2026-08-21T10:29:42.675883692Z",
+                        "End": "2026-08-21T10:29:42.804978451Z",
+                        "ExitCode": 1,
+                        "Output": "/bin/sh: 1: curl: not found\n"
+                    },
+                    {
+                        "Start": "2026-08-21T10:30:12.807339153Z",
+                        "End": "2026-08-21T10:30:12.935662811Z",
+                        "ExitCode": 1,
+                        "Output": "/bin/sh: 1: curl: not found\n"
+                    },
+                    {
+                        "Start": "2026-08-21T10:30:42.93679908Z",
+                        "End": "2026-08-21T10:30:43.219489106Z",
+                        "ExitCode": 1,
+                        "Output": "/bin/sh: 1: curl: not found\n"
+                    },
+                    {
+                        "Start": "2026-08-21T10:31:13.220526172Z",
+                        "End": "2026-08-21T10:31:13.306544656Z",
+                        "ExitCode": 1,
+                        "Output": "/bin/sh: 1: curl: not found\n"
+                    }
+                ]
+            }
+        },
+        "Image": "sha256:53806088a29899654ee6ec15d9949fdfd83ada1d829e2ef42c24b4b72d4afb06",
+        "ResolvConfPath": "/var/lib/docker/containers/a59d451e188dfd05a58f2e5a2519732967f0c71370280c3d7284a3854ce1ba62/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/a59d451e188dfd05a58f2e5a2519732967f0c71370280c3d7284a3854ce1ba62/hostname",
+        "HostsPath": "/var/lib/docker/containers/a59d451e188dfd05a58f2e5a2519732967f0c71370280c3d7284a3854ce1ba62/hosts",
+        "LogPath": "/var/lib/docker/containers/a59d451e188dfd05a58f2e5a2519732967f0c71370280c3d7284a3854ce1ba62/a59d451e188dfd05a58f2e5a2519732967f0c71370280c3d7284a3854ce1ba62-json.log",
+        "Name": "/bitana",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/root/bitana/config/settings.yaml:/opt/bitana/config/settings.yaml:ro",
+                "/root/bitana/data:/opt/bitana/data:rw",
+                "/root/bitana/logs:/opt/bitana/logs:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "bitana_default",
+            "PortBindings": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8080"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/root/bitana/config/settings.yaml",
+                "Destination": "/opt/bitana/config/settings.yaml",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/bitana/data",
+                "Destination": "/opt/bitana/data",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/bitana/logs",
+                "Destination": "/opt/bitana/logs",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "a59d451e188d",
+            "Domainname": "",
+            "User": "bitana",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8080/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "TELEGRAM_BOT_TOKEN=8438966222:AAFbfuml1kRoR6tawrQdapmjF3D-8H4wj58",
+                "TELEGRAM_CHAT_ID=6707099301",
+                "BINANCE_API_KEY=5b2bWdWd3wGTLeqz1t7MDiQzibKHSgDxcAmBYnfkEc7CrvCDWJk5H4rhHGZ0ziSN",
+                "BINANCE_API_SECRET=XOxit8la44E9MtMLHK2dS84krARIPsnIkTh05N1Fm6tDqy4UKK89i4D8CSjP6J4j",
+                "BINANCE_TESTNET=true",
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LANG=C.UTF-8",
+                "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+                "PYTHON_VERSION=3.11.14",
+                "PYTHON_SHA256=8d3ed8ec5c88c1c95f5e558612a725450d2452813ddad5e58fdb1a53b1209b78"
+            ],
+            "Cmd": [
+                "--mode",
+                "paper"
+            ],
+            "Healthcheck": {
+                "Test": [
+                    "CMD-SHELL",
+                    "curl -sf http://localhost:8080/health || exit 1"
+                ],
+                "Interval": 30000000000,
+                "Timeout": 5000000000,
+                "Retries": 3
+            },
+            "Image": "bitana-bitana",
+            "Volumes": null,
+            "WorkingDir": "/opt/bitana",
+            "Entrypoint": [
+                "python",
+                "main.py"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "17b7e873895cee80af1c52ad2c99baefc7e6f3ed31e214ff842c384c59c481a3",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "",
+                "com.docker.compose.image": "sha256:53806088a29899654ee6ec15d9949fdfd83ada1d829e2ef42c24b4b72d4afb06",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "bitana",
+                "com.docker.compose.project.config_files": "/root/bitana/docker-compose.yaml",
+                "com.docker.compose.project.working_dir": "/root/bitana",
+                "com.docker.compose.service": "bitana",
+                "com.docker.compose.version": "5.0.2"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "0d73581f9b253b232f2052a5ff1509435273e6bfa1a9da235360d94bbe818f28",
+            "SandboxKey": "/var/run/docker/netns/0d73581f9b25",
+            "Ports": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8080"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "8080"
+                    }
+                ]
+            },
+            "Networks": {
+                "bitana_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "bitana",
+                        "bitana"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "ad1178ab24281642baa49e29270ed3c63ce990bca2f04b54b26afba9330b3eb9",
+                    "EndpointID": "4dcaa7e11ce6a2fcfac66c2a2ec9bd30e29ebf6027b39a5bc627dfda8b035e79",
+                    "Gateway": "172.19.0.1",
+                    "IPAddress": "172.19.0.2",
+                    "MacAddress": "1a:fc:3e:a9:c5:d7",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "bitana",
+                        "a59d451e188d"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:fddf4c8c8cc849cae803b820ccedbf8625b8b8e5fec52434faa063c167f45397",
+            "size": 2013,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]

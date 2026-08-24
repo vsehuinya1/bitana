@@ -1,0 +1,9 @@
+=== v66 BURST CONTINUATION 2026-06-11 04:26 UTC ===
+thesis: short_dom hourly burst >=35% of trailing 24h -> LONG 8h | stop 3 ATR
+alignment: hourly coinalyze (live-computable via WS force orders)
+
+KILL | n=171 full=+0.028R (+4.8R) wr=34%
+OOS test_n=69 test=-0.297R (-20.5R) test_wr=20%
+pass=False (need test_n>=50, test_avg>0.0, full_avg>-0.05)
+
+saved v66_burst_trades.csv (171 trades)

@@ -1,0 +1,73 @@
+/usr/local/lib/python3.12/dist-packages/pandas/core/computation/expressions.py:22: UserWarning: Pandas requires version '2.10.2' or newer of 'numexpr' (version '2.9.0' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+/usr/local/lib/python3.12/dist-packages/pandas/core/arrays/masked.py:56: UserWarning: Pandas requires version '1.4.2' or newer of 'bottleneck' (version '1.3.5' currently installed).
+  from pandas.core import (
+
+============================================================
+ENTRY_THESIS=v645
+============================================================
+mode: CAPTURE_ALL | entry: v645 | liq_source: coinalyze
+symbols: 57 usable of 57 configured
+  10/57 symbols | trades=152
+  20/57 symbols | trades=356
+  30/57 symbols | trades=586
+  40/57 symbols | trades=655
+  50/57 symbols | trades=655
+
+saved 759 trades, 6278 r_path rows → v6_bt_trades_capture_all.csv
+KILL | n=759 full=-0.116R test_n=304 test=-0.123R wr=24%
+
+============================================================
+ENTRY_THESIS=bar3_proof
+============================================================
+mode: CAPTURE_ALL | entry: bar3_proof | liq_source: coinalyze
+symbols: 57 usable of 57 configured
+  10/57 symbols | trades=121
+  20/57 symbols | trades=286
+  30/57 symbols | trades=440
+  40/57 symbols | trades=513
+  50/57 symbols | trades=513
+
+saved 581 trades, 5047 r_path rows → v6_bt_trades_capture_all_bar3_proof.csv
+KILL | n=581 full=-0.103R test_n=233 test=-0.086R wr=27%
+
+============================================================
+ENTRY_THESIS=liq_spring
+============================================================
+mode: CAPTURE_ALL | entry: liq_spring | liq_source: coinalyze
+symbols: 57 usable of 57 configured
+  10/57 symbols | trades=90
+  20/57 symbols | trades=198
+  30/57 symbols | trades=280
+  40/57 symbols | trades=326
+  50/57 symbols | trades=326
+
+saved 380 trades, 4280 r_path rows → v6_bt_trades_capture_all_liq_spring.csv
+KILL | n=380 full=-0.097R test_n=152 test=-0.060R wr=26%
+
+============================================================
+ENTRY_THESIS=fail_reclaim
+============================================================
+mode: CAPTURE_ALL | entry: fail_reclaim | liq_source: coinalyze
+symbols: 57 usable of 57 configured
+  10/57 symbols | trades=0
+  20/57 symbols | trades=0
+  30/57 symbols | trades=0
+  40/57 symbols | trades=0
+  50/57 symbols | trades=0
+
+no trades captured
+KILL | n=0 full=+0.000R test_n=0 test=+0.000R wr=0%
+
+============================================================
+SUMMARY
+============================================================
+      thesis   n  full_avg  full_R     wr  test_n  test_avg  test_R  test_wr  pass
+        v645 759    -0.116 -87.711 +0.242     304    -0.123 -37.371   +0.227 False
+  bar3_proof 581    -0.103 -59.879 +0.270     233    -0.086 -20.117   +0.266 False
+  liq_spring 380    -0.097 -36.860 +0.261     152    -0.060  -9.092   +0.276 False
+fail_reclaim   0    +0.000  +0.000 +0.000       0    +0.000  +0.000   +0.000 False
+
+saved v8_research_summary.csv
+
+DECISION: KILL all v8 theses — no engine promote.
