@@ -606,3 +606,21 @@ Discovered in-sample on the exact window cited above; the −1.86 figure will re
 
 ### Measurement binding (amended 2026-08-23, BEFORE window open — canonical metric)
 Reader of record: `research/gate_weekly_read.py` PREREG-AGESHORT block (single read path). Metric: `shadow_trades.pnl_atr`, full closed set, `hour` column (UTC), `btc_trend_state`/`btc_regime_age_bars` as of entry row. DISCLOSED: the ad-hoc motivation figures quoted above (SHORT −1.86/n48 · LONG +0.87/n51 · fresh −0.45) came from session queries whose exact filters do NOT reproduce under the canonical binding (no statistic on the canonical cell returns −0.45; values bounded [−10,+3] rule out winsorizing). Canonical in-sample read of the same Aug16+ window: **T n=99 E −2.07 (median −0.72, 2 days) · C1 n=47 E −0.18 · M n=178 E +2.64 · worst-day 107% of T sum** — direction of the side-asymmetry is identical and STRONGER under the canonical metric. Thresholds unchanged: Δ ≤ −0.30 was already sized conservatively; the canonical Δ(T−C1) in-sample is −1.89. All Sep 6/Sep 20 reads report canonical numbers only; the quoted session figures are superseded for decision purposes.
+
+## London-bull config mining (2026-08-24, shadow-db grid)
+Population: `burst_follow AND session='london' AND side='LONG' AND btc_trend_state='bull'`, closed, deduped (symbol,entry_time,side): **n=193, 11 distinct days Jul15–Aug23** (weekday core n=115 / 9d). Harness: 5m-kline replay, **validation 193/193 exact** vs `pnl_atr` (R=pnl_atr/stop_atr). Scripts `/tmp/london_bull_{grid,exit_grid,robust}.py`; bar cache `/tmp/london_bull_bars.json`.
+
+Entry axes:
+- imb axis untestable <0.5 (writer applies min_imb; all 193 rows ≥0.5). Raising to ≥0.7 cuts n 90%, no E gain (+0.031 vs +0.062) → keep 0.5.
+- hours 8–13 each ~positive avg; h12 weakest (~0E). No narrowing justified.
+- decile≥2 avg +0.049 vs dec1 +0.030 but −74% fills → reject as gate.
+- regime age >18 bars (>72h): best avg (+0.069) but n=16 / 1 day. LONGs unhurt by stale age (mirror of SHORT toxicity in PREREG-AGESHORT) → no LONG age gate.
+- Sat avg −0.000 wr42% (n=62) vs weekday +0.048 → weekend exclusion validated.
+
+Exit grid (weekday core, SL10/TP3): 30m **+0.048** | 60m +0.043 | 90m +0.058 | 120m **+0.071** | 180m +0.080 R/trade. TP4@120m +0.065 < TP3@120m; TP5 = tie. Keep SL10/TP3/120m (= live config).
+Robustness 120m-vs-30m delta: helps 6/9 days, 3/5 weeks (W31 −1.44, W33 −0.78); survives excl-top-day (+0.048 vs +0.039). Loss days = chop (Jul23/29, Aug12).
+Hour×horizon: h13 decays with hold (+0.074→+0.040→+0.027); h11 improves (+0.021→+0.160→+0.222).
+
+Caveats: 9 distinct days, in-sample optimization, topday Aug21 = 51% of 120m net, bull episodes only.
+
+**Verdict**: current live London-bull arm config is the argmax of the tested grid — no immediate change. Candidate refinement (UNDERPOWERED, n~20/cell): hour-conditional hold (≤h11 extended to ~180m, h13 capped short). If pursued → preregister PREREG-LONDHOLD counts-only forward; do NOT wire from this read.
