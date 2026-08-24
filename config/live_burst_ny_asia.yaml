@@ -209,6 +209,10 @@ burst_follow:
       # Known fragility: Jul16 = 57% of P&L; would_live_accept subset n27 -6.0R (thin).
       # Kill criteria: net/trade < +0.2R after 30 accepted, or top-day > 40% of live P&L -> freeze.
       # No min_decile floor: d1 is best bucket (+17.5R/57).
+      # Aug 24: WIRED noTP/180m (time_bars 36, tp 999) on owner instruction pre-window
+      #   (~07:54Z, before first eligible entry). Mirrors PREREG-LONDHOLD T1 arm
+      #   (+0.099R/tr weekday core n115 vs live TP3@120m +0.071; 58% wr; trend-day
+      #   concentrated). Shadow UNCHANGED at TP3@120m — reader baseline/validation intact.
       shadow_strategy: burst_follow
       side_mode: follow
       pos_imb_only: true
@@ -217,8 +221,8 @@ burst_follow:
       hours: [8, 9, 10, 11, 12, 13]
       allowed_btc_regimes: ["bull"]
       stop_atr: 10.0
-      tp_atr: 3.0
-      time_bars: 24
+      tp_atr: 999.0
+      time_bars: 36
       time_exit_only: false
       min_cascade_strength: 0.0
       min_vol_z: 0.0
