@@ -815,3 +815,12 @@ Bull-week live: -4.66R actual -> -2.30R neutral-rules. Saves 2.36R but NOT the e
 h17 NY buys are legal in neutral too and still lose -2.30R. Regime layer is not where the loss lived.
 London arm status vs own kill criteria: 25/30 accepted trades, net -1.20R (-0.048/tr < +0.2R line) ->
 tracking BELOW kill threshold with 5 trades to go before mandatory freeze review.
+
+### 2026-08-25T22:40Z — Owner rulings (3), implemented + live from restart 22:36Z
+1. DAILY_LOSS -> PAUSE (was alert-only): record_loss() sets is_paused on 20% cross;
+   persists past midnight; /resume required; post-resume same-day entries stay gated by
+   cumulative-loss soft block until 00:00Z reset. Commit b350626.
+2. London arm OFF for Aug 26 (owner: won't trade at this rate; -0.048R/tr vs +0.2R kill line).
+   Session rule commented out, re-enable = uncomment. Commit 037281d.
+3. Reduced-mode override: none issued — latch stays 4x12%, moot while bull gates Asia and
+   London off; first exposure = Wed NY evening.
