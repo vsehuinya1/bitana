@@ -682,3 +682,33 @@ Owner confirmed intent: London-bull arm is LONG-only; pump-cascade SHORTs are no
 - Shadow harness UNCHANGED (no pos_imb_only / no pin) → keeps recording both sides as counterfactual; lets us measure what the pin forgoes.
 - PREREG-LONDHOLD unaffected: reader binds side='LONG'.
 - Restart 14:11:30Z, stop 1s, journal clean. Note: shadow burst_follow london/bull fired 40 SHORTs today (+1.62R, WR53%) — live never would have taken them (pos_imb_only).
+
+## PREREG-WKNDNY — Pre-registration 2026-08-25: bull-regime weekend NY-buy window (`weekend_ny_bull`)
+**Registered:** 2026-08-25T06:45Z. **Status:** ACTIVE, forward-only.
+**Registration integrity:** window FROM=2026-08-29T00:00Z (next Saturday 00:00 UTC). Aug22/23 and all earlier weekends are IN-SAMPLE and excluded by construction. Zero look-back.
+
+**Motivation.** `ny_flush_buy_4h` is live-excluded Sat/Sun (`exclude_weekdays [0,5,6]`). Since Jul1 the exclusion left ≈ +7.4R on the table — but decomposed: neutral weekend days ≈ −2.0R combined; bear +3.4/+2.6; **bull +3.19 (Aug22, n30) + 4.21 (Aug23, n35)** = +7.40R/n65 = +0.114 R/tr on just TWO days. Hypothesis: NY-flush-buy edge persists on weekends under persistent bull regime; weekday-costume effect, same structure as Monday finding. This prereg grades it forward before any config change.
+
+**Population binding (exact):**
+`shadow_trades WHERE status='closed' AND strategy='ny_flush_buy_4h' AND btc_trend_state='bull' AND CAST(strftime('%w',entry_time) AS INT) IN (0,6) AND entry_time>='2026-08-29T00:00'`, dedup(symbol, entry_time, side). Strategy is LONG-only by construction (verified: 133/133 weekend rows since Jul1 are LONG — assert at every read, exclude+count violations). All recorded hours h14-21 kept — NO hour pre-filtering (post-hoc hour picks are how this plan's forks happen).
+
+**Metric binding:** `R = pnl_atr / stop_atr` per trade (canonical reader metric, identical to LONDHOLD live leg); E = mean(R). Reader implementation DEFERRED but must be committed and smoke-tested BEFORE first R-read (LONDHOLD pattern: peek-mode + backdated validation gate).
+
+**Descriptive arms (no decision weight):**
+- C1 control: weekday bull entries, same strategy/hours → weekend-vs-weekday gap.
+- C2 sanity: neutral-regime weekend entries → expected ≤0; a positive C2 does NOT promote anything.
+
+**Floors:** n ≥ 30; distinct weekend days ≥ 5; top-day ≤ 40% of ΣR (in-sample basis was 57% on one day — this floor is the honest bar the in-sample data would FAIL).
+
+**Decision rule:**
+- PROMOTE (→ G1 eval + execution-feasibility review): E ≥ **+0.05 R/tr** with all floors met.
+- KILL: E < 0 with n≥30 and days≥5 met → park permanently; no re-proposal without new regime structure.
+- Else INCONCLUSIVE → keep `exclude_weekdays` unchanged.
+
+**Pre-wire gate (beyond R verdict):** promotion does NOT auto-wire. Weekend books are thin; shadow assumes mid-price instant fills (London would_live_accept subset showed −6.0R raw-shadow-missed fragility). Any wire proposal requires a fill-quality review (weekend spread/slippage proxy, partial-fill risk at min-notional sizes) presented to owner first.
+
+**Peek policy & timeline:** counts ONLY until 2026-09-06T00:00Z. First R-read Sun Sep 6 — NOTE: only 2 weekends (Aug29/30, Sep5/6) accrue by then ⇒ max 4 days < floor(5), so first read is EXPECTED to be counts + extension declaration unless n/days already impossible (that is not a failure). Formal call Sun Sep 20 (5 weekends accrued: up to 10 days). ONE extension max → Oct 4, then park.
+
+**Power honesty:** in-sample point estimate +0.114 R/tr on 2 days, top-day 57%. Promote bar +0.05 ≈ 44% haircut for regression to mean; still, with ~8-13 trades/day expected, n≈65 by Sep 20 gives CI half-width ≈ ±0.09-0.11 R/tr at observed dispersion — this prereg is powered to catch a REAL edge at roughly half in-sample strength or kill a zero, NOT to fine-resolve anything between. Absent real effect, expected outcome is INCONCLUSIVE→keep excluded.
+
+**Non-goals:** no changes to asia_pump_short_4h weekend handling (Sat −1.8 / Sun −5.7 since Jul1 — bleeds, stays excluded); no london_burst_fade weekend arm (sign-unstable: Sat −7.5 / Sun +8.1); no live config edit before PROMOTE + exec review; no post-hoc hour/symbol subsetting.
