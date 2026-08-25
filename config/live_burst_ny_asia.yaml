@@ -30,7 +30,9 @@ symbols:
     - ADAUSDT
     - UNIUSDT
   defaults:
-    risk_pct: 10.0
+    # TEMP owner 2026-08-25: 10->14 so min-notional ($5) clears at ~$8 equity
+    # (stop width 15.4% -> notional = eq*pct/0.154). UNCOMMITTED, London-only.
+    risk_pct: 14.0
 
 timeframes:
   regime: "15m"
@@ -38,8 +40,8 @@ timeframes:
   confirmation: "1m"
 
 risk:
-  default_risk_pct: 10.0
-  reduced_risk_pct: 7.0
+  default_risk_pct: 14.0
+  reduced_risk_pct: 12.0
   drawdown_reduce_threshold: 0.15
   drawdown_restore_threshold: 0.10
   max_leverage: 100
@@ -149,7 +151,7 @@ burst_follow:
   min_burst_volume_30m: 20000
   min_burst_events_30m: 3
   dedup_bars: 3
-  risk_pct: 10.0
+  risk_pct: 14.0
   btc_regime_gate_enabled: true
   allowed_btc_regimes: ["neutral", "bear"]
   session_rules:
@@ -195,42 +197,46 @@ burst_follow:
       min_n_confirms: 1
       min_decile: 2
 
-    london:
-      # Aug 21: G0 forward-test — burst_follow LONG, bull only.
-      # Shadow (closed set, h8-13 bull): +32.0R/83, +0.385/trade, WR 64%, 6/8 days pos,
-      #   Aug OOS +0.29R/trade. Exit mix: 92% time (+0.14), 8% TP3 (+3.0), 0 stops.
-      #   NOTE Aug 21: time_bars=6 on 5m bars = 30 MINUTES (not 3h; earlier docs wrong).
-      #   Validated vs shadow: 5m replay reproduces +32.2R/83, mix 7tp/76time/0sl exactly.
-      # Aug 21 (later): time exit extended 30m -> 120m (time_bars 6 -> 24). Post-exit
-      #   kline counterfactual (142 clean paths, TP3+10ATR kept): mean +0.36R/PF1.89 @30m
-      #   vs +0.75R/PF2.13 @120m; legacy-only n59 same shape (+0.32 -> +0.61). Per-day not
-      #   uniform: Jul-29/Aug-12 degrade ~-2R/day on chop. 360m looks better but is
-      #   morning-entry selection bias. Kill criteria unchanged.
-      # Known fragility: Jul16 = 57% of P&L; would_live_accept subset n27 -6.0R (thin).
-      # Kill criteria: net/trade < +0.2R after 30 accepted, or top-day > 40% of live P&L -> freeze.
-      # No min_decile floor: d1 is best bucket (+17.5R/57).
-      # Aug 24: WIRED noTP/180m (time_bars 36, tp 999) on owner instruction pre-window
-      #   (~07:54Z, before first eligible entry). Mirrors PREREG-LONDHOLD T1 arm
-      #   (+0.099R/tr weekday core n115 vs live TP3@120m +0.071; 58% wr; trend-day
-      #   concentrated). Shadow UNCHANGED at TP3@30m (6-bar; verified 2026-08-24 via hold-time dist max=30min all days + 38/38 replay match on the day's LONGs) — reader baseline/validation intact.
-      shadow_strategy: burst_follow
-      side_mode: follow
-      # Aug 24 (owner): structural LONG-only pin. pos_imb_only already made this
-      #   de-facto true; pin makes it explicit and immune to future imb/side_mode edits.
-      allowed_side: LONG
-      pos_imb_only: true
-      min_imb: 0.5
-      exclude_weekdays: [5, 6]
-      hours: [8, 9, 10, 11, 12, 13]
-      allowed_btc_regimes: ["bull"]
-      stop_atr: 10.0
-      tp_atr: 999.0
-      time_bars: 36
-      time_exit_only: false
-      min_cascade_strength: 0.0
-      min_vol_z: 0.0
-      min_n_confirms: 1
-      min_decile: 1
+      # DISABLED 2026-08-25 22:35Z on owner instruction ("won't let you trade tomorrow London at this rate").
+      # Context: 25/30 accepted trades, net -1.20R (-0.048/tr < +0.2R kill line). Re-enable = uncomment block below.
+      # Traps (do NOT use instead): allowed_btc_regimes: [] falls back to global list; hours: [] means ALL hours.
 
+      #     london:
+      #       # Aug 21: G0 forward-test — burst_follow LONG, bull only.
+      #       # Shadow (closed set, h8-13 bull): +32.0R/83, +0.385/trade, WR 64%, 6/8 days pos,
+      #       #   Aug OOS +0.29R/trade. Exit mix: 92% time (+0.14), 8% TP3 (+3.0), 0 stops.
+      #       #   NOTE Aug 21: time_bars=6 on 5m bars = 30 MINUTES (not 3h; earlier docs wrong).
+      #       #   Validated vs shadow: 5m replay reproduces +32.2R/83, mix 7tp/76time/0sl exactly.
+      #       # Aug 21 (later): time exit extended 30m -> 120m (time_bars 6 -> 24). Post-exit
+      #       #   kline counterfactual (142 clean paths, TP3+10ATR kept): mean +0.36R/PF1.89 @30m
+      #       #   vs +0.75R/PF2.13 @120m; legacy-only n59 same shape (+0.32 -> +0.61). Per-day not
+      #       #   uniform: Jul-29/Aug-12 degrade ~-2R/day on chop. 360m looks better but is
+      #       #   morning-entry selection bias. Kill criteria unchanged.
+      #       # Known fragility: Jul16 = 57% of P&L; would_live_accept subset n27 -6.0R (thin).
+      #       # Kill criteria: net/trade < +0.2R after 30 accepted, or top-day > 40% of live P&L -> freeze.
+      #       # No min_decile floor: d1 is best bucket (+17.5R/57).
+      #       # Aug 24: WIRED noTP/180m (time_bars 36, tp 999) on owner instruction pre-window
+      #       #   (~07:54Z, before first eligible entry). Mirrors PREREG-LONDHOLD T1 arm
+      #       #   (+0.099R/tr weekday core n115 vs live TP3@120m +0.071; 58% wr; trend-day
+      #       #   concentrated). Shadow UNCHANGED at TP3@30m (6-bar; verified 2026-08-24 via hold-time dist max=30min all days + 38/38 replay match on the day's LONGs) — reader baseline/validation intact.
+      #       shadow_strategy: burst_follow
+      #       side_mode: follow
+      #       # Aug 24 (owner): structural LONG-only pin. pos_imb_only already made this
+      #       #   de-facto true; pin makes it explicit and immune to future imb/side_mode edits.
+      #       allowed_side: LONG
+      #       pos_imb_only: true
+      #       min_imb: 0.5
+      #       exclude_weekdays: [5, 6]
+      #       hours: [8, 9, 10, 11, 12, 13]
+      #       allowed_btc_regimes: ["bull"]
+      #       stop_atr: 10.0
+      #       tp_atr: 999.0
+      #       time_bars: 36
+      #       time_exit_only: false
+      #       min_cascade_strength: 0.0
+      #       min_vol_z: 0.0
+      #       min_n_confirms: 1
+      #       min_decile: 1
+      # 
 database:
   path: "data/bitana-live-burst.db"
