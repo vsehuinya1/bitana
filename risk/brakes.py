@@ -64,7 +64,16 @@ class BrakeManager:
 
         if self.state.daily_realized_loss >= self._cfg.daily_loss_limit_pct:
             triggered.append(BrakeType.DAILY_LOSS)
-            logger.warning("BRAKE: Daily loss limit", loss=self.state.daily_realized_loss)
+            # Owner ruling 2026-08-25: DAILY_LOSS must PAUSE, not just alert.
+            # Persists across midnight (unlike the soft block in
+            # check_entry_allowed) until explicit /resume.
+            reason = (
+                f"Daily loss {self.state.daily_realized_loss:.1%} >= "
+                f"limit {self._cfg.daily_loss_limit_pct:.0%} — auto-pause"
+            )
+            self.pause(reason)
+            logger.warning("BRAKE: Daily loss limit — paused",
+                           loss=self.state.daily_realized_loss)
 
         return triggered
 
