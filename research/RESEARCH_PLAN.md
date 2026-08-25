@@ -824,3 +824,17 @@ tracking BELOW kill threshold with 5 trades to go before mandatory freeze review
    Session rule commented out, re-enable = uncomment. Commit 037281d.
 3. Reduced-mode override: none issued — latch stays 4x12%, moot while bull gates Asia and
    London off; first exposure = Wed NY evening.
+
+### 2026-08-25T22:54Z — Tue x NY-hour observation (OPEN, next prereg gate — not actioned mid-prereg)
+Owner Q: write off tonight's NY? Counterfactual without h17/h19:
+- Live Aug25: ALL 4 NY losses sat inside the two evening clusters (h17 trio -3.32R incl stops @21:05-21:10Z
+  w/ 33-77bps stop slippage; ZEC h19 -0.85R). Day ex-h17/h19 = London-only **-1.90R** (actual -5.21R).
+  Clean counterfactual: zero live signals fired in ny h14/h16 today (signals table) — nothing given up.
+- Shadow last-4-Tuesdays, LIVE-WIRED hours only {14,16,17,19}:
+  h14 +16.03R (n=633) | h16 +5.71R (n=58) | h17 **-20.60R (n=162)** | h19 **-35.20R (n=117)**
+  -> Tuesdays ex-17/19: **+21.7R** vs -34.1R with them (~56R swing/4wk; signs not levels — shadow R not live-scalable).
+- Cross-check vs neutral-rules CF above: regime layer keeps h17 trio (-2.30R legal-in-neutral loss).
+  Two independent decompositions point at Tue-evening LONG h17/h19 as the bleed locus.
+- Candidate arm at next G-gate: weekday x hour gate excluding Tue ny {17,19}. Counts-only criteria.
+Hygiene note: adjacent log entries stamped 22:55Z / 26T00:10Z appear LOCAL-time (UTC+2) mislabeled as Z;
+future entries must use `date -u`.
