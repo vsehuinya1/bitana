@@ -211,7 +211,7 @@ shifts entirely to pre-registration + kill criteria per row.
 | Weekend NY h21 bear (`ny_flush_buy_4h`, Sat/Sun, hour 21) | G0 (measure only) | Sep 6 weekend verdict | n<15, or paired Δavg ≤ 0 vs weekday, or top-day >40% |
 | London h12 neutral (`london_burst_fade`) | G0 (measure only) | Sep 6 | top-day >40% (current: Aug19 +3.77R, Jul23 +2.88R dominate), or n<15 |
 | Asia D10 @ h5 retained (`max_decile` NOT applied) | G0 (no code — filter-plan correction) | next variance scan | h5 D10 n<15 or avg<+0.1 after fresh OOS |
-| Monday risk bump (session risk_multiplier override) | G0 (measurement wired; **action path NOT wired** — loader parses `risk_multiplier` but no consumer in burst-follow engine/order path; enabling = new code) | Aug 25 | Monday premium not reproduced OOS, or WR source fails sample floor |
+| ~~Monday risk bump~~ **KILLED Aug 25 (due-date read)** | Premium NOT reproduced — Mon is the WORST weekday since Jul1: n=121 closed, avg −0.65 ATR (−0.065 R/tr), net −78.5, vs Fri best +1.31; every other weekday positive; regime split negative BOTH cells (bull −0.58/n31, neutral −0.82/n84); fresh Aug24 −17.9R/−0.58. Kill #1 fires outright; WR sample floor moot. Monday exclusion stays; action path never built (no code) | — | — |
 | Bear-regime enablement — **NY flush-buy only** (ny session `allowed_btc_regimes` [neutral,bull] → +bear; london & asia EXCLUDED by pre-registered screen) | G0 registered Aug 22 pre-outcome. Basis — bear cohort fresh 14d: ny_flush_24h +0.193R/n44, 8h +0.184/n43, 4h_s4 +0.122/n64; live-book variant `ny_flush_buy_4h` +0.038/n53 thin-pos; full window confirms (+0.07–0.28). Screen exclusions: london `burst_follow` bear fresh −0.00R/n314 → stays bull-only; `asia_pump_short_4h` bear fresh −0.104/n28 → stays neutral-only. Promotion = config-only flip, no engine code | Promotion gate G0→G2 at Sep 6: Aug 23–Sep 5 bear cohort of ny_flush_4h family avg > +0.05R/trade on n≥15, no single symbol >60% of cohort PnL, bear occupancy ≥8% of window bars (underpowered → roll forward, not fail) | Kill (any one): fresh-window bear avg ≤ 0 at n≥20; post-flip live bear cohort ≤ −0.3R/trade at n≥15 after ≥14d exposure; one symbol >70% of live bear PnL; bear-enabled fortnight trips equity brake or raises peak-DD >15% |
 | ~~Confirmed/delayed entry for burst books~~ | **KILLED Aug 22 night replay** (own kill criteria). Validated harness: 3503/3606 exact match, Σdiff +3.7R on −360R, exit mix reproduced. Grid Δ/signal: A +0.054 / B0.25 +0.073 / B0.5 +0.067 / B0.75 +0.041 / C +0.068 — three variants cleared the +0.05 gate BUT: (1) take-rate 33–56% < 70% floor → kill #2 fires; (2) flagship damage — london h8-13 bull LONG dE/fill **−0.249** (base +0.286/n148 → var +0.037/n83), ny LONG −0.059, london SHORT −0.060; (3) weekly concentration: net +242R of which W34 alone +237R (crisis week, base −414R→−178R) while W30 cost −72R — regime insurance, not expectancy. Per-fill E stays negative in every variant (best −0.059). o2-fill robustness check passed (gap≈0 median, Δ/signal +0.064 unchanged) | — | see decision log; asymmetric session-scoped confirm (bleeding cells only) is a DIFFERENT hypothesis — needs fresh pre-registration if pursued, no retrofit. **Part3 per-session×side full grid (Aug 22 night):** take-rate NEVER ≥70% in any cell×variant (max 68%) → kill #2 fires even session-scoped. Beneficiary set = exactly the 4 losing cells (dE/signal: ny SHORT +0.26…+0.44, late LONG +0.30…+0.40, asia SHORT +0.09…+0.14, asia LONG +0.03…+0.08); every profitable cell negative per-signal (london L/S, ny LONG −0.02…−0.05; late SHORT per-fill +0.19…+0.31 BUT per-signal −0.08…−0.12 — skipped winners cost more than saved losers). Flagship london h8-13 bull LONG dE/fill negative in ALL 5 variants (−0.22…−0.34). Symbol concentration benign (top1 ≤33% gross-pos) |
 
@@ -672,7 +672,7 @@ Owner instructed wiring London bull to the 180m hold BEFORE first eligible entry
 Backup: config/live_burst_ny_asia.yaml.pre_wire_20260824.
 Consequences for PREREG-LONDHOLD (test design INTACT):
 - Shadow UNCHANGED at TP3@30m (verified: holds ≤30min every day; LONG replay 38/38 Aug24) → recorded `pnl_atr` and reader baseline/validation gate still bind to the old exit rule. Reader unaffected.
-- Baseline arm is now a FROZEN COUNTERFACTUAL (replayed TP3@120m), not actual live. Δ(T1−baseline) grades the candidate against the retired exit rule — which is the question that matters.
+- Baseline arm is now a FROZEN COUNTERFACTUAL (the recorded TP3@30m shadow book per the metric binding above — NOT replayed, NOT 120m; earlier draft said "replayed TP3@120m", contradicted both the frozen binding and the verified shadow exit rule; corrected 2026-08-25T08:20Z audit). Δ(T1−baseline) grades the candidate against the retired exit rule — which is the question that matters.
 - Deployment preceded the forward verdict: this is an in-sample leaderboard action (+0.099R/tr weekday core n115; 58% wr; trend-day concentrated; excl-Aug21 +0.089 vs +0.048). Prereg stays alive to grade it; kill criteria (meanΔ ≤ −0.05 with floors) can now also trigger a REVERT recommendation.
 - Accepted trade-off: −6pp win-rate, fatter right tail, no TP cap ⇒ larger single-trade dispersion on live equity.
 
@@ -683,6 +683,14 @@ Owner confirmed intent: London-bull arm is LONG-only; pump-cascade SHORTs are no
 - PREREG-LONDHOLD unaffected: reader binds side='LONG'.
 - Restart 14:11:30Z, stop 1s, journal clean. Note: shadow burst_follow london/bull fired 40 SHORTs today (+1.62R, WR53%) — live never would have taken them (pos_imb_only).
 
+## Amendment 2026-08-25T06:31Z — TEMPORARY micro-equity sizing bump (owner, UNCOMMITTED)
+Balance fell to ≈$8; at 10% risk and ~15.4% stop width notional ≈ $5.2 sits at Binance's $5 min-notional edge → fill-starvation risk through London. Config-only bump, intentionally left uncommitted:
+- `symbols.defaults.risk_pct` / `risk.default_risk_pct` / `burst_follow.risk_pct`: 10.0 → **14.0**; `risk.reduced_risk_pct`: 7.0 → **12.0**.
+- Scope note: burst-follow sizing reads `burst_follow.risk_pct` for ALL sessions while active; motivation was London-only, but NY skips Mon and Asia is neutral-gated ⇒ effective exposure today = London only.
+- Same-day code fix (uncommitted, NOT yet active — ships next restart): burst-follow previously bypassed the drawdown/consecutive-loss reducer (`main.py` consumed bf_cfg.risk_pct unconditionally); reducer now CAPS bf risk at reduced_risk_pct whenever the brake trips, bf risk stays the ceiling otherwise. Today's London trades size at flat 14% regardless of brake state.
+- Backup: config/live_burst_ny_asia.yaml.pre_sizing_20260825. Restart 06:31Z clean, journal 0 ERROR since.
+- Revert trigger: London window close or equity ≥ ~$12, whichever first (owner call) → restore backup + commit decision.
+
 ## PREREG-WKNDNY — Pre-registration 2026-08-25: bull-regime weekend NY-buy window (`weekend_ny_bull`)
 **Registered:** 2026-08-25T06:45Z. **Status:** ACTIVE, forward-only.
 **Registration integrity:** window FROM=2026-08-29T00:00Z (next Saturday 00:00 UTC). Aug22/23 and all earlier weekends are IN-SAMPLE and excluded by construction. Zero look-back.
@@ -690,7 +698,7 @@ Owner confirmed intent: London-bull arm is LONG-only; pump-cascade SHORTs are no
 **Motivation.** `ny_flush_buy_4h` is live-excluded Sat/Sun (`exclude_weekdays [0,5,6]`). Since Jul1 the exclusion left ≈ +7.4R on the table — but decomposed: neutral weekend days ≈ −2.0R combined; bear +3.4/+2.6; **bull +3.19 (Aug22, n30) + 4.21 (Aug23, n35)** = +7.40R/n65 = +0.114 R/tr on just TWO days. Hypothesis: NY-flush-buy edge persists on weekends under persistent bull regime; weekday-costume effect, same structure as Monday finding. This prereg grades it forward before any config change.
 
 **Population binding (exact):**
-`shadow_trades WHERE status='closed' AND strategy='ny_flush_buy_4h' AND btc_trend_state='bull' AND CAST(strftime('%w',entry_time) AS INT) IN (0,6) AND entry_time>='2026-08-29T00:00'`, dedup(symbol, entry_time, side). Strategy is LONG-only by construction (verified: 133/133 weekend rows since Jul1 are LONG — assert at every read, exclude+count violations). All recorded hours h14-21 kept — NO hour pre-filtering (post-hoc hour picks are how this plan's forks happen).
+`shadow_trades WHERE status='closed' AND strategy='ny_flush_buy_4h' AND btc_trend_state='bull' AND CAST(strftime('%w',entry_time) AS INT) IN (0,6) AND entry_time>='2026-08-29T00:00'`, dedup(symbol, entry_time, side). Strategy is LONG-only by construction (verified: 133/133 weekend rows since Jul1 are LONG — assert at every read, exclude+count violations). All recorded hours h14-21 kept — NO hour pre-filtering (post-hoc hour picks are how this plan's forks happen). Regime-tag integrity assert (added 2026-08-25T08:20Z, mirrors liq_imb pattern): reader must COUNT rows where `btc_trend_state IS NULL` (writer warm-up artifact Jul31–Aug7: 25 ny rows, ZERO weekend rows affected) and report them excluded-with-count — never silently dropped. Any NULL-regime row ON an in-window weekend day ⇒ read VOID, counts-only until re-audited.
 
 **Metric binding:** `R = pnl_atr / stop_atr` per trade (canonical reader metric, identical to LONDHOLD live leg); E = mean(R). Reader implementation DEFERRED but must be committed and smoke-tested BEFORE first R-read (LONDHOLD pattern: peek-mode + backdated validation gate).
 
@@ -712,3 +720,98 @@ Owner confirmed intent: London-bull arm is LONG-only; pump-cascade SHORTs are no
 **Power honesty:** in-sample point estimate +0.114 R/tr on 2 days, top-day 57%. Promote bar +0.05 ≈ 44% haircut for regression to mean; still, with ~8-13 trades/day expected, n≈65 by Sep 20 gives CI half-width ≈ ±0.09-0.11 R/tr at observed dispersion — this prereg is powered to catch a REAL edge at roughly half in-sample strength or kill a zero, NOT to fine-resolve anything between. Absent real effect, expected outcome is INCONCLUSIVE→keep excluded.
 
 **Non-goals:** no changes to asia_pump_short_4h weekend handling (Sat −1.8 / Sun −5.7 since Jul1 — bleeds, stays excluded); no london_burst_fade weekend arm (sign-unstable: Sat −7.5 / Sun +8.1); no live config edit before PROMOTE + exec review; no post-hoc hour/symbol subsetting.
+
+## Amendment 2026-08-25T20:11Z — Post-mortem: Aug 25 live burst_follow day (−1.90R realized; ops findings; ZERO prereg impact)
+
+Scope: owner-requested forensic review of the day's live session. Everything below is DESCRIPTIVE session observation — none of it feeds a prereg read (LONDHOLD metric binds shadow rows + frozen replay, not live fills; WKNDNY window opens Aug 29).
+
+**Day P&L:** 12 closed trades **−1.90R / −$1.91 gross**. Batches: 08:15+08:46 → −0.48R · 09:56 → −0.41R · 12:05-15 → −1.08R (owner external closes 14:00Z, scratch-EV validated earlier) · 13:10-35 → +0.07R. Evening book (NEAR/APT/XRP/ZEC, entered 17:10-19:35) still MANAGING at log time (~−0.34R marked); time-exits due 20:10-22:35Z.
+
+**Attribution (descriptive):**
+1. *Exit-config exposure, not execution.* Cumulative MFE across the 12 closed = **+0.54R vs final −1.89R**; best single-trade peak only +0.36R; three entries never traded above entry (APT/SOL/ZEC-noon — chased-top signature). Matched-pair against the FROZEN TP3@30m counterfactual on live's own signals: counterfactual +2.08R vs live −1.23R (9 matched / 3 unmatched); hour-weighted counterfactual E ≈ +0.81R. This is the accepted trade-off logged in the 2026-08-24T07:53Z amendment ("larger single-trade dispersion on live equity") realized on a fade-tape day (BTC 81.3k @02:00Z → 78.8k). No action — T1 grading belongs to the prereg reader.
+2. *Hour mix.* Live fired into the two weakest LONG hours of the day (shadow LONG-closed basis: 08z avg −0.19R/n15, 12z −0.57R/n21 = worst-of-day). Cluster detector fires into intraday downtrend pockets; the bull gate is 4h-grain. Any intraday-regime idea goes through the G0 ladder — NOT a mid-window edit.
+3. *Ops findings.*
+   - CORRECTION to interim verbal report: the 13:25:45Z NEAR reject was pure exchange margin (−2019), NOT a cap-bypass race — book held 5/6 at send time and portfolio logic behaved correctly. Real issue = micro-equity feasibility (cf. Aug 24 ADA skip at $0.67 notional < $5 min): account cannot reliably fund a 6-slot book at current balance. Proposed for owner decision: pre-send free-margin/min-notional pre-check (skip-and-log instead of exchange rejects); consider whether max_positions should reflect fundable slots at current equity. OWL touched no code.
+   - Restart gap 14:05Z (repeat of Aug 24 pattern): a burst_follow bar-close signal inside the stop/start window was lost. Standing proposal unchanged: avoid restarts ±5min around 5m bar boundaries when slots are occupied + startup catchup replay (paper-first).
+   - Telegram alert escaping failure was a one-off (last failure 2026-08-24T12:21Z; sends verified working all day Aug 25). Harden payload escaping at next code-touch.
+
+**Non-actions (peek policy):** LONDHOLD counts-only until 2026-09-06T00:00Z — today contributes shadow rows only; the live wiring outcome carries zero formal weight in any read. No config/gate/sizing edits beyond the standing uncommitted 14% bump (revert trigger unchanged).
+### 2026-08-25T20:17Z — Addendum: live bot WS hang (found post-report)
+**Symptom:** no TP/trail/time exits since 19:35Z. NEAR/APT time-exits overdue.
+**Root cause:** exchange FIN'd kline+1 WS ≈19:35Z (post-ZEC-fill). Sockets sit CLOSE-WAIT w/ unread CLOSE frames; main loop idle in epoll. No ping/pong timeout, no reconnect watchdog, no staleness alarm → silent zombie. Liq socket still ESTAB so entries remain armed into an exit-dead book.
+**Evidence:** ss CLOSE-WAIT fd19/23 · candles_held frozen 36/31/7 · r_path froze 19:34:59.999 · py-spy epoll-idle · journal silent since 14:05.
+**Immediate action proposed:** systemctl restart bitana-live-burst-follow (recover_positions reloads 4 open). AWAITING OWNER GO — not executed.
+**Fix spec added:** WS ping_interval=20/timeout=10; staleness guard >90s no-msg → reconnect; alert if any feed silent >2 bars.
+
+### 2026-08-25T20:32Z — RETRACTION of 20:17Z addendum
+20:17Z "WS hang" was a false alarm. Evening entries are NY-tier time_bars=48 (240m): exits due 21:10/21:35/23:35Z, none overdue. candles_held was counting correctly; CLOSE-WAIT sockets were Telegram DC (149.154.x), not exchange. Restart executed on owner instruction ~20:22Z was harmless: recover_positions restored all 4 positions, counting verified resuming post-restart. WS-watchdog fix spec retracted (no feed-drop evidence). Standing findings unchanged: exit-config giveback, hour mix, NEAR margin-reject pre-check proposal, 14:05 restart gap.
+**Lesson:** resolve socket peer IPs before attributing feed failure; read per-position stored time_bars from signals.signal_data before declaring exits overdue.
+
+
+### 2026-08-25T20:37Z — Amendment: 14:00Z external_close trio resolved (owner action)
+Owner manually closed WLD/ZEC/ADA ~14:00Z to free slots for NY hour-1 — not a bot fault; exit_reason=external_close correct.
+**Counterfactual** (exchange klines, held to scheduled tb=36 exits): actual −1.08R vs hypothetical −1.21R → **+0.13R edge to the early close** (WLD −0.167 vs −0.214 · ZEC −0.514 vs −0.723 · ADA −0.400 vs −0.269; ADA only improver).
+**Freed-slot yield:** NY entries 16:10–16:36 realized +0.075R (XRP +0.089 / SOL +0.003 / ETH −0.017) + 4 positions open at report time.
+Day stands: 12 closed −1.89R ($−1.91) = time-exit book −0.81R/9 + manual slot-free −1.08R/3 (counterfactual-fair). No change to standing findings.
+
+
+## 2026-08-25T21:30Z — Amendment: day close −5.21R; DAILY_LOSS brake found alert-only; tb=48 vs tb=36 evening counterfactual
+- Day final: 16 closed, **−5.21R / $−4.62** (~−51% equity). Evening book (17:10–19:35Z LONGs): APT −0.905R SL@bar47, XRP −1.034R SL@bar43, NEAR −0.533R time_exit@bar48, ZEC −0.847R SL@bar19 = −3.32R.
+- **FINDING (code, not strategy)**: `risk/brakes.py record_loss()` emits BRAKE_TRIGGERED events for DAILY_LOSS but never sets `is_paused` — settings.yaml comment says "-> pause", code pauses nothing. Only EQUITY_PAUSE/EQUITY_SHUTDOWN block entries. Book remained armed all evening after 4 CRITICAL alerts. Owner to decide intended behavior.
+- State now: equity $3.45, is_paused=0/is_shutdown=0, reduced mode self-latched (consec_losses=5, reduced_remaining=4 @12%), daily_realized_loss=0.489 vs 0.20 limit (resets 00:00Z).
+- Counterfactual (tb=36 exits at entry+180m vs actual): APT −0.216 vs −0.905 · NEAR −0.196 vs −0.533 · XRP −0.446 vs −1.034 · ZEC ~−0.71 prov vs −0.847 → tb36 ≈ −1.57R vs actual −3.32R (**+1.75R cost of 240min hold tonight**, n=4 same-direction tape).
+- Market: BTC topped ~80.7k 05:00Z, ground down 16h to day low 77,808 AT 21:00Z (during holding window); evening drift −0.99% ≈ morning −0.84%, ATR5m evening 156 < morning 173 — grind, not vol event.
+- Verdict per prereg discipline: single correlated evening, n=4 → tagged as in-window observation ONLY. Both hold lengths have now looked bad within 36h ⇒ exit-config sensitivity high; PREREG-LONDHOLD forward window decides. No live re-wire off tonight's sample.
+
+## 2026-08-25T22:20Z — Regime-selector verdict + PREREG-GRINDVETO registration
+
+Owner re-asked whether the regime selector is ideal after BTC ground −3.5% over 16h while `btc_trend_state` stayed 'bull'.
+
+**Selector anatomy** (`engines/btc_regime.py`): 4h EMA200 + ADX(14)>25 → bull/bear/neutral. Macro filter by construction. Measured 2026-08-25T22:05Z: bull, px 78,591 vs EMA200 67,813 (+15.9%), ADX 44.2. Bear flip requires another −15.9%; neutral flip requires ADX→25. A 16h intraday grind is invisible to it **by design**, not by malfunction.
+
+**Missing layer identified — intraday tape context.** Shadow LONGs since Aug-4 split by BTC trailing-12h return AT ENTRY (entry-time knowable, no leak):
+
+| strategy | up-cell (>0%) | grind-cell (−2..0%) |
+|---|---|---|
+| ny_flush_buy_4h (LIVE-mirrored) | n=205 E=+0.786R WR61% | n=107 E=**−0.727R** WR51% |
+| ny_flush_buy_4h_s4 | n=222 E=+0.683R | n=143 E=−0.908R |
+| burst_follow | n=699 E=+0.13R | n=361 E=+0.18R (no effect) |
+
+Tonight's four live losses (APT/NEAR/XRP/ZEC, all `shadow_strategy=ny_flush_buy_4h` side_mode=follow) entered at BTC-12h ≈ −1.5% — inside the bleed cell. Correction of record: these were ny_flush_buy_4h follow fills, NOT burst-follow (earlier mislabel).
+
+Today-evening shadow flush book: 177 closed, WR 19%, Σ≈−733R in their own 8.2-ATR-stop units — same-direction confirmation.
+
+### PREREG-GRINDVETO (registered 2026-08-25T22:20Z)
+- **Claim tested**: entry-time BTC-12h-return ∈ (−2%, 0%) marks a toxic cell for LONG flush-buy arms; a veto there improves expectancy without starving healthy-bull entries.
+- **Veto (frozen)**: block LONG ny_flush_buy* arms when BTCUSDT trailing-12h return ∈ (−2%, 0%), computed from hourly closes ≤ candidate-bar close. No other cells affected. Does NOT apply to burst_follow or any fade SHORT arm (no cell effect shown).
+- **Forward-only** from 2026-08-26T00:00Z. Shadow stays UNGATED (2026-08-23 owner decision); prereg reads conditional stats off the same feed.
+- Counts-only until 2026-09-06; first R-read 2026-09-06; formal call 2026-09-20; one extension max 2026-10-04.
+- Metric: `shadow_trades.pnl_atr/stop_atr` canonical R, per-arm, cell-split per frozen rule. Primary arm: ny_flush_buy_4h.
+- Floors: n≥30 AND days≥5 in BOTH cells (primary arm).
+- Promote: grind-cell E ≤ −0.30R AND up-cell E ≥ +0.30R AND (up−grind) delta ≥ +0.50R/tr → propose live veto wiring (owner gate required).
+- Kill: grind-cell E > 0, or up-cell starves (n<30) → drop, log, no re-registration of same claim.
+
+### Exit-hold sensitivity (tier-neutral observation, NOT a config option set)
+Evening four, marked R at time-since-entry: +60m Σ+0.42R · +90m −0.32R · +120m −0.25R · +180m −0.86R · actual(tb48/SL) −3.32R. All four positive at one hour, aggregate negative by 90min. Recorded as decay-shape info only; 180-min is the LONDON tier parameter and was never an NY option (owner correction noted).
+
+### 2026-08-25T22:55Z — GRINDVETO full-history backtest (owner-requested)
+Ran veto against ALL shadow history (Jun27→Aug25): 6,246 closed LONG flush rows; 2,593 in grind cell.
+- Full-history grind-cell E = **−0.052R (scratch)**; up-cell +0.506R. Veto blocks Σ−134R while removing ~26% of entries → **blanket veto NOT historically justified**.
+- Month split of same cell: Jul +0.457R (n=1,262) vs Aug −0.534R (n=1,331) → episodic/regime-dependent, not structural. Earlier "toxic cell" framing (Aug-4+ window) retracted as subwindow artifact.
+- Negative grind days: 9 days Σ−2,081R (worst: Aug-25 −776R on n=424, Jul-27 −337R, Aug-12 −272R, Aug-10 −267R). Positive grind days: 11 days Σ+1,876R (best Jul-20 +376R).
+- Staleness conditioning (hours since BTC fresh 24h-high) tested as separator: every bucket flips sign Jul↔Aug → no stable separator found; no refinement registered.
+- Prereg unchanged (counts-only G0 from Aug-26). Early live wiring NOT recommended on this evidence.
+
+### 2026-08-26T00:10Z — Owner Q: neutral-rules counterfactual + regime-parameter sweep
+Q1: Could BTC have been tagged NEUTRAL under other selector parameters? NO within trend family:
+ADX(14,4h) never <56 on Aug25 (thr 25); price +5.9%/+11%/+16% above EMA50/100/200 at day low;
+2h-bar selector stays bull (ADX 28-40); grid EMA{100,150,200}xADX{20,22.5,27.5} = zero flips Aug23-26.
+Calling it neutral requires a different selector family, not different parameters.
+Q2: Live-book counterfactual, trade per NEUTRAL rules during bull week:
+Aug20 -0.14 -> 0 (ZEC h15 blocked) | Aug21 +0.69 -> 0 (london x13 blocked, SYMMETRIC COST)
+Aug25 -5.21 -> -2.30 (london x12 blocked +1.89 saved; ZEC h19 blocked +0.85 saved; h17 trio kept
+@10ATR: APT -1.00 stop@bar47, XRP -1.00 stop@bar42, NEAR -0.302 time-exit = -2.30).
+Bull-week live: -4.66R actual -> -2.30R neutral-rules. Saves 2.36R but NOT the evening:
+h17 NY buys are legal in neutral too and still lose -2.30R. Regime layer is not where the loss lived.
+London arm status vs own kill criteria: 25/30 accepted trades, net -1.20R (-0.048/tr < +0.2R line) ->
+tracking BELOW kill threshold with 5 trades to go before mandatory freeze review.
