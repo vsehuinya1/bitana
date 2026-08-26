@@ -18,6 +18,13 @@ venv/
 *.db
 *.db-wal
 *.db-shm
+*.db-journal
+
+# Dated pre-change backups (cp config.yaml config.yaml.pre_wire_YYYYMMDD)
+*.pre_*
+
+# Runtime logs
+logs/
 
 # Logs
 logs/

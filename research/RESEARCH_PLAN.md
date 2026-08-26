@@ -838,3 +838,40 @@ Owner Q: write off tonight's NY? Counterfactual without h17/h19:
 - Candidate arm at next G-gate: weekday x hour gate excluding Tue ny {17,19}. Counts-only criteria.
 Hygiene note: adjacent log entries stamped 22:55Z / 26T00:10Z appear LOCAL-time (UTC+2) mislabeled as Z;
 future entries must use `date -u`.
+
+## 2026-08-26T07:34Z — Amendment: London RE-ENABLED (owner), TP3/SL10/30m revert + h8/h12 drop + min-notional sizing floor
+Owner instruction ("Wire London with these specs TP3/SL10/30min, drop h8 and h12; risk % has to pass the
+Binance minimum, balance under $4; actually commit this time").
+1. **Exit reverted to shadow baseline** TP3@SL10@30m (`tp_atr 3.0 / time_bars 6`). Rationale: the Aug24
+   noTP/180m wiring had zero shadow history for this arm (all n=949 closed london LONGs ran TP3@30m) and
+   tripped its kill line in 25 accepted trades (−0.048R/tr). Aug25 same-day replay of the 12 live fills
+   under TP3/30m: −0.44R vs −1.89R actual (0 tp / 12 time / 0 sl). This is a REVERT to the measured
+   config, not a new optimization.
+2. **Hours h8/h12 dropped (OWNER OVERRIDE, post-hoc slice)** — hours now [9,10,11,13]. Shadow bleeders on
+   the closed book (n=949): h8 −25R PF0.75, h12 −61R PF0.67. LOGGED AS DEVIATION: hour exclusion is a
+   post-hoc slice of the same book that set the kill line; no OOS support yet. Kill criteria unchanged
+   and now apply to the REDUCED-hour arm.
+3. **Sizing floor**: all four risk_pct copies 14→24 (`symbols.defaults`, `burst_follow.risk_pct`,
+   `risk.default_risk_pct`), reduced tier 12→21. Basis: equity $3.45, london LONG stop widths p50 3.5 /
+   p95 10.0 / max 15.4 (%); notional = eq·pct/width → p95-stop trades $8.28 ≥ $5+buffer; max-width still
+   clears the $5.10 skip-guard ⇒ zero silent skips on $5-min symbols. **NOT covered**: ETH ($20 min,
+   fires only on <~4% stop widths ≈ half the book), BTC ($50 min, effectively dark). Dollar risk honesty:
+   one stop-out = ~$0.83 ≈ 24% of equity; DAILY_LOSS brake budget (20% = $0.69) is exceeded by a SINGLE
+   full stop ⇒ brake trips after one loss at current equity (owner's Aug25 hard-pause ruling applies).
+4. **Reduced-mode surgery (stop-svc-first procedure)**: risk_state carried consecutive_losses=5 /
+   reduced_trades_remaining=4 from Aug25 bleed → would have pinned effective risk ≤21 via reducer chain
+   and partially re-silenced the book. Cleared per owner instruction (risk must pass minimum): counters
+   zeroed, risk_pct_active=24, peak_equity=current_equity, DD=0. brake_state untouched (was clean).
+
+### Watch items (tracked here + decision-log commits until wired into code)
+- **h8/h12 exclusion OOS check**: shadow h8/h12 performance tracked weekly vs wired-hours arm; if the
+  excluded hours flip positive over ≥4 weeks, re-open as prereg candidate (not silent re-add).
+- **Kill line on the reduced-hour arm**: net/trade < +0.2R after 30 accepted live trades, or top-day
+  >40% of P&L → freeze. Counter resets from today.
+- **ETH partial-fill semantics**: fires only when entry stop width <~4%; log any ETH skip with width
+  ≥4% so we can quantify what the $20 minimum costs the arm.
+- **Fri weakness** (standing observation from earlier weeks): london exclude_weekdays=[5,6] already
+  drops Fri/Sat/Sun — nothing to do, keep watching shadow Fri cells for sign flips.
+- **Tue ny h17/h19** (22:54Z OPEN item): next G-gate candidate arm, counts-only criteria.
+- **PREREG-GRINDVETO**: registered 25T22:20Z, full-history BT done; awaiting window data.
+
