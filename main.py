@@ -686,7 +686,20 @@ class Bitana:
             if sig.engine == EngineType.LIQ_BURST_FOLLOW:
                 bf_cfg = sym_engines.get("burst_follow_cfg")
                 if bf_cfg is not None:
-                    sym_risk = bf_cfg.risk_pct
+                    # Brake-aware (wired 2026-08-25): burst-follow previously bypassed
+                    # the drawdown/consecutive-loss reducer because only risk_pct_active
+                    # fed the default path. In reduced mode scale down to
+                    # reduced_risk_pct; session bf risk remains the ceiling.
+                    rm_state = self.risk_mgr.state
+                    reduced_mode = (
+                        rm_state.current_drawdown_pct > self.cfg.risk.drawdown_reduce_threshold
+                        or rm_state.reduced_risk_trades_remaining > 0
+                    )
+                    sym_risk = (
+                        min(bf_cfg.risk_pct, self.cfg.risk.reduced_risk_pct)
+                        if reduced_mode
+                        else bf_cfg.risk_pct
+                    )
             sizing_mult = self.portfolio_mgr.get_sizing_multiplier(sig, open_positions)
 
             quantity, leverage = self.risk_mgr.calculate_position_size(

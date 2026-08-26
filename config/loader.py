@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings
 
 # Expected config version — warn if mismatch
@@ -43,6 +43,8 @@ class CompressionConfig(BaseModel):
 
 class SessionBurstRule(BaseModel):
     """Per-session burst entry/exit profile (mirrors shadow SHADOW_STRATEGIES winners)."""
+    # Reject unknown keys — typo'd YAML session keys previously parsed as silent no-ops.
+    model_config = ConfigDict(extra="forbid")
     shadow_strategy: str = ""
     side_mode: Literal["follow", "fade"] = "follow"
     pos_imb_only: bool = False
