@@ -875,3 +875,34 @@ Binance minimum, balance under $4; actually commit this time").
 - **Tue ny h17/h19** (22:54Z OPEN item): next G-gate candidate arm, counts-only criteria.
 - **PREREG-GRINDVETO**: registered 25T22:20Z, full-history BT done; awaiting window data.
 
+## 2026-08-26T12:21Z — Amendment: NY hours corrected — Tue-only h17/h19 exclusion (owner)
+
+Owner instruction ("set the correct hours for NY"), actioning the 22:54Z OPEN item early.
+New knob `SessionBurstRule.excluded_weekday_hours: dict[int, list[int]]` (0=Mon..6=Sun),
+applied AFTER regime_hours resolution, wins per (weekday,hour) cell; engine gate
+reason="weekday_hour_excluded". NY wired {1: [17, 19]} = Tuesday h17/h19 only.
+
+Measured basis (closed books, live weekdays Tue-Fri):
+- ny_flush_buy_4h book (session's tagged baseline), n=661: Tue h17 -31.2R avg -3.9
+  (bull-regime -25.7 of it), Tue h19 -16.8 vs Wed h17 +42.2 / Fri h17 +18.4 /
+  Fri h19 +23.2 -> weekday-scoped drop, NOT whole-hour (whole-hour would cut ~+60R).
+- BASELINE CAVEAT (logged honestly): burst_follow book (live's actual detector
+  family) full-history DISAGREES — Tue h17 +8.9R n=34, Tue h19 +12.9R n=26. The
+  Aug25 bleeder finding (-20.6R/-35.2R) was a last-4-Tuesdays phenomenon there,
+  not structural full-history. Decision rests on ny_flush book + recent-window
+  agreement; flagged as deviation risk if burst_follow book turns out to be the
+  live-faithful baseline.
+
+Verification: py_compile both files; typed dry-load round-trip {1:[17,19]}; gate
+truth-table (Tue h17/h19 blocked; Tue h14/h16 + Wed/Fri cells still fire); commit
+a56a79a; restart 12:11Z with 1 open London position (ETHUSDT — second trade ZEC
+time-exited 12:10:43 pre-restart); recovery verified incl. candles_held 3->5 across
+post-restart bar boundaries, reconciliation advancing, zero err/warn.
+
+Watch items:
+- **Sep 1 (Tue)**: expect ZERO ny entries in h17/h19 (weekday_hour_excluded);
+  any fill there = gate bug, freeze NY arm same day.
+- Weekly: Wed/Fri h17/h19 shadow cells must stay positive (+60R combined at wire
+  time); sign flip on either = revisit whole-hour drop question with fresh data.
+- Kill criteria unchanged (net/trade <+0.2R over 30 accepted trades, top-day >40%).
+
