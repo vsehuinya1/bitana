@@ -322,6 +322,14 @@ class LiqBurstFollowEngine:
             )
             return None
 
+        excluded_hours = (rule.excluded_weekday_hours or {}).get(bar_time.weekday())
+        if excluded_hours and f["hour"] in excluded_hours:
+            logger.debug(
+                "Burst session skip", symbol=symbol, session=f["session"],
+                reason="weekday_hour_excluded", weekday=bar_time.weekday(), hour=f["hour"],
+            )
+            return None
+
         if state.last_burst_time is not None:
             elapsed = (bar_time - state.last_burst_time).total_seconds()
             if elapsed < self.cfg.dedup_bars * 300:

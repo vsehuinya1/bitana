@@ -194,6 +194,15 @@ burst_follow:
       hours: [16, 17]
       regime_hours:
         bull: [14, 16, 17, 19]
+      # 2026-08-26 owner instruction ("set the correct hours"): Tue-only drop of
+      # h17/h19. ny_flush book (n=661 closed LONGs, live weekdays): Tue h17
+      # -31.2R avg -3.9 (bull-regime -25.7), Tue h19 -16.8 vs Wed/Fri cells
+      # +60R combined -> weekday-scoped exclusion, NOT whole-hour drop.
+      # burst_follow full-history DISAGREES (+8.9 / +12.9) — Aug25 bleeder finding
+      # was a last-4-Tuesdays phenomenon there; baseline caveat logged as plan
+      # amendment, OOS-watch in RESEARCH_PLAN.md. Key = Python weekday(): 1=Tue.
+      excluded_weekday_hours:
+        1: [17, 19]
       regime_stop_atr:
         bull: 8.0
       allowed_btc_regimes: ["neutral", "bull"]

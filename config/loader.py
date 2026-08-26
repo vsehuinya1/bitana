@@ -56,6 +56,14 @@ class SessionBurstRule(BaseModel):
     # neutral default [16,17].)
     regime_hours: dict[str, list[int]] | None = None
     exclude_weekdays: list[int] | None = None  # 0=Mon .. 6=Sun (UTC bar time)
+    # Weekday-specific hour exclusions. Maps UTC weekday (0=Mon..6=Sun) -> hours
+    # dropped on that day only. Applied AFTER regime_hours resolution: a cell here
+    # wins over any hours/regime_hours inclusion for that (weekday, hour) cell.
+    # 2026-08-26 owner instruction ("set the correct hours"): NY arm excludes
+    # Tue h17/h19 — ny_flush book full-history Tue bleed (h17 -31.2R, h19 -16.8R)
+    # while Wed/Fri cells are positive (+60R combined) -> weekday-scoped drop.
+    # OOS-watch item logged in RESEARCH_PLAN.md.
+    excluded_weekday_hours: dict[int, list[int]] | None = None
     min_imb: float = 0.0
     min_cascade_strength: float = 0.0
     min_vol_z: float = 0.0
