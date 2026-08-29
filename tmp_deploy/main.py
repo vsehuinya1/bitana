@@ -135,10 +135,12 @@ class Bitana:
         # Recover state
         risk_row = await self.db.get_risk_state()
         if risk_row:
-            self.risk_mgr.state = RiskState(**{
-                k: v for k, v in risk_row.items()
-                if k in RiskState.model_fields
-            })
+            risk_data = {k: v for k, v in risk_row.items() if k in RiskState.model_fields}
+            # Migration: old consecutive_losses was int, now dict[str, int]
+            cl = risk_data.get("consecutive_losses")
+            if isinstance(cl, int):
+                risk_data["consecutive_losses"] = {"": cl}
+            self.risk_mgr.state = RiskState(**risk_data)
             self.risk_mgr.normalize_active_risk()
             logger.info("Risk state recovered", equity=self.risk_mgr.state.current_equity)
 
@@ -442,7 +444,8 @@ class Bitana:
         """Risk / brake / alert bookkeeping shared by candle exits and recon closes."""
         for trade in closed_trades:
             self.trade_logger.log_trade(trade.model_dump())
-            self.risk_mgr.record_trade_result(trade.pnl_r)
+            cluster_bucket = trade.signal_data.get("cluster_bucket") if trade.signal_data else None
+            self.risk_mgr.record_trade_result(trade.pnl_r, cluster_bucket)
 
             if trade.pnl_usd < 0 and self.risk_mgr.state.current_equity > 0:
                 loss_pct = abs(trade.pnl_usd) / self.risk_mgr.state.current_equity

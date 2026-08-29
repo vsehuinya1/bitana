@@ -174,14 +174,33 @@ class TestDrawdownAdjustment:
 class TestStreakTracking:
     def test_consecutive_losses_reduce_risk(self, risk_mgr, config):
         risk_mgr.update_equity(10000)
+        bucket = "2026-07-23T14:00:00+00:00"
         for _ in range(config.brakes.consecutive_loss_threshold):
-            risk_mgr.record_trade_result(-1.0)
+            risk_mgr.record_trade_result(-1.0, bucket)
         assert risk_mgr.state.risk_pct_active == config.risk.reduced_risk_pct
         assert risk_mgr.state.reduced_risk_trades_remaining > 0
+        # Verify streak tracked per bucket
+        assert risk_mgr.state.consecutive_losses[bucket] == config.brakes.consecutive_loss_threshold
 
     def test_win_resets_streak(self, risk_mgr):
         risk_mgr.update_equity(10000)
-        risk_mgr.record_trade_result(-1.0)
-        risk_mgr.record_trade_result(-1.0)
-        risk_mgr.record_trade_result(2.0)
-        assert risk_mgr.state.consecutive_losses == 0
+        bucket = "2026-07-23T14:00:00+00:00"
+        risk_mgr.record_trade_result(-1.0, bucket)
+        risk_mgr.record_trade_result(-1.0, bucket)
+        risk_mgr.record_trade_result(2.0, bucket)
+        assert risk_mgr.state.consecutive_losses[bucket] == 0
+
+    def test_streaks_independent_per_bucket(self, risk_mgr, config):
+        """Losses in one bucket don't affect another bucket's streak."""
+        risk_mgr.update_equity(10000)
+        bucket_a = "2026-07-23T14:00:00+00:00"
+        bucket_b = "2026-07-23T14:15:00+00:00"
+        # 3 losses in bucket A (threshold=3) should trigger risk reduction
+        for _ in range(config.brakes.consecutive_loss_threshold):
+            risk_mgr.record_trade_result(-1.0, bucket_a)
+        assert risk_mgr.state.risk_pct_active == config.risk.reduced_risk_pct
+        # Bucket B streak should be 0
+        assert risk_mgr.state.consecutive_losses.get(bucket_b, 0) == 0
+        # Win in bucket B
+        risk_mgr.record_trade_result(2.0, bucket_b)
+        assert risk_mgr.state.consecutive_losses.get(bucket_b, 0) == 0

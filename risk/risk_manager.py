@@ -59,21 +59,35 @@ class RiskManager:
             if self.state.reduced_risk_trades_remaining <= 0:
                 self.state.risk_pct_active = cfg.default_risk_pct
 
-    def record_trade_result(self, pnl_r: float) -> None:
-        """Update streak counters after a trade closes."""
+    def record_trade_result(self, pnl_r: float, cluster_bucket: str | None = None) -> None:
+        """Update streak counters after a trade closes.
+
+        Args:
+            pnl_r: Trade PnL in R multiples.
+            cluster_bucket: The 15-min cluster bucket this trade belongs to.
+                           If provided, streaks are tracked per-bucket.
+                           If None (legacy), falls back to global counter key "".
+        """
         cfg = self._cfg.brakes
+        bucket = cluster_bucket or ""
+
         if pnl_r < 0:
-            self.state.consecutive_losses += 1
-            if self.state.consecutive_losses >= cfg.consecutive_loss_threshold:
+            # Increment streak for this bucket
+            current = self.state.consecutive_losses.get(bucket, 0) + 1
+            self.state.consecutive_losses[bucket] = current
+
+            if current >= cfg.consecutive_loss_threshold:
                 self.state.reduced_risk_trades_remaining = cfg.consecutive_loss_reduced_trades
                 self.state.risk_pct_active = self._cfg.risk.reduced_risk_pct
                 logger.warning(
                     "Consecutive loss streak — reducing risk",
-                    streak=self.state.consecutive_losses,
+                    bucket=bucket,
+                    streak=current,
                     reduced_trades=self.state.reduced_risk_trades_remaining,
                 )
         else:
-            self.state.consecutive_losses = 0
+            # Reset streak for this bucket on win
+            self.state.consecutive_losses[bucket] = 0
 
         if self.state.reduced_risk_trades_remaining > 0:
             self.state.reduced_risk_trades_remaining -= 1

@@ -292,7 +292,8 @@ class RiskState(BaseModel):
     current_equity: float = 0.0
     current_drawdown_pct: float = 0.0
     risk_pct_active: float = 1.5
-    consecutive_losses: int = 0
+    # Per-cluster_bucket consecutive loss streaks. Key = cluster_bucket (e.g. "2026-07-23T14:00:00+00:00")
+    consecutive_losses: dict[str, int] = Field(default_factory=dict)
     reduced_risk_trades_remaining: int = 0
 
 

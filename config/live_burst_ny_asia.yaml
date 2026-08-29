@@ -6,8 +6,20 @@
 #   - Plain time exit beats TSL on both books
 #   - NY skips Mondays and weekends (UTC)
 #   - Asia skips weekends Sat/Sun UTC bar time (Jul 19)
-#   - 10% risk per position (ops bump Aug 11); max_leverage 100 (Aug 12) so slot sizing can reach target
+#   - 24% risk per position (ops bump Aug 11); max_leverage 100 (Aug 12) so slot sizing can reach target
 #   - Live gate: NY neutral (h16-17) + bull (h14-15,17 @ 8 ATR); Asia neutral-only (Aug 20-21)
+#
+# ===== EQUITY FLOORS FOR $5 MIN-NOTIONAL (cap-6) =====
+# London LONG book (n=949 closed): stop widths p50 3.5% | p95 10.0% | max 15.4%
+# Formula: equity >= 5 * stop_width / risk_pct
+#
+# DEFAULT tier (24%):
+#   p50  3.5% -> $0.73    p95 10.0% -> $2.08    max 15.4% -> $3.21
+# REDUCED tier (21%):
+#   p50  3.5% -> $0.83    p95 10.0% -> $2.38    max 15.4% -> $3.67
+#
+# At $3.45 equity (yesterday): 24% clears $5 even at max stop; 21% clears up to ~14.3% stop (~98% of book)
+# NOT covered: BTCUSDT ($50 min), ETHUSDT ($20 min) — ETH fires only on <~4% stop widths, BTC effectively dark until funded.
 
 config_version: "1.1.1"
 mode: "live"
@@ -30,10 +42,11 @@ symbols:
     - ADAUSDT
     - UNIUSDT
   defaults:
-    # Owner 2026-08-26: 24% = min-notional floor at $3.45 equity (london LONG book
-    # n=949 stop widths p50 3.5% / p95 10.0% / max 15.4%; notional = eq*pct/width).
-    # p95-stop trades -> $8.28 >= $5 min + buffer; even max-width trades clear the
-    # order_manager skip-guard ($5.10) => zero silent skips on $5-min symbols.
+    # 24% = min-notional floor at $3.45 equity (london LONG book
+    # n=949 stop widths p50 3.5% / p95 10.0% / max 15.4%;
+    # notional = eq*pct/width). p95-stop trades -> $8.28 >= $5 min + buffer;
+    # even max-width trades clear the order_manager skip-guard ($5.10) =>
+    # zero silent skips on $5-min symbols.
     # NOT covered: BTCUSDT ($50 min), ETHUSDT ($20 min) — ETH fires only on <~4%
     # stop widths, BTC effectively dark until account is funded. Owner-instructed.
     risk_pct: 24.0
@@ -56,7 +69,12 @@ risk:
   liquidation_buffer_pct: 0.05
 
 brakes:
-  daily_loss_limit_pct: 0.20
+  # 2026-08-28 owner: daily brake 50% -> 40% (yesterday's 50% trigger took too
+  # long to clear and cost entries).
+  # 2026-08-29 owner: 40% -> 60%.
+  # 2026-08-29 owner: 60% -> 85% (counterfactual: worst observed day at 21% reduced risk = 79.9%;
+  # 85% limit survives worst day while catching true blowups).
+  daily_loss_limit_pct: 0.85
   consecutive_loss_threshold: 3
   consecutive_loss_reduced_trades: 5
   equity_pause_drawdown: 0.35
@@ -78,7 +96,7 @@ profit_taking:
   time_stop_candles: 8
 
 portfolio:
-  max_concurrent_positions: 6
+  max_concurrent_positions: 8
   max_per_symbol: 1
   max_cluster_positions: 6
   cluster_window_minutes: 15
@@ -193,7 +211,16 @@ burst_follow:
       exclude_weekdays: [0, 5, 6]
       hours: [16, 17]
       regime_hours:
-        bull: [14, 16, 17, 19]
+        # 2026-08-28 owner order ("activate h18-20 for Friday London bull"): evidence
+        # cell is THIS arm (ny_flush_buy_4h Fri-bull, single day Aug 21): h18 +3.28R n4,
+        # h20 +0.59R n1; h19 already live. London arm (burst_follow) same cells flat
+        # (+0.24R n32) — interpretation note. h18/h20 added FRIDAY-SCOPED via
+        # excluded_weekday_hours below: ex-Fri bull h18 -2.52R n20 (Tue -2.21 n5,
+        # Thu -0.39 n12), h20 Tue -2.54R n14 — global add would import Tue bleed.
+        # Kill criteria: Fri h18/h20 + Wed h20 cells review at n>=10, kill if avg<0.
+        # 2026-08-28 same-day owner call: Wed h20 wired (+4.25R n6, 6/6 win, spread
+        # Jul22 +0.52 / Aug26 +3.73 — two Wednesdays); h18 Wed stays locked (+0.08R n3).
+        bull: [14, 16, 17, 18, 19, 20]
       # 2026-08-26 owner instruction ("set the correct hours"): Tue-only drop of
       # h17/h19. ny_flush book (n=661 closed LONGs, live weekdays): Tue h17
       # -31.2R avg -3.9 (bull-regime -25.7), Tue h19 -16.8 vs Wed/Fri cells
@@ -202,7 +229,12 @@ burst_follow:
       # was a last-4-Tuesdays phenomenon there; baseline caveat logged as plan
       # amendment, OOS-watch in RESEARCH_PLAN.md. Key = Python weekday(): 1=Tue.
       excluded_weekday_hours:
-        1: [17, 19]
+        # 2026-08-28: h18 Friday-only; h20 Friday+Wed (owner call, see note above).
+        # Tue/Thu drops kept: h18 Tue -2.21 n5 / Thu -0.39 n12; h20 Tue -2.54 n14.
+        # wd = python weekday (1=Tue, 2=Wed, 3=Thu); Mon/Sat/Sun out at session level.
+        1: [17, 18, 19, 20]
+        2: [18]
+        3: [18, 20]
       regime_stop_atr:
         bull: 8.0
       allowed_btc_regimes: ["neutral", "bull"]
@@ -251,5 +283,6 @@ burst_follow:
       min_vol_z: 0.0
       min_n_confirms: 1
       min_decile: 1
+
 database:
   path: "data/bitana-live-burst.db"

@@ -370,6 +370,7 @@ class Database:
 
     async def save_risk_state(self, state) -> None:
         from core.models import RiskState
+        import json
         s: RiskState = state
         await self._write(
             """INSERT OR REPLACE INTO risk_state
@@ -378,13 +379,19 @@ class Database:
                 reduced_risk_trades_remaining, updated_at)
                VALUES (1, ?, ?, ?, ?, ?, ?, ?)""",
             (s.peak_equity, s.current_equity, s.current_drawdown_pct,
-             s.risk_pct_active, s.consecutive_losses,
+             s.risk_pct_active, json.dumps(s.consecutive_losses),
              s.reduced_risk_trades_remaining,
              datetime.utcnow().isoformat()),
         )
 
     async def get_risk_state(self) -> Optional[dict]:
-        return await self._read_one("SELECT * FROM risk_state WHERE id = 1")
+        import json
+        row = await self._read_one("SELECT * FROM risk_state WHERE id = 1")
+        if row:
+            row = dict(row)
+            if isinstance(row.get("consecutive_losses"), str):
+                row["consecutive_losses"] = json.loads(row["consecutive_losses"])
+        return row
 
     # ------------------------------------------------------------------
     # Brake state
