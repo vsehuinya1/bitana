@@ -973,3 +973,13 @@ Watch items:
   time); sign flip on either = revisit whole-hour drop question with fresh data.
 - Kill criteria unchanged (net/trade <+0.2R over 30 accepted trades, top-day >40%).
 
+
+## 2026-08-30T13:05Z — OWNER-ORDERED LIVE CONFIG CHANGES (audit #6 addendum, item 13)
+- risk_pct 24.0 -> 10.0 (all 3 keys + reduced 21.0 -> 8.75). Basis: wallet funded $3.45 -> $24.59 USDT (verified mainnet read-only);
+  24% was the min-notional floor at $3.45 equity, not an expectancy pick. At 10%/$24.59: $5-min alts clear $6.50 floor to 2.6% widths;
+  ETH ($20 min) fires <~8% widths; BTC ($50 min) effectively dark (<~5% widths) — owner-accepted.
+- Asia session exclude_weekdays [5,6] -> [2,5,6]: Tuesday blocked. Shadow asia_pump_short_4h Tue-neutral n=33 -0.086R PF 0.50
+  (losses across all hours, h00 worst -0.25R n9); Monday-neutral is the strong cell (n=30 +0.216R PF 2.97).
+- OPEN watch item (hours): plain-variant dead zone h01-05 (n=94 -0.056R avg, h03 worst -0.176R PF 0.29) vs strong h00/06/07
+  (n=75 +8.9R combined). NOT replicated in tsl mirror (inverted) — no hour blocks until cross-variant evidence. Revisit at 30d.
+- Restart 13:03Z: checksum 72eb7007a3c712b7, brakes clear, no EQUITY_SHUTDOWN. Service bitana-live-burst-follow.

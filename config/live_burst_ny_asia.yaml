@@ -42,14 +42,11 @@ symbols:
     - ADAUSDT
     - UNIUSDT
   defaults:
-    # 24% = min-notional floor at $3.45 equity (london LONG book
-    # n=949 stop widths p50 3.5% / p95 10.0% / max 15.4%;
-    # notional = eq*pct/width). p95-stop trades -> $8.28 >= $5 min + buffer;
-    # even max-width trades clear the order_manager skip-guard ($5.10) =>
-    # zero silent skips on $5-min symbols.
-    # NOT covered: BTCUSDT ($50 min), ETHUSDT ($20 min) — ETH fires only on <~4%
-    # stop widths, BTC effectively dark until account is funded. Owner-instructed.
-    risk_pct: 24.0
+    # 2026-08-30 owner: 24% -> 10% (wallet funded $3.45 -> $24.59; 24% was the
+    # min-notional floor at $3.45, not an expectancy pick). At 10%: $5-min alts
+    # clear $6.50 floor down to 2.6% stop widths; ETH ($20 min) fires <~8%;
+    # BTC ($50 min) fires only <~5% widths — effectively dark. Owner-instructed.
+    risk_pct: 10.0
 
 timeframes:
   regime: "15m"
@@ -58,11 +55,12 @@ timeframes:
 
 risk:
   # 2026-08-26: moved with symbols.defaults.risk_pct (all copies must move together).
-  default_risk_pct: 24.0
-  # Reduced tier scaled down but still clears $5 min-notional at $3.45 equity
-  # for stop widths <=14.3% (~98% of book) — otherwise post-loss reducer
-  # re-silences the book (skill: reduced-tier proportional-scaling rule).
-  reduced_risk_pct: 21.0
+  # 2026-08-30 owner: 24% -> 10% (moved with symbols.defaults.risk_pct —
+  # all copies must move together).
+  default_risk_pct: 10.0
+  # 2026-08-30: 21.0 -> 8.75 (proportional 0.875× of new default 10%).
+  # At $24.59 equity clears $6.50 floor for stop widths <=21.4% — 100% of book.
+  reduced_risk_pct: 8.75
   drawdown_reduce_threshold: 0.15
   drawdown_restore_threshold: 0.10
   max_leverage: 100
@@ -177,8 +175,8 @@ burst_follow:
   min_burst_volume_30m: 20000
   min_burst_events_30m: 3
   dedup_bars: 3
-  # 2026-08-26: engine ceiling moved with min-notional floor (see symbols.defaults).
-  risk_pct: 24.0
+  # 2026-08-30: moved with symbols.defaults (owner 24% -> 10%).
+  risk_pct: 10.0
   btc_regime_gate_enabled: true
   allowed_btc_regimes: ["neutral", "bear"]
   session_rules:
@@ -187,7 +185,9 @@ burst_follow:
       side_mode: follow
       neg_imb_only: true
       min_imb: 0.5
-      exclude_weekdays: [5, 6]
+      # 2026-08-30 owner: block Tue (shadow asia_pump_short_4h Tue-neutral
+      # n=33 -0.086R PF 0.50, losses spread across hours, h00 worst -0.25R n9).
+      exclude_weekdays: [2, 5, 6]
       allowed_btc_regimes: ["neutral"]
       stop_atr: 10.0
       tp_atr: 999.0
@@ -237,6 +237,7 @@ burst_follow:
         3: [18, 20]
       regime_stop_atr:
         bull: 8.0
+        neutral: 6.0
       allowed_btc_regimes: ["neutral", "bull"]
       stop_atr: 10.0
       tp_atr: 999.0
