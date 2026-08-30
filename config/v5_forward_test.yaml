@@ -37,8 +37,11 @@ symbols:
   tier_c_experimental:
     # G0 watch-only wire-in 2026-08-22 (OWL): full scan+logging, is_experimental=1,
     # excluded from core paper stats until floors met (n>=15, >=5d, +E both scopes)
+    # 2026-08-30 removals (owner-ordered, 8d review): SUIUSDT (persistent bleed
+    # -0.200/n399, 5/8 days negative, ex-bleed -0.121/n247) and GRAMUSDT (n=2 in
+    # 8d, market dead, un-evaluable). No removal rule existed at wire-in; mirror
+    # rule now registered: n>=100, >=5d, avg<-0.10R ex-book-bleed-days -> remove.
     - DOGEUSDT
-    - SUIUSDT
     - LINKUSDT
     - BCHUSDT
     - AAVEUSDT
@@ -47,9 +50,6 @@ symbols:
     - PENGUUSDT
     - HYPEUSDT
     - PUMPUSDT
-    # TON perp delisted (SETTLING, -4108 on OI fetch); successor ticker GRAM relisted
-    # ~2026-07-02. New ticker = zero record -> enters via G0 like everything else.
-    - GRAMUSDT
 
 risk:
   max_leverage: 10

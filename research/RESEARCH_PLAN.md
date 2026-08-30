@@ -111,6 +111,37 @@ or day-concentration fails. Killed ideas go to the decision log below.
 
 ### August
 
+- **Fri Aug 28 — London bull stop-ladder interim read (validated kline replay,
+  pre-Aug-30).** Population: London bull burst_follow, h9/10/11/13 weekday,
+  Jul 15–Aug 27 — n=242 (13 days; weekend n=55 excluded from live book).
+  Harness: 5m fapi klines, entry = signal-bar close, SL-before-TP conservative,
+  stored atr column; validation vs recorded pnl_atr 294/297 (median Δ 0.0000,
+  max 0.105), recorded run_mae_atr min (−5.11) reproduced independently by replay.
+  **Result: zero stop-touches at SL6/8/10** — exit mix identical in all arms
+  (225 time / 17 tp / 0 sl), PF identical 2.39, worst in-book in-life MAE −5.11 ATR
+  (only 1 trade < −5, none < −5.5). Stop width is **non-binding** in the current
+  book; SL6/SL8 vs SL10 differ only by R-denominator rescaling (avg +0.047R →
+  +0.058R → +0.078R), i.e. a position-size multiplier ≡ risk_pct 24→30/40%.
+  Caveats: over-cap reductions grow 6/242 (SL10) → 25/242 (SL6); fee drag +67%
+  (median 0.020R → 0.033R); per-trade $ tail cap is −1R under every width; the
+  single historical −6+ ATR breach (id16468, ETHUSDT, MAE −8.85) is **hour 12 —
+  outside the current book** (it motivated the Aug-21 "SL6 saves 2.9R" note).
+  Verdict: no variant clears G2 as a stop *improvement* (no outcome changes);
+  keep SL10. Any tighter stop is a sizing decision (risk_pct), not a stop decision.
+  **Liq-aware re-read (same day, decisive):** engine margin model (risk_manager
+  L121-128) ⇒ lev = 6·notional/eq = 1.44·(ep/atr)/SL, eq-independent at 24%/6
+  slots ⇒ liq ≈ 0.69·SL − 0.004·(ep/atr) ATR: SL10 → median 6.0 ATR (p10 5.2),
+  SL6 → median 3.4 ATR = **inside the stop for 242/242 trades**. On observed
+  paths: SL10 0 liq, 13-day net +$6.65; SL8 3 liq, +$6.48; SL6 13 liq (2 were
+  SL10 winners: id31803 SOL +2.16, id38759 AVAX +0.39) + 25 lev-cap reductions
+  + fees ×1.67 ⇒ net +$0.17. Equivalence check: SL10@40% ≡ SL6@24% (+$0.17,
+  identical liq/reduced counts) — stop width and risk_pct are one dial
+  (notional); liq geometry follows notional, not the stop line. Paper ladder
+  SL6>SL8>SL10 (+18.8/+14.1/+11.3R) **inverts** in realized $:
+  SL10>SL8>SL6 (+6.65/+6.48/+0.17). Stop-ladder closed at SL10 for London bull;
+  binding constraint recorded: liq_atr ≈ 0.69·SL − 0.004·(ep/atr) at 24%/6
+  slots. If more per-trade size is wanted, lever = max_concurrent slots
+  (6→3 doubles liq headroom) or lower risk_pct, G-gated with liq-aware replay.
 - **Sat Aug 1 / Sun Aug 2 —** stop-variant first read **DONE** (Asia s4/s6/s8 from
   Jul 20; full-session NY s4/s6/s8 from Jul 23). ≥5 distinct Asia days (7 live-like);
   NY live-like days = 4 → **NY day floor not met** (extend to Aug 9+). Note: tighter
@@ -213,6 +244,8 @@ shifts entirely to pre-registration + kill criteria per row.
 | Asia D10 @ h5 retained (`max_decile` NOT applied) | G0 (no code — filter-plan correction) | next variance scan | h5 D10 n<15 or avg<+0.1 after fresh OOS |
 | ~~Monday risk bump~~ **KILLED Aug 25 (due-date read)** | Premium NOT reproduced — Mon is the WORST weekday since Jul1: n=121 closed, avg −0.65 ATR (−0.065 R/tr), net −78.5, vs Fri best +1.31; every other weekday positive; regime split negative BOTH cells (bull −0.58/n31, neutral −0.82/n84); fresh Aug24 −17.9R/−0.58. Kill #1 fires outright; WR sample floor moot. Monday exclusion stays; action path never built (no code) | — | — |
 | Bear-regime enablement — **NY flush-buy only** (ny session `allowed_btc_regimes` [neutral,bull] → +bear; london & asia EXCLUDED by pre-registered screen) | G0 registered Aug 22 pre-outcome. Basis — bear cohort fresh 14d: ny_flush_24h +0.193R/n44, 8h +0.184/n43, 4h_s4 +0.122/n64; live-book variant `ny_flush_buy_4h` +0.038/n53 thin-pos; full window confirms (+0.07–0.28). Screen exclusions: london `burst_follow` bear fresh −0.00R/n314 → stays bull-only; `asia_pump_short_4h` bear fresh −0.104/n28 → stays neutral-only. Promotion = config-only flip, no engine code | Promotion gate G0→G2 at Sep 6: Aug 23–Sep 5 bear cohort of ny_flush_4h family avg > +0.05R/trade on n≥15, no single symbol >60% of cohort PnL, bear occupancy ≥8% of window bars (underpowered → roll forward, not fail) | Kill (any one): fresh-window bear avg ≤ 0 at n≥20; post-flip live bear cohort ≤ −0.3R/trade at n≥15 after ≥14d exposure; one symbol >70% of live bear PnL; bear-enabled fortnight trips equity brake or raises peak-DD >15% |
+| Bear-regime enablement — **NY flush-buy 8h/24h** (`ny_flush_buy_8h`, `ny_flush_buy_24h` LONG) | G0 registered Aug 30. Basis — shadow full window: 8h +1.57R/n383 (73% WR, 7d), 24h +2.84R/n352 (55% WR, 38d); both LONG-only, extended hold (96/288 bars). Fresh 14d: 8h +0.184R/n43, 24h +0.193R/n44. Promotion = new strategy variant + config (engine supports time_bars). **Distinct from 4h family** — longer hold, different exit dynamics. | Promotion G0→G2 at Sep 20: fresh 14d (Aug 23–Sep 5) each variant avg > +0.10R on n≥15, ≥5 days, top-day <40%, rvol tercile control. | Kill (any): fresh avg ≤ 0 at n≥20; giveback_share ≥ 0.55 vs 4h baseline; live cohort ≤ −0.3R at n≥15 after ≥14d. |
+| Bear-regime enablement — **London follow/fade 6h** (`follow_6h_london` LONG, `fade_6h_london` SHORT) | G0 registered Aug 30. Basis — shadow full window: follow +4.53R/n44 (88.6% WR, 4d), fade +4.47R/n21 (66.7% WR, 6d); 6h hold (72 bars), 10 ATR stop. Fresh 14d: follow +5.66R/n39 (97% WR), fade +4.47R/n21 (67% WR). **Requires NEW London session block** (currently bull-only structural LONG). Engine wiring needed: pos_imb_only + allowed_side split per strategy. | Promotion G0→G2 at Sep 20: fresh 14d each strategy avg > +1.0R on n≥15, ≥5 days, top-day <40%, both sides positive. | Kill (any): fresh avg ≤ 0 at n≥15; one side ≤ 0 while other >0 (asymmetric rescue); live cohort ≤ −0.5R at n≥15 after ≥14d. |
 | ~~Confirmed/delayed entry for burst books~~ | **KILLED Aug 22 night replay** (own kill criteria). Validated harness: 3503/3606 exact match, Σdiff +3.7R on −360R, exit mix reproduced. Grid Δ/signal: A +0.054 / B0.25 +0.073 / B0.5 +0.067 / B0.75 +0.041 / C +0.068 — three variants cleared the +0.05 gate BUT: (1) take-rate 33–56% < 70% floor → kill #2 fires; (2) flagship damage — london h8-13 bull LONG dE/fill **−0.249** (base +0.286/n148 → var +0.037/n83), ny LONG −0.059, london SHORT −0.060; (3) weekly concentration: net +242R of which W34 alone +237R (crisis week, base −414R→−178R) while W30 cost −72R — regime insurance, not expectancy. Per-fill E stays negative in every variant (best −0.059). o2-fill robustness check passed (gap≈0 median, Δ/signal +0.064 unchanged) | — | see decision log; asymmetric session-scoped confirm (bleeding cells only) is a DIFFERENT hypothesis — needs fresh pre-registration if pursued, no retrofit. **Part3 per-session×side full grid (Aug 22 night):** take-rate NEVER ≥70% in any cell×variant (max 68%) → kill #2 fires even session-scoped. Beneficiary set = exactly the 4 losing cells (dE/signal: ny SHORT +0.26…+0.44, late LONG +0.30…+0.40, asia SHORT +0.09…+0.14, asia LONG +0.03…+0.08); every profitable cell negative per-signal (london L/S, ny LONG −0.02…−0.05; late SHORT per-fill +0.19…+0.31 BUT per-signal −0.08…−0.12 — skipped winners cost more than saved losers). Flagship london h8-13 bull LONG dE/fill negative in ALL 5 variants (−0.22…−0.34). Symbol concentration benign (top1 ≤33% gross-pos) |
 
 **Open register slot:** uncapped as of Aug 19. Candidates only via pre-registration
@@ -564,6 +597,40 @@ Floors n>=15 AND >=5 days/cell; kill: E<=-0.30 confirmed -> live-config proposal
 9. **Scale-in** 23 fills < 30 → Sep 13 stands. **Monday risk bump** read due Tue Aug 25; action path STILL unwired (loader parses, no consumer — enabling = new code).
 
 **Variance flags (last 14d, |avg|≥0.5, n≥15, outside known axes):** neutral a>48h late LONG −1.20/n41 · bull a<24h NY SHORT −1.13/n30 · bear a<24h late SHORT −0.62/n90 · bull a>48h late SHORT −0.85/n40 · neutral a<24h asia LONG −0.69/n80. No action without pre-registration.
+
+---
+
+## 2026-08-29T09:54Z — OWNER PEEK (interim, non-binding): OI-flush fresh-window tracker status
+Formal verdict unchanged: **Sun Sep 6** (window Aug 22–Sep 5). Interim read Aug 22T00→now, LONG oi_delta_30m_pct<−1%, all books pooled, live-3% R convention, Δ vs non-flush longs computed EARLY (tracker said defer Δ to verdict — disclosed as peek):
+- Flush longs n=1513 avg **−0.021R/tr** (net −31.3R, WR 53.6%) · non-flush n=6465 avg +0.008R/tr · **Δ = −0.029R/tr** — below confirm floor (+0.1) AND below kill line (≤0)
+- Top-day concentration **52.4%** (kill >40%): Aug 28 −64.36R. Ex-0828 the flush book is ≈ +33R — concentration, not uniform bleed
+- n≥100 met (1513). Both kill criteria currently in breach; 7 window-days remain. If sign does not flip by Sep 6, verdict shapes as KILL. No wiring exists (measurement-only row) — no action before formal read.
+
+---
+
+## Sun 2026-08-30 — Weekly audit #6 (06:47–07:15Z)
+
+**Integrity:** writer live (last entry 06:44Z); 45,453 rows; 0 stale >3d open. Live unit up since Sun 06:26Z (restarted for NY-bear config revert, see below); 0 ERROR/traceback in 24h journal. Shadow live-reconciliation: live burst LONG n=70 avg −0.060 vs shadow ny_flush_buy_4h n=232 avg −0.056 Aug23+ — books tracking ✓.
+
+**Regime state:** bull since Aug 20 (age 31–60 4h bars); brief neutral Aug 25–26 (age 0–2 bars, 213 rows); **last bear entry Aug 17** — no bear-regime trades for ANY bear G0 since registration window opened. All bear cohorts remain n=0 fresh.
+
+**Live book Aug 23+:** 71 closed (70 LIQ_BURST_FOLLOW LONG + 1 COMPRESSION), Σ −6.48R, avg −0.091. Exit mix: time 61/−1.02 · SL 3/−2.79 · TP 3/+0.67 · external 4/−3.34. External closes: 3× burst LONG (WLD/ZEC/ADA) batch-closed Aug 25T14:00 at 20–22 bars (restart/config-change batch — benign); 1× COMPRESSION XRPUSDT −2.26R at 0 bars Aug 28T16:58 (immediate external close — flag: 0-bar hold at −2.26R suggests entry-instant manual/brake close; no action, monitor for recurrence).
+
+**Checkpoint calls:**
+1. **Gate cluster — forward vs backfill DIVERGENCE is the story.** Backfill (all rows since Aug22T14:10): arm_rvolq1 CONFIRMED (E −1.03/n2154), arm_oi_p1 CONFIRMED (−0.50/n1532), arm_fund1bp CONFIRMED (−0.65/n1475), arm_late_long CONFIRMED (−0.41/n1888). Forward-only window (last ~9d): fund1bp FALSIFIED (+0.53/n517), late_long FALSIFIED (+0.53/n337), adx35/burst_s inconclusive, rvolq1 n=0 (0/961 hot-window shorts met threshold — gate never binds). Read: the blocked pools bled in the immediate post-cutoff window but RECOVERED after — backfill confirms gates are deadweight now. No promotion per registered kill (forward window governs); cluster stays measurement-only. Do NOT wire any arm on backfill.
+2. **OI-flush (verdict Sep 6):** fresh n=1553 avg −0.070R (net −108.5R, 8 days), Δ vs non-flush ≈ −0.03→−0.08 direction stable, top-day 52.4% > 40%. **Both kill criteria in breach for 8 straight days; verdict will be KILL unless a +50R flip in 6 days** — treat as dead walking.
+3. **PREREG-AGESHORT:** cell T n=0 forward (needs neutral × age6-12 × NY h14-21 × SHORT; regime hasn't cooperated). C1 n=6. Dead-sample risk real; park decision Sep 6 per policy.
+4. **PREREG-LONDHOLD:** 299 eligible / 5 days / 28 syms, stop_atr guard clean (med=min=max=10). Counts-only until Sep 6.
+5. **AMENDMENT (registered row "NY 8h/24h bear", before any verdict — measurement binding):** the registered gate text said "each variant avg > +0.10R" without regime qualifier, but the row's basis figures were bear-subset. Binding clarified: **G0 read is bear-cohort ONLY** (matches row purpose "Bear-regime enablement"). Justification for acting now: this week's bull-only fresh data shows why — ny_flush_buy_24h n=134 avg **−0.751** in bull vs +2.84 full-window bear; follow_6h_london n=8 −1.18 and fade_6h_london n=9 −0.84 in bull vs +4.5 bear. The edges are regime-conditional BOTH ways; an all-regime gate would falsely kill a correctly-scoped bear row. Amendment disclosed here, before first formal read.
+6. **NY flush 1h (G1 candidate):** Aug23+ n=383 avg +0.427 net +163.7 WR62.1% 7d — best NY variant this week, extends its Jul23+ survival read (+0.215/n77). G1 evaluation queued next loop per audit #5.
+7. **Asia pump short 4h:** Aug23+ n=120 avg **+0.756** net +90.8 WR64.2% — strongest live-relevant book this week; s6 (+0.764) and s8 (+0.844) variants even better. No gate change; noting regime tailwind.
+8. **London bull burst:** Aug23+ n=558 avg +0.145 net +81.1 — steady, config argmax unchanged.
+9. **New G0s (registered Aug 30):** NY 8h/24h bear + London follow/fade 6h bear — all n=0 bear-cohort fresh (no bear regime). Accumulating; first bear-day data will feed Sep 20 reads.
+10. **v65_strict_long / v65_strict_ny_long:** appeared in shadow Aug23+ (n=18, avg −0.618) — defined in signal_shadow.py:440 as bar/long 4.0/3.0 variants, no registered row. Unregistered tracking only; do not read for decisions.
+11. **Config revert (owner order):** NY session `allowed_btc_regimes` bear enablement (wired early on Aug 30 against the registered Sep 6 gate) REVERTED same day — back to [neutral, bull]; `regime_stop_atr.bear` removed. Sep 6 gate unchanged and still governs.
+12. **Tier_c 8-day review (owner order, same day as audit #6):** SUIUSDT and GRAMUSDT REMOVED from `tier_c_experimental` in v5_forward_test.yaml. SUI: persistent bleed −0.200 avg/n399, 5-of-8 days negative, cumulative −80.7R, ex-bleed (ex Aug25/28) still −0.121/n247 — fails the +E floor's spirit in both scopes. GRAM: n=2 signals in 8 days (dead market post-TON-delist), un-evaluable. **Process note:** no removal rule existed at the Aug 22 wire-in (only graduation floors); this removal is discretionary. Mirror rule NOW registered for future G0 wire-ins: *n≥100, ≥5d, avg < −0.10R ex-book-bleed-days → remove*. Kept: TRUMP (−0.136 headline is bleed-day concentration; ex-bleed +0.044/n516), PUMP (two-sided variance, not bleed), HYPE/AVAX/others (flat-to-positive). Next tier_c review: 30d window, ~Sep 21.
+
+**Variance flags (Aug23+, |avg|≥0.5, n≥15, outside known axes):** ny_flush_buy_4h_open_s6 −0.496/n159 · open_s4 −0.478/n180 · open family broadly red while base flat — open-price fills underperform stop-price fills in bull; consistent with prior open-fill studies, no new action without pre-registration.
 
 ---
 
