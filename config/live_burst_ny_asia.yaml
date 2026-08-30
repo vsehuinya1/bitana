@@ -189,7 +189,11 @@ burst_follow:
       min_imb: 0.5
       # 2026-08-30 owner: block Tue (shadow asia_pump_short_4h Tue-neutral
       # n=33 -0.086R PF 0.50, losses spread across hours, h00 worst -0.25R n9).
-      exclude_weekdays: [2, 5, 6]
+      # NOTE loader convention: 0=Mon..6=Sun. Sat+Sun were already excluded
+      # pre-2026-08-30 ("weekends never traded" — owner confirmed correct).
+      # 17:07Z edit [0,2,5,6] was WRONG (blocked Mon+Wed, left Tue open) —
+      # caught on verification, corrected: [1,5,6] = Tue+Sat+Sun.
+      exclude_weekdays: [1, 5, 6]
       allowed_btc_regimes: ["neutral"]
       stop_atr: 10.0
       tp_atr: 999.0
