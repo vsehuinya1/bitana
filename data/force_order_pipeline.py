@@ -17,7 +17,7 @@ from engines.liq_cluster_engine_v5 import CascadeTracker, LiqClusterEngineV5
 
 logger = get_logger("force_order_pipeline")
 
-LIQ_CACHE_MAX_DAYS = 7
+LIQ_CACHE_MAX_DAYS = 120  # must exceed CFG.liq_min_lookback (30) — 7 left live cascade state permanently zero (fix 2026-08-30; aligns with tools/v5_forward_test.py)
 WS_FLUSH_INTERVAL_S = 5.0
 FORCE_ORDER_WS_URL = "wss://fstream.binance.com/market/ws/!forceOrder@arr"
 
