@@ -72,7 +72,9 @@ brakes:
   # 2026-08-29 owner: 40% -> 60%.
   # 2026-08-29 owner: 60% -> 85% (counterfactual: worst observed day at 21% reduced risk = 79.9%;
   # 85% limit survives worst day while catching true blowups).
-  daily_loss_limit_pct: 0.85
+  # 2026-08-30 owner: 85% -> 50% after risk cut 24% -> 10% (85% = 8.5 stop-outs at 10%;
+  # worst observed day scales to ~38% at 10% risk, so 50% still survives it = 5 stop-outs).
+  daily_loss_limit_pct: 0.50
   consecutive_loss_threshold: 3
   consecutive_loss_reduced_trades: 5
   equity_pause_drawdown: 0.35
