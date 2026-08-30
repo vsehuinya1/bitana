@@ -984,3 +984,4 @@ Watch items:
   (n=75 +8.9R combined). NOT replicated in tsl mirror (inverted) — no hour blocks until cross-variant evidence. Revisit at 30d.
 - Restart 13:03Z: checksum 72eb7007a3c712b7, brakes clear, no EQUITY_SHUTDOWN. Service bitana-live-burst-follow.
 - 13b (13:56Z): brakes.daily_loss_limit_pct 0.85 -> 0.50 (owner). At 10% risk = 5 stop-outs; worst observed day (~3.8R) scales to ~38% at 10%, 50% survives it. Checksum 004570bc3c778a20, brakes clear on restart.
+- 13c (16:40Z): London hold shadows (1h/2h/3h/6h) KEPT per owner — forward window failed (Aug21+: 6h -0.006R n18, 3h -0.003R n18 vs 30min baseline +0.022R n616 PF1.45; full-history edge = July bear-regime artifact, unreachable under bull-only gate). Revisit ~Sep 30 or n>=30/variant. Kill criteria unchanged.
