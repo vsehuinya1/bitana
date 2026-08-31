@@ -93,6 +93,12 @@ signal_shadow:
     max_concurrent: null
     max_per_symbol_session: 1
     max_net_delta: null
+    # 2026-08-31: WLA mirror synced to live caps (was code-default 3/1/3; live runs 8/1/3).
+    # Stale 3-concurrent caused WLA=0 on legs 4+ of multi-leg clusters live actually took
+    # (2026-08-31 05:15 asia batch: live 5 legs, WLA accepted only first 3).
+    live_max_concurrent: 8
+    live_max_per_symbol: 1
+    live_max_cluster: 3
   intraday_burst_shadow:
     enabled: true
     min_volume_usd_30m: 20000

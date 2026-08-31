@@ -98,7 +98,13 @@ profit_taking:
 portfolio:
   max_concurrent_positions: 8
   max_per_symbol: 1
-  max_cluster_positions: 6
+  # 2026-08-31 owner (empirical): cluster cap 6 -> 3. Shadow leg-index evidence
+  # (2026-07-14..08-31, full closed): pooled legs 1-6 all ~0R (leg7 -0.032R PF 0.65);
+  # ny_flush legs4+ -0.042R n=170 (Aug -0.067); asia size-4 clusters -0.64R avg
+  # (4/7 negative, diffuse across dates); asia legs4+ +0.140 Aug is top-day-concentrated
+  # (2026-08-27 = 45% of net, n=3 in Jul) -> no marginal edge beyond 3 legs.
+  # Worst-case book share per event: 3/8 = 37.5% (was 6/8 = 75%).
+  max_cluster_positions: 3
   cluster_window_minutes: 15
   limit_by_engine: true
   btc_priority: true
