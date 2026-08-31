@@ -164,6 +164,11 @@ class ShadowStrategy:
     min_vol_z: float | None = None
     min_n_confirms: int = 0
     min_decile: int = 0
+    # 2026-08-31: WLA-only live-gate mirrors (match path keeps logging everything;
+    # values mirror config/live_burst_ny_asia.yaml session_rules per live arm).
+    allowed_regimes: frozenset[str] | None = None
+    live_hours: frozenset[int] | None = None
+    live_min_decile: int = 0
     trail_atr: float | None = None
     trail_trigger_r: float | None = None
     limit_entry_atr: float | None = None  # resting limit offset from signal close (ATR)
@@ -195,7 +200,9 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy("asia_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"asia"})),
     ShadowStrategy("london_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"london"})),
     ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0,
-                   exclude_weekdays=frozenset({5, 6})),  # live london arm: Sat+Sun out
+                   exclude_weekdays=frozenset({5, 6}),  # live london arm: Sat+Sun out
+                   allowed_regimes=frozenset({"bull"}), live_hours=frozenset({9, 10, 11, 13}),
+                   live_min_decile=1),  # 2026-08-31 WLA mirror: live bf gates regime/hours/decile
     ShadowStrategy(
         "nony_momentum", "burst", "follow", 10.0, 3.0,
         min_imb=0.9, min_burst_events=10, require_above_ema_zero=True, exclude_ny=True,
@@ -302,6 +309,8 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
         exclude_weekdays=frozenset({0, 5, 6}),  # live ny arm: Mon+Sat+Sun out (0=Mon)
+        allowed_regimes=frozenset({"neutral", "bull"}), live_hours=frozenset({16, 17}),
+        live_min_decile=2,  # 2026-08-31 WLA mirror: live ny gates regime/hours/decile
     ),
     # G0 (Aug 16): 1h time-exit variant. NOTE: prior "~70% peak by bar 6" claim
     # was disproven (winner mean MFE peak = bar 32; only 3-6% peak within 6 bars).
@@ -351,6 +360,8 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
         exclude_weekdays=frozenset({1, 5, 6}),  # live asia arm: Tue+Sat+Sun out (0=Mon)
+        allowed_regimes=frozenset({"neutral", "bear"}),  # 2026-08-31 WLA mirror (global gate)
+        live_min_decile=2,  # live asia min_decile=2; no hours key in live yaml = full session
     ),
     # G0 (Aug 16): 1h time-exit variant of the Asia pump short.
     ShadowStrategy(
@@ -1579,6 +1590,18 @@ class SignalShadow:
         # "would LIVE accept", so excluded weekday cells are WLA=0 even though the
         # match path keeps logging them for research.
         if would_live and spec.exclude_weekdays and f["bar_time"].weekday() in spec.exclude_weekdays:
+            would_live = 0
+        # 2026-08-31: full live-gate mirror — regime + session hours + min_decile.
+        # Same rationale as the weekday gate: WLA answers "would LIVE accept".
+        # Gap found 2026-08-31: asia WLA=1 included 66 bull rows (−4.6R) live skips
+        # (global allowed_btc_regimes=[neutral,bear]) and all dec-1 rows (live
+        # min_decile=2) — e.g. the 2026-08-31 00:15Z cluster (+1.19R shadow) was
+        # dec-1-only, live never tradable, yet WLA=1.
+        if would_live and spec.allowed_regimes and (mkt.btc_trend_state or "NA") not in spec.allowed_regimes:
+            would_live = 0
+        if would_live and spec.live_hours and f["bar_time"].hour not in spec.live_hours:
+            would_live = 0
+        if would_live and spec.live_min_decile > 0 and (f.get("decile", 0) or 0) < spec.live_min_decile:
             would_live = 0
 
         self.conn.execute(
