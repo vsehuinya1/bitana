@@ -360,7 +360,7 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
         exclude_weekdays=frozenset({1, 5, 6}),  # live asia arm: Tue+Sat+Sun out (0=Mon)
-        allowed_regimes=frozenset({"neutral", "bear"}),  # 2026-08-31 WLA mirror (global gate)
+        allowed_regimes=frozenset({"neutral"}),  # 2026-08-31 FIX: asia-level override ["neutral"] (not the global [neutral,bear])
         live_min_decile=2,  # live asia min_decile=2; no hours key in live yaml = full session
     ),
     # G0 (Aug 16): 1h time-exit variant of the Asia pump short.
