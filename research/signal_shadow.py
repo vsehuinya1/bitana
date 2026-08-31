@@ -170,6 +170,13 @@ class ShadowStrategy:
     limit_entry_max_bars: int = 36  # 5m bars to wait for fill (default 3h)
     scale_in_atr: float | None = None  # one add-on unit at entry ∓ this many ATR (adverse side)
     scale_after_bars: int = 12  # earliest 5m bar the scale leg is eligible (default 1h)
+    # Live weekday gate mirror (2026-08-30): set ONLY on strategies that mirror a live
+    # burst_follow session arm, using Python weekday() convention 0=Mon..6=Sun — same
+    # convention as the live engine gate (liq_burst_follow_engine.py:318). Applied in
+    # _maybe_open_shadow_trade to would_live_accept (NOT _matches_strategy — the match
+    # path must keep logging all regimes/days for research; WLA is the live-reality flag).
+    # Mirrors config/live_burst_ny_asia.yaml session_rules: london [5,6], asia [1,5,6], ny [0,5,6].
+    exclude_weekdays: frozenset[int] | None = None
 
 
 # Quality floor for 3h/6h follow/fade shadow variants (blocks WLD-style noise).
@@ -187,7 +194,8 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy("late_fade", "burst", "fade", 12.0, 3.0, sessions=frozenset({"late"})),
     ShadowStrategy("asia_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"asia"})),
     ShadowStrategy("london_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"london"})),
-    ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0),
+    ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0,
+                   exclude_weekdays=frozenset({5, 6})),  # live london arm: Sat+Sun out
     ShadowStrategy(
         "nony_momentum", "burst", "follow", 10.0, 3.0,
         min_imb=0.9, min_burst_events=10, require_above_ema_zero=True, exclude_ny=True,
@@ -293,6 +301,7 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy(
         "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
+        exclude_weekdays=frozenset({0, 5, 6}),  # live ny arm: Mon+Sat+Sun out (0=Mon)
     ),
     # G0 (Aug 16): 1h time-exit variant. NOTE: prior "~70% peak by bar 6" claim
     # was disproven (winner mean MFE peak = bar 32; only 3-6% peak within 6 bars).
@@ -341,6 +350,7 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy(
         "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
+        exclude_weekdays=frozenset({1, 5, 6}),  # live asia arm: Tue+Sat+Sun out (0=Mon)
     ),
     # G0 (Aug 16): 1h time-exit variant of the Asia pump short.
     ShadowStrategy(
@@ -1564,6 +1574,12 @@ class SignalShadow:
         would_live = self._would_live_accept(
             spec.name, symbol, side, f["session"], cluster_bucket,
         )
+        # 2026-08-30: live weekday-gate mirror (0=Mon..6=Sun, same convention as the
+        # live engine gate). Live arms exclude certain weekdays; WLA must answer
+        # "would LIVE accept", so excluded weekday cells are WLA=0 even though the
+        # match path keeps logging them for research.
+        if would_live and spec.exclude_weekdays and f["bar_time"].weekday() in spec.exclude_weekdays:
+            would_live = 0
 
         self.conn.execute(
             """
