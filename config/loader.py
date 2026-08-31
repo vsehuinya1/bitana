@@ -181,6 +181,11 @@ class PortfolioConfig(BaseModel):
     max_concurrent_positions: int = 2
     max_per_symbol: int = 1
     max_cluster_positions: int = 0
+    # 2026-08-31: same-cluster aggregate-risk cap (% of equity, sizing-only).
+    # Caps SUM of remaining risk-to-stop across open positions sharing
+    # engine+session+side+15-min cluster bucket; new legs are sized down to
+    # fit, never blocked while budget remains. 0 = off.
+    max_cluster_risk_pct: float = 0.0
     cluster_window_minutes: int = 15
     limit_by_engine: bool = False
     btc_priority: bool = True

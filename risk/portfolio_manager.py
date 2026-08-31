@@ -102,6 +102,70 @@ class PortfolioManager:
 
         return 1.0
 
+    def get_cluster_risk_multiplier(
+        self,
+        signal: Signal,
+        open_positions: list[Position],
+        equity: float,
+        new_leg_risk_pct: float,
+    ) -> float:
+        """2026-08-31 (owner order): same-cluster aggregate-risk cap, sizing-only.
+
+        Groups open positions by the exact max_cluster_positions predicate
+        (engine + session + side + 15-min cluster bucket) and caps their SUM of
+        remaining risk-to-stop at cfg.max_cluster_risk_pct (% of equity). The new
+        leg's quantity is multiplied by clamp(remaining / new_leg_risk_pct, 0, 1):
+        legs 2-3 are sized DOWN to fit; 0 => same-bucket budget exhausted (the
+        upstream zero-size check skips the entry — never blocked while budget
+        remains). Returns 1.0 when the cap is off or the signal carries no
+        cluster metadata.
+        """
+        cap = float(getattr(self._cfg, "max_cluster_risk_pct", 0.0) or 0.0)
+        if cap <= 0 or equity <= 0 or new_leg_risk_pct <= 0:
+            return 1.0
+        sd = signal.signal_data or {}
+        session = sd.get("session")
+        bucket = sd.get("cluster_bucket")
+        if not session or not bucket:
+            return 1.0
+
+        open_risk_pct = 0.0
+        for p in open_positions:
+            if p.state.value in ("CLOSED", "CANCELLED"):
+                continue
+            if p.engine != signal.engine or p.side != signal.side:
+                continue
+            psd = p.signal_data or {}
+            if psd.get("session") != session or psd.get("cluster_bucket") != bucket:
+                continue
+            if p.entry_price and p.stop_price and p.quantity:
+                open_risk_pct += (
+                    abs(p.entry_price - p.stop_price) * p.quantity / equity * 100.0
+                )
+
+        remaining = cap - open_risk_pct
+        if remaining <= 0:
+            logger.warning(
+                "Cluster risk cap exhausted — entry skipped",
+                session=session,
+                bucket=bucket,
+                open_risk_pct=round(open_risk_pct, 2),
+                cap=cap,
+            )
+            return 0.0
+        mult = min(1.0, remaining / new_leg_risk_pct)
+        if mult < 1.0:
+            logger.info(
+                "Cluster risk cap — sizing new leg down",
+                session=session,
+                bucket=bucket,
+                open_risk_pct=round(open_risk_pct, 2),
+                cap=cap,
+                new_leg_risk_pct=round(new_leg_risk_pct, 2),
+                multiplier=round(mult, 3),
+            )
+        return mult
+
     def prioritize_signals(self, signals: list[Signal]) -> list[Signal]:
         """BTC priority when simultaneous signals."""
         if not self._cfg.btc_priority or len(signals) <= 1:

@@ -705,6 +705,15 @@ class Bitana:
                     )
             sizing_mult = self.portfolio_mgr.get_sizing_multiplier(sig, open_positions)
 
+            # 2026-08-31 (owner order): per-cluster aggregate-risk cap, sizing-only.
+            # Fresh open_positions re-fetch (not the pre-loop snapshot) so legs of
+            # the same tick batch count against one another's risk budget.
+            new_leg_risk_pct = min(sym_risk, self.risk_mgr.state.risk_pct_active)
+            cluster_mult = self.portfolio_mgr.get_cluster_risk_multiplier(
+                sig, self.position_mgr.get_open_positions(), equity, new_leg_risk_pct,
+            )
+            sizing_mult = min(sizing_mult, cluster_mult)
+
             quantity, leverage = self.risk_mgr.calculate_position_size(
                 equity, sig.entry_price, sig.stop_price, sym_risk,
             )

@@ -105,6 +105,11 @@ portfolio:
   # (2026-08-27 = 45% of net, n=3 in Jul) -> no marginal edge beyond 3 legs.
   # Worst-case book share per event: 3/8 = 37.5% (was 6/8 = 75%).
   max_cluster_positions: 3
+  # 2026-08-31 (owner order): same-cluster aggregate-risk cap, sizing-only.
+  # Legs 2-3 sized down so SUM of same-bucket risk-to-stop <= 15% of equity
+  # (was unbounded: 3 legs x 8.75% = 26.25% on one 15-min event). Budget
+  # exhausted -> entry skipped. 0 = off.
+  max_cluster_risk_pct: 15.0
   cluster_window_minutes: 15
   limit_by_engine: true
   btc_priority: true
