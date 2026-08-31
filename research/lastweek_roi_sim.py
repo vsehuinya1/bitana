@@ -15,10 +15,12 @@ from datetime import datetime
 
 import sys
 W0, W1 = (sys.argv[1], sys.argv[2]) if len(sys.argv) > 2 else ("2026-08-24", "2026-08-29")
+RISK = float(sys.argv[3]) if len(sys.argv) > 3 else 0.10
+BRAKES = len(sys.argv) > 4 and sys.argv[4] == "1"
+CLUSTER_RISK_CAP = float(sys.argv[5]) if len(sys.argv) > 5 else 0.15
+REDUCED = 0.0875  # live reduced_risk_pct (absolute)
 BOOKS = ("asia_pump_short_4h", "ny_flush_buy_4h", "burst_follow")
-RISK = 0.10
 CLUSTER_CAP = 3
-CLUSTER_RISK_CAP = 0.15
 MAX_CONC = 8
 MAX_SPREAD = 15.0
 
@@ -90,6 +92,10 @@ equity = 100.0
 peak = equity; maxdd = 0.0
 open_pos = {}   # idx -> dict(risk_usd, R, symbol, bucket, session-ish)
 taken, skipped, day_pnl = [], defaultdict(int), defaultdict(float)
+risk_active = RISK
+streak = defaultdict(int)
+reduced_remaining = 0
+peak_eq = 100.0
 cur_day = W0
 curve = [(W0, equity)]
 
@@ -102,6 +108,24 @@ for t, kind, i in sorted(events, key=lambda e: (e[0], e[1])):
         day_pnl[p["entry_day"]] += pnl
         p["rec"]["pnl_usd"] = pnl
         p["rec"]["equity_after"] = equity
+        if BRAKES:
+            peak_eq = max(peak_eq, equity)
+            dd = (peak_eq - equity) / peak_eq
+            if pnl < 0:
+                streak[p["bucket"]] += 1
+                if streak[p["bucket"]] >= 3:
+                    reduced_remaining = 5
+                    risk_active = REDUCED
+            else:
+                streak[p["bucket"]] = 0
+            if reduced_remaining > 0:
+                reduced_remaining -= 1
+                if reduced_remaining <= 0 and dd < 0.10:
+                    risk_active = RISK
+            elif dd < 0.10:
+                risk_active = RISK
+            if dd > 0.15:
+                risk_active = REDUCED
         continue
     if kind == 0: continue
     c = cands[i]
@@ -115,10 +139,14 @@ for t, kind, i in sorted(events, key=lambda e: (e[0], e[1])):
     if len(same_bucket) >= CLUSTER_CAP:
         skipped["cluster_cap"] += 1; continue
     open_risk_frac = sum(o["risk_frac"] for o in same_bucket)
-    remaining = CLUSTER_RISK_CAP - open_risk_frac
-    if remaining <= 0:
-        skipped["cluster_risk_budget"] += 1; continue
-    risk_frac = min(RISK, remaining)
+    if CLUSTER_RISK_CAP > 0:
+        remaining = CLUSTER_RISK_CAP - open_risk_frac
+        if remaining <= 0:
+            skipped["cluster_risk_budget"] += 1; continue
+    else:
+        remaining = 1e9
+    leg_risk = risk_active if BRAKES else RISK
+    risk_frac = min(leg_risk, remaining)
     if equity * risk_frac < 5.0:  # exchange min-notional guard ($5)
         skipped["min_notional"] += 1; continue
     pos = dict(risk_frac=risk_frac, risk_usd=equity * risk_frac, R=c["R"],
@@ -149,7 +177,8 @@ print(f"taken: {len([t for t in taken])} | dynamic skips: per_symbol_dup={skippe
       f"cluster_risk_budget={skipped['cluster_risk_budget']} min_notional={skipped['min_notional']}")
 print(f"\n$100 start, 10%/trade compounded, cluster-risk cap 15%:")
 for d, e, p in daily: print(f"  {d}: equity ${e:.2f}  (day {p:+.2f})")
-print(f"FINAL: ${final:.2f}  ROI {100*(final-100)/100:+.1f}%  | maxDD {maxdd:.1f}%")
+print(f"FINAL: ${final:.2f}  ROI {100*(final-100)/100:+.1f}%  | maxDD {maxdd:.1f}% "
+      f"| risk={100*RISK:.0f}% brakes={int(BRAKES)} cluster_risk_cap={100*CLUSTER_RISK_CAP:.0f}%")
 big = sorted([t for t in taken if 'pnl_usd' in t], key=lambda t: -abs(t['pnl_usd']))[:5]
 print("\nbiggest legs:")
 for t in big:
