@@ -245,6 +245,17 @@ burst_follow:
       # burst_follow full-history DISAGREES (+8.9 / +12.9) — Aug25 bleeder finding
       # was a last-4-Tuesdays phenomenon there; baseline caveat logged as plan
       # amendment, OOS-watch in RESEARCH_PLAN.md. Key = Python weekday(): 1=Tue.
+      # 2026-08-31 owner order: allow Tue NEUTRAL h14 ("positive hours, even if
+      # thin, only h14"). Shadow basis (ny_flush_buy_4h, neutral, Tue, dec>=2):
+      # n=18 sumR +2.67 across only TWO days — 2026-07-07 n=9 +2.96 (single
+      # cluster, pre-bucket era) and 2026-08-11 n=9 -0.28 (3 clusters, worst
+      # 14:15Z 4-leg -1.16R). Top-day = 111% of net; ex-top-day NEGATIVE.
+      # Known-fragile wire, owner-accepted. KILL: review at n>=10 live-accepted;
+      # drop if net/trade < 0. Requires added_weekday_regime_hours (an exclusion
+      # map cannot add hours without cutting live bull h14 on other days).
+      added_weekday_regime_hours:
+        1:
+          neutral: [14]
       excluded_weekday_hours:
         # 2026-08-28: h18 Friday-only; h20 Friday+Wed (owner call, see note above).
         # Tue/Thu drops kept: h18 Tue -2.21 n5 / Thu -0.39 n12; h20 Tue -2.54 n14.

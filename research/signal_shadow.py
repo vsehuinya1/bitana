@@ -167,7 +167,11 @@ class ShadowStrategy:
     # 2026-08-31: WLA-only live-gate mirrors (match path keeps logging everything;
     # values mirror config/live_burst_ny_asia.yaml session_rules per live arm).
     allowed_regimes: frozenset[str] | None = None
-    live_hours: frozenset[int] | None = None
+    # Live hour windows, regime-resolved like the engine: regime -> hours,
+    # minus per-weekday exclusions, plus per-(weekday, regime) additions.
+    regime_hours: dict[str, frozenset[int]] | None = None
+    excluded_wd_hours: dict[int, frozenset[int]] | None = None
+    added_wd_regime_hours: dict[int, dict[str, frozenset[int]]] | None = None
     live_min_decile: int = 0
     trail_atr: float | None = None
     trail_trigger_r: float | None = None
@@ -201,7 +205,8 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy("london_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"london"})),
     ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0,
                    exclude_weekdays=frozenset({5, 6}),  # live london arm: Sat+Sun out
-                   allowed_regimes=frozenset({"bull"}), live_hours=frozenset({9, 10, 11, 13}),
+                   allowed_regimes=frozenset({"bull"}),
+                   regime_hours={"bull": frozenset({9, 10, 11, 13})},
                    live_min_decile=1),  # 2026-08-31 WLA mirror: live bf gates regime/hours/decile
     ShadowStrategy(
         "nony_momentum", "burst", "follow", 10.0, 3.0,
@@ -309,8 +314,15 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
         "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
         exclude_weekdays=frozenset({0, 5, 6}),  # live ny arm: Mon+Sat+Sun out (0=Mon)
-        allowed_regimes=frozenset({"neutral", "bull"}), live_hours=frozenset({16, 17}),
-        live_min_decile=2,  # 2026-08-31 WLA mirror: live ny gates regime/hours/decile
+        allowed_regimes=frozenset({"neutral", "bull"}),
+        # live ny hour matrix (2026-08-31, incl. Tue-neutral-h14 owner add):
+        regime_hours={"neutral": frozenset({16, 17}),
+                      "bull": frozenset({14, 16, 17, 18, 19, 20})},
+        excluded_wd_hours={1: frozenset({17, 18, 19, 20}),
+                           2: frozenset({18}),
+                           3: frozenset({18, 20})},
+        added_wd_regime_hours={1: {"neutral": frozenset({14})}},
+        live_min_decile=2,
     ),
     # G0 (Aug 16): 1h time-exit variant. NOTE: prior "~70% peak by bar 6" claim
     # was disproven (winner mean MFE peak = bar 32; only 3-6% peak within 6 bars).
@@ -1599,8 +1611,15 @@ class SignalShadow:
         # dec-1-only, live never tradable, yet WLA=1.
         if would_live and spec.allowed_regimes and (mkt.btc_trend_state or "NA") not in spec.allowed_regimes:
             would_live = 0
-        if would_live and spec.live_hours and f["bar_time"].hour not in spec.live_hours:
-            would_live = 0
+        if would_live and spec.regime_hours is not None:
+            # regime-resolved live hour matrix: base per regime, minus weekday
+            # exclusions, plus (weekday, regime) additions — mirrors the engine.
+            hours = set(spec.regime_hours.get(mkt.btc_trend_state or "NA", frozenset()))
+            hours -= set((spec.excluded_wd_hours or {}).get(f["bar_time"].weekday(), frozenset()))
+            hours |= set((spec.added_wd_regime_hours or {}).get(
+                f["bar_time"].weekday(), {}).get(mkt.btc_trend_state or "NA", frozenset()))
+            if hours and f["bar_time"].hour not in hours:
+                would_live = 0
         if would_live and spec.live_min_decile > 0 and (f.get("decile", 0) or 0) < spec.live_min_decile:
             would_live = 0
 

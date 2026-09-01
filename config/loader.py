@@ -64,6 +64,10 @@ class SessionBurstRule(BaseModel):
     # while Wed/Fri cells are positive (+60R combined) -> weekday-scoped drop.
     # OOS-watch item logged in RESEARCH_PLAN.md.
     excluded_weekday_hours: dict[int, list[int]] | None = None
+    # 2026-08-31: regime+weekday-scoped hour ADDITIONS (subtracted set cannot
+    # express "add Tue neutral h14" without cutting live bull h14 elsewhere).
+    # Shape {weekday: {regime: [hours]}}; unioned into the resolved hour set.
+    added_weekday_regime_hours: dict[int, dict[str, list[int]]] | None = None
     min_imb: float = 0.0
     min_cascade_strength: float = 0.0
     min_vol_z: float = 0.0

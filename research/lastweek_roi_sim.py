@@ -60,7 +60,7 @@ def gates(r):
             if w == 1: allowed = {14, 16}
             elif w == 3: allowed = {14, 16, 17, 19}
         elif reg == "neutral":
-            allowed = {16, 17}
+            allowed = {16, 17} | ({14} if w == 1 else set())  # 2026-08-31: Tue-neutral h14 owner add
         else:
             return "regime"
         if h not in allowed: return "hours"

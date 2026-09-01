@@ -311,10 +311,17 @@ class LiqBurstFollowEngine:
         hours = rule.hours
         if rule.regime_hours and btc_regime in rule.regime_hours:
             hours = rule.regime_hours[btc_regime]
-        if hours and f["hour"] not in hours:
-            return None
 
         bar_time = f["bar_time"]
+        # 2026-08-31: regime+weekday-scoped hour ADDITIONS (owner order: allow
+        # Tue neutral h14). Unioned into the resolved set; does not touch any
+        # other weekday/regime combination.
+        added_hours = (rule.added_weekday_regime_hours or {}).get(
+            bar_time.weekday(), {}
+        ).get(btc_regime) or []
+        if hours and f["hour"] not in hours and f["hour"] not in added_hours:
+            return None
+
         if rule.exclude_weekdays and bar_time.weekday() in rule.exclude_weekdays:
             logger.debug(
                 "Burst session skip", symbol=symbol, session=f["session"],
