@@ -308,32 +308,25 @@ class LiqBurstFollowEngine:
                 )
                 return None
 
-        hours = rule.hours
-        if rule.regime_hours and btc_regime in rule.regime_hours:
-            hours = rule.regime_hours[btc_regime]
-
         bar_time = f["bar_time"]
-        # 2026-08-31: regime+weekday-scoped hour ADDITIONS (owner order: allow
-        # Tue neutral h14). Unioned into the resolved set; does not touch any
-        # other weekday/regime combination.
-        added_hours = (rule.added_weekday_regime_hours or {}).get(
-            bar_time.weekday(), {}
-        ).get(btc_regime) or []
-        if hours and f["hour"] not in hours and f["hour"] not in added_hours:
+        # 2026-09-01: hour gate resolved via rule.hour_gate_reason — shared
+        # with the WLA mirror (research/signal_shadow.py) and the regime-flip
+        # notifier so a config edit can never desync the three consumers.
+        # Replaces the inline hours/added/excluded logic (added_weekday_
+        # regime_hours withdrawn by owner 2026-09-01 with the Tue-neutral-h14
+        # wire; replaced by excluded_weekday_regime_hours).
+        hour_reason = rule.hour_gate_reason(f["hour"], bar_time.weekday(), btc_regime)
+        if hour_reason:
+            logger.debug(
+                "Burst session skip", symbol=symbol, session=f["session"],
+                reason=hour_reason, weekday=bar_time.weekday(), hour=f["hour"],
+            )
             return None
 
         if rule.exclude_weekdays and bar_time.weekday() in rule.exclude_weekdays:
             logger.debug(
                 "Burst session skip", symbol=symbol, session=f["session"],
                 reason="weekday_excluded", weekday=bar_time.weekday(),
-            )
-            return None
-
-        excluded_hours = (rule.excluded_weekday_hours or {}).get(bar_time.weekday())
-        if excluded_hours and f["hour"] in excluded_hours:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=f["session"],
-                reason="weekday_hour_excluded", weekday=bar_time.weekday(), hour=f["hour"],
             )
             return None
 

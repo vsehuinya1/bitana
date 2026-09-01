@@ -64,10 +64,14 @@ class SessionBurstRule(BaseModel):
     # while Wed/Fri cells are positive (+60R combined) -> weekday-scoped drop.
     # OOS-watch item logged in RESEARCH_PLAN.md.
     excluded_weekday_hours: dict[int, list[int]] | None = None
-    # 2026-08-31: regime+weekday-scoped hour ADDITIONS (subtracted set cannot
-    # express "add Tue neutral h14" without cutting live bull h14 elsewhere).
-    # Shape {weekday: {regime: [hours]}}; unioned into the resolved hour set.
-    added_weekday_regime_hours: dict[int, dict[str, list[int]]] | None = None
+    # 2026-09-01: regime+weekday-scoped hour EXCLUSIONS. The flat
+    # excluded_weekday_hours map subtracts from EVERY regime, so it cannot
+    # remove e.g. Tue-neutral-h16 without also cutting live bull h16. Shape
+    # {weekday: {regime: [hours]}}; same semantics as excluded_weekday_hours
+    # but scoped to the named regime. (Replaces added_weekday_regime_hours —
+    # the 2026-08-31 Tue-neutral-h14 addition was withdrawn by owner 2026-09-01
+    # on concentration grounds: basis was 2 days, top-day 111% of net.)
+    excluded_weekday_regime_hours: dict[int, dict[str, list[int]]] | None = None
     min_imb: float = 0.0
     min_cascade_strength: float = 0.0
     min_vol_z: float = 0.0
@@ -95,6 +99,35 @@ class SessionBurstRule(BaseModel):
     # When set ("LONG" or "SHORT"), drop signals whose resolved side doesn't
     # match. Structural side pin, independent of side_mode/imb conventions.
     allowed_side: Literal["LONG", "SHORT"] | None = None
+
+    def hour_gate_reason(self, hour: int, weekday: int, regime: str) -> str | None:
+        """Single source of truth for the per-bar hour gate (2026-09-01).
+
+        Consumed by the live engine (liq_burst_follow_engine), the WLA mirror
+        (research/signal_shadow.py) and the regime-flip notifier, so a config
+        edit can never desync them again — the hand-maintained mirror constants
+        drifted twice before this (flat {16,17} zeroed live bull h18-20 rows;
+        asia [neutral,bear] vs the session override).
+
+        Returns None when the hour is OPEN, else the skip reason string the
+        engine logs. Sequence mirrors the engine's historical gate order:
+        regime_hours->hours resolution, additions, flat weekday exclusions,
+        regime-scoped weekday exclusions.
+        """
+        hours = self.hours
+        if self.regime_hours and regime in self.regime_hours:
+            hours = self.regime_hours[regime]
+        if hours and hour not in hours:
+            return "hour_gate"
+        excluded = (self.excluded_weekday_hours or {}).get(weekday) or []
+        if hour in excluded:
+            return "weekday_hour_excluded"
+        excluded_regime = (self.excluded_weekday_regime_hours or {}).get(
+            weekday, {}
+        ).get(regime) or []
+        if hour in excluded_regime:
+            return "weekday_regime_hour_excluded"
+        return None
 
 
 class LiqBurstFollowConfig(BaseModel):

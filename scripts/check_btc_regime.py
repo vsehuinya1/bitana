@@ -1,89 +1,72 @@
+"""BTC regime check — same engine path as the live gate (engines/btc_regime.py).
+
+2026-08-30: replaced inline simplified ADX (14-bar rolling mean) with the engine's
+Wilder-smoothed _adx_series. The old method diverged from live and misreported
+state (printed 'bull' while the live gate was already 'neutral' since 08-29 20:00Z).
+"""
 import requests
 import numpy as np
 from datetime import datetime, timezone
+
+from core.models import Candle
+from engines.btc_regime import compute_regime_snapshot, compute_regime_age_bars
+from engines.swing_break_engine import _adx_series
 
 url = 'https://fapi.binance.com/fapi/v1/klines'
 params = {'symbol': 'BTCUSDT', 'interval': '4h', 'limit': 500}
 klines = requests.get(url, params=params, timeout=10).json()
 
-closes = np.array([float(k[4]) for k in klines])
-highs_all = np.array([float(k[2]) for k in klines])
-lows_all = np.array([float(k[3]) for k in klines])
 
-# EMA200
-def ema(arr, period):
-    alpha = 2.0 / (period + 1)
-    result = np.zeros_like(arr)
-    result[0] = arr[0]
-    for i in range(1, len(arr)):
-        result[i] = alpha * arr[i] + (1 - alpha) * result[i-1]
-    return result
+def to_candle(k, closed=True):
+    return Candle(
+        symbol='BTCUSDT', timeframe='4h',
+        open_time=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
+        close_time=datetime.fromtimestamp(k[6] / 1000, tz=timezone.utc),
+        open=float(k[1]), high=float(k[2]), low=float(k[3]),
+        close=float(k[4]), volume=float(k[5]), is_closed=closed,
+    )
 
-ema200 = ema(closes, 200)
 
-# Compute regime at each point from bar 200 onwards
-states = []
-for i in range(199, len(closes)):
-    price = closes[i]
-    e = ema200[i]
-    
-    # ADX14 - compute from last 14 bars
-    if i >= 13:
-        hs = highs_all[i-13:i+1]
-        ls = lows_all[i-13:i+1]
-        cs = closes[i-13:i+1]
-        
-        # True Range
-        tr1 = hs - ls
-        tr2 = np.abs(hs[1:] - cs[:-1])
-        tr3 = np.abs(ls[1:] - cs[:-1])
-        tr = np.maximum(np.maximum(tr1[1:], tr2), tr3)
-        tr = np.concatenate([[hs[0] - ls[0]], tr])
-        atr = np.mean(tr)
-        
-        # DM
-        up_move = hs[1:] - hs[:-1]
-        down_move = ls[:-1] - ls[1:]
-        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
-        plus_di = 100 * np.mean(plus_dm) / atr if atr > 0 else 0
-        minus_di = 100 * np.mean(minus_dm) / atr if atr > 0 else 0
-        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di) if (plus_di + minus_di) > 0 else 0
-        adx = dx
-    else:
-        adx = 0
-    
-    if adx <= 25:
-        state = 'neutral'
-    elif price > e:
-        state = 'bull'
-    else:
-        state = 'bear'
-    states.append(state)
+candles = [to_candle(k) for k in klines[:-1]] + [to_candle(klines[-1], closed=False)]
 
-print(f'Total 4h candles: {len(closes)}')
+snap = compute_regime_snapshot(candles)
+closes = np.array([c.close for c in candles], dtype=float)
+
+# Rolling EMA200 with the same recursion as engines.liq_cluster_engine_v5._ema
+alpha = 2.0 / 201
+ema_arr = np.empty_like(closes)
+ema_arr[0] = closes[0]
+for i in range(1, len(closes)):
+    ema_arr[i] = alpha * closes[i] + (1 - alpha) * ema_arr[i - 1]
+ema200 = ema_arr[-1]
+
+print(f'Total 4h candles: {len(candles)}')
 print(f'Current price: {closes[-1]:.2f}')
-print(f'Current EMA200: {ema200[-1]:.2f}')
-print(f'Distance: {(closes[-1] - ema200[-1]) / ema200[-1] * 100:.4f}%')
-print(f'Current state: {states[-1]}')
+print(f'Current EMA200: {ema200:.2f}')
+print(f'Distance: {snap.distance_from_ema_pct:.4f}%')
+print(f'Current ADX: {snap.adx:.2f} (neutral threshold: 25)')
+print(f'Current state: {snap.state}')
+age = compute_regime_age_bars(candles)
+print(f'Regime age (4h bars): {age} = {age * 4 / 24:.1f} days' if age is not None else 'Regime age: n/a')
 
-# Regime age
-current = states[-1]
-age = 0
-for s in reversed(states):
-    if s != current:
-        break
-    age += 1
-age = max(age - 1, 0)
-print(f'Regime age (4h bars): {age} = {age * 4 / 24:.1f} days')
+# Transitions via the same method the live gate uses
+adx = np.array(_adx_series(candles, 14), dtype=float)
+states = []
+for i in range(len(candles)):
+    if i < 199:
+        states.append(None)
+        continue
+    if adx[i] <= 25:
+        states.append('neutral')
+    elif closes[i] > ema_arr[i]:
+        states.append('bull')
+    else:
+        states.append('bear')
 
-# Show transitions
-print('\nRegime transitions:')
+print('\nRegime transitions (engine method):')
 prev = None
 for i, s in enumerate(states):
-    if s != prev:
-        idx = i + 199
-        ts = klines[idx][0]
-        dt = datetime.fromtimestamp(ts / 1000, timezone.utc)
-        print(f'  {dt.strftime("%Y-%m-%d %H:%M")}: {prev} -> {s}')
+    if s is not None and s != prev:
+        dt = candles[i].open_time.strftime('%Y-%m-%d %H:%M')
+        print(f'  {dt}: {prev} -> {s}')
         prev = s

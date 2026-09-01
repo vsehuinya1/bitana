@@ -11,6 +11,7 @@ stdout to Telegram; silence = no flip.
 State: /root/bitana/storage/regime_state.json
 """
 import json
+import os
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -22,11 +23,34 @@ from engines.btc_regime import compute_regime_snapshot  # noqa: E402
 STATE = "/root/bitana/storage/regime_state.json"
 KLINES_URL = ("https://fapi.binance.com/fapi/v1/klines"
               "?symbol=BTCUSDT&interval=4h&limit=260")
-ARMS = {
-    "asia_pump_short_4h": {"neutral", "bear"},
-    "ny_flush_buy_4h": {"neutral", "bull"},
-    "burst_follow": {"bull"},
-}
+
+
+def load_arms() -> dict[str, frozenset[str]]:
+    """Per-arm allowed regimes from the LIVE yaml (2026-09-01).
+
+    Replaces the hardcoded ARMS dict — it carried asia {neutral,bear} after
+    the live rule moved to ["neutral"] (session-level override), so a bear
+    flip would have printed asia ON while the live engine has it dark. Same
+    drift class as the WLA mirror constants fixed 08-31. Resolves through the
+    typed loader with the engine's fallback semantics (session override, else
+    global allowed_btc_regimes).
+    """
+    from config.loader import load_config
+
+    key = os.environ.pop("API_FOOTBALL_KEY", None)  # pydantic chokes on it
+    try:
+        cfg = load_config("/root/bitana/config/live_burst_ny_asia.yaml")
+    finally:
+        if key is not None:
+            os.environ["API_FOOTBALL_KEY"] = key
+    bf = cfg.burst_follow
+    out: dict[str, frozenset[str]] = {}
+    for arm, rule in bf.session_rules.items():
+        name = rule.shadow_strategy or arm
+        if name in out:
+            raise RuntimeError(f"two session arms share shadow_strategy {name!r}")
+        out[name] = frozenset(rule.allowed_btc_regimes or bf.allowed_btc_regimes)
+    return out
 
 
 def fetch_candles() -> list[Candle]:
@@ -72,7 +96,7 @@ def main() -> None:
 
     arms = "\n".join(
         f"{'✅ ON' if snap.state in regs else '⛔ off'}  {name} ({'/'.join(sorted(regs))})"
-        for name, regs in ARMS.items()
+        for name, regs in load_arms().items()
     )
     print(f"🔔 REGIME FLIP: {notified} → {snap.state}\n"
           f"4h EMA200 dist {snap.distance_from_ema_pct:+.2f}% · ADX {snap.adx:.1f} · read {bar}\n"

@@ -22,6 +22,7 @@ Design notes
 """
 from __future__ import annotations
 
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -164,28 +165,19 @@ class ShadowStrategy:
     min_vol_z: float | None = None
     min_n_confirms: int = 0
     min_decile: int = 0
-    # 2026-08-31: WLA-only live-gate mirrors (match path keeps logging everything;
-    # values mirror config/live_burst_ny_asia.yaml session_rules per live arm).
-    allowed_regimes: frozenset[str] | None = None
-    # Live hour windows, regime-resolved like the engine: regime -> hours,
-    # minus per-weekday exclusions, plus per-(weekday, regime) additions.
-    regime_hours: dict[str, frozenset[int]] | None = None
-    excluded_wd_hours: dict[int, frozenset[int]] | None = None
-    added_wd_regime_hours: dict[int, dict[str, frozenset[int]]] | None = None
-    live_min_decile: int = 0
+    # 2026-09-01: WLA live gates derive from config/live_burst_ny_asia.yaml at
+    # import time (_apply_live_gates below) — single source of truth. The old
+    # hand-synced constants drifted twice (flat {16,17} zeroed live bull
+    # h18-20 rows until 08-31; asia [neutral,bear] vs the session-level
+    # override). live_gates=None = research-only strategy with no live analog
+    # (WLA untouched for those rows).
+    live_gates: LiveGateSnapshot | None = None
     trail_atr: float | None = None
     trail_trigger_r: float | None = None
     limit_entry_atr: float | None = None  # resting limit offset from signal close (ATR)
     limit_entry_max_bars: int = 36  # 5m bars to wait for fill (default 3h)
     scale_in_atr: float | None = None  # one add-on unit at entry ∓ this many ATR (adverse side)
     scale_after_bars: int = 12  # earliest 5m bar the scale leg is eligible (default 1h)
-    # Live weekday gate mirror (2026-08-30): set ONLY on strategies that mirror a live
-    # burst_follow session arm, using Python weekday() convention 0=Mon..6=Sun — same
-    # convention as the live engine gate (liq_burst_follow_engine.py:318). Applied in
-    # _maybe_open_shadow_trade to would_live_accept (NOT _matches_strategy — the match
-    # path must keep logging all regimes/days for research; WLA is the live-reality flag).
-    # Mirrors config/live_burst_ny_asia.yaml session_rules: london [5,6], asia [1,5,6], ny [0,5,6].
-    exclude_weekdays: frozenset[int] | None = None
 
 
 # Quality floor for 3h/6h follow/fade shadow variants (blocks WLD-style noise).
@@ -203,11 +195,7 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy("late_fade", "burst", "fade", 12.0, 3.0, sessions=frozenset({"late"})),
     ShadowStrategy("asia_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"asia"})),
     ShadowStrategy("london_burst_fade", "burst", "fade", 4.0, 3.0, sessions=frozenset({"london"})),
-    ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0,
-                   exclude_weekdays=frozenset({5, 6}),  # live london arm: Sat+Sun out
-                   allowed_regimes=frozenset({"bull"}),
-                   regime_hours={"bull": frozenset({9, 10, 11, 13})},
-                   live_min_decile=1),  # 2026-08-31 WLA mirror: live bf gates regime/hours/decile
+    ShadowStrategy("burst_follow", "burst", "follow", 10.0, 3.0),  # WLA gates bound from live yaml (_apply_live_gates)
     ShadowStrategy(
         "nony_momentum", "burst", "follow", 10.0, 3.0,
         min_imb=0.9, min_burst_events=10, require_above_ema_zero=True, exclude_ny=True,
@@ -313,16 +301,11 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy(
         "ny_flush_buy_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"ny"}), min_imb=0.5, pos_imb_only=True, time_exit_only=True,
-        exclude_weekdays=frozenset({0, 5, 6}),  # live ny arm: Mon+Sat+Sun out (0=Mon)
-        allowed_regimes=frozenset({"neutral", "bull"}),
-        # live ny hour matrix (2026-08-31, incl. Tue-neutral-h14 owner add):
-        regime_hours={"neutral": frozenset({16, 17}),
-                      "bull": frozenset({14, 16, 17, 18, 19, 20})},
-        excluded_wd_hours={1: frozenset({17, 18, 19, 20}),
-                           2: frozenset({18}),
-                           3: frozenset({18, 20})},
-        added_wd_regime_hours={1: {"neutral": frozenset({14})}},
-        live_min_decile=2,
+        # WLA gates (regime/hours/weekday exclusions/decile) bound from
+        # config/live_burst_ny_asia.yaml session_rules.ny at import — see
+        # _apply_live_gates. Historical note: hand-synced constants here
+        # drifted twice (flat {16,17} zeroed live bull h18-20 rows; the
+        # 08-31 Tue-neutral-h14 add was withdrawn 09-01, top-day 111% of net).
     ),
     # G0 (Aug 16): 1h time-exit variant. NOTE: prior "~70% peak by bar 6" claim
     # was disproven (winner mean MFE peak = bar 32; only 3-6% peak within 6 bars).
@@ -371,9 +354,8 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
     ShadowStrategy(
         "asia_pump_short_4h", "burst", "follow", 10.0, 999.0, time_bars=48,
         sessions=frozenset({"asia"}), min_imb=0.5, neg_imb_only=True, time_exit_only=True,
-        exclude_weekdays=frozenset({1, 5, 6}),  # live asia arm: Tue+Sat+Sun out (0=Mon)
-        allowed_regimes=frozenset({"neutral"}),  # 2026-08-31 FIX: asia-level override ["neutral"] (not the global [neutral,bear])
-        live_min_decile=2,  # live asia min_decile=2; no hours key in live yaml = full session
+        # WLA gates bound from live yaml session_rules.asia (allowed=[neutral],
+        # Tue/Sat/Sun out, min_decile=2, no hour gate) — see _apply_live_gates.
     ),
     # G0 (Aug 16): 1h time-exit variant of the Asia pump short.
     ShadowStrategy(
@@ -483,6 +465,90 @@ SHADOW_STRATEGIES: tuple[ShadowStrategy, ...] = (
 BURST_STRATEGIES = tuple(s for s in SHADOW_STRATEGIES if s.trigger == "burst")
 BAR_STRATEGIES = tuple(s for s in SHADOW_STRATEGIES if s.trigger == "bar")
 _STRATEGY_BY_NAME = {s.name: s for s in SHADOW_STRATEGIES}
+
+
+# ── WLA live-gate binding (2026-09-01) ─────────────────────────────────────
+# Single source of truth = the live yaml. The hand-synced constants that used
+# to live in the ShadowStrategy literals drifted twice before this (flat
+# {16,17} hour set zeroed live bull h18-20 WLA rows; asia [neutral,bear] vs
+# the session-level ["neutral"] override). Every live gate now resolves
+# through the same typed loader objects the live engine uses, so a yaml edit
+# propagates to the mirror on the next paper-service restart — and the
+# parity test (tests/test_wla_gate_parity.py) cross-checks both sides.
+@dataclass(frozen=True)
+class LiveGateSnapshot:
+    """Frozen view of one live session arm's WLA gates."""
+    session: str
+    rule: object | None          # config.loader SessionBurstRule (hour_gate_reason); None = arm disabled
+    exclude_weekdays: frozenset[int]
+    allowed_regimes: frozenset[str]  # effective: session override or global fallback
+    min_decile: int
+
+
+_LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
+# shadow strategy -> live yaml session arm. Every session rule present in the
+# yaml MUST appear here as a value or _apply_live_gates raises (new-arm guard).
+_LIVE_ARM_FOR_STRATEGY = {
+    "burst_follow": "london",
+    "ny_flush_buy_4h": "ny",
+    "asia_pump_short_4h": "asia",
+}
+
+
+def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
+    """Resolve every session arm of the live yaml via the TYPED loader."""
+    from config.loader import load_config
+
+    key = os.environ.pop("API_FOOTBALL_KEY", None)  # pydantic chokes on it
+    try:
+        cfg = load_config(_LIVE_CONFIG_PATH)
+    finally:
+        if key is not None:
+            os.environ["API_FOOTBALL_KEY"] = key
+    bf = cfg.burst_follow
+    snaps: dict[str, LiveGateSnapshot] = {}
+    for arm, rule in bf.session_rules.items():
+        snaps[arm] = LiveGateSnapshot(
+            session=arm,
+            rule=rule,
+            exclude_weekdays=frozenset(rule.exclude_weekdays or ()),
+            # engine-exact: session override falls back to the global list
+            allowed_regimes=frozenset(rule.allowed_btc_regimes or bf.allowed_btc_regimes),
+            min_decile=rule.min_decile,
+        )
+    return snaps
+
+
+def _apply_live_gates() -> None:
+    """Bind every live-arm shadow spec to the live yaml (import time)."""
+    snaps = _load_live_gate_snapshots()
+    unmapped = set(snaps) - set(_LIVE_ARM_FOR_STRATEGY.values())
+    if unmapped:
+        raise RuntimeError(
+            f"live yaml {_LIVE_CONFIG_PATH} has session rules with no WLA "
+            f"mirror mapping: {sorted(unmapped)} — add to _LIVE_ARM_FOR_STRATEGY"
+        )
+    for strat_name, arm in _LIVE_ARM_FOR_STRATEGY.items():
+        spec = _STRATEGY_BY_NAME.get(strat_name)
+        if spec is None:
+            raise RuntimeError(f"_LIVE_ARM_FOR_STRATEGY names unknown strategy {strat_name!r}")
+        snap = snaps.get(arm)
+        if snap is None:
+            # Arm commented out of the live yaml (session-disable pattern):
+            # live can never take these rows -> pin WLA to 0 on every weekday
+            # AND regime so the gate is dark regardless of other checks.
+            snap = LiveGateSnapshot(
+                session=arm, rule=None, exclude_weekdays=frozenset(range(7)),
+                allowed_regimes=frozenset({"__arm_disabled__"}), min_decile=0,
+            )
+            logger.warning(
+                "live session arm %r absent from %s — WLA pinned to 0 for %s",
+                arm, _LIVE_CONFIG_PATH, strat_name,
+            )
+        object.__setattr__(spec, "live_gates", snap)  # frozen dataclass
+
+
+_apply_live_gates()
 
 
 def _session(hour: int) -> str:
@@ -1597,31 +1663,29 @@ class SignalShadow:
         would_live = self._would_live_accept(
             spec.name, symbol, side, f["session"], cluster_bucket,
         )
-        # 2026-08-30: live weekday-gate mirror (0=Mon..6=Sun, same convention as the
-        # live engine gate). Live arms exclude certain weekdays; WLA must answer
-        # "would LIVE accept", so excluded weekday cells are WLA=0 even though the
-        # match path keeps logging them for research.
-        if would_live and spec.exclude_weekdays and f["bar_time"].weekday() in spec.exclude_weekdays:
-            would_live = 0
-        # 2026-08-31: full live-gate mirror — regime + session hours + min_decile.
-        # Same rationale as the weekday gate: WLA answers "would LIVE accept".
-        # Gap found 2026-08-31: asia WLA=1 included 66 bull rows (−4.6R) live skips
-        # (global allowed_btc_regimes=[neutral,bear]) and all dec-1 rows (live
-        # min_decile=2) — e.g. the 2026-08-31 00:15Z cluster (+1.19R shadow) was
-        # dec-1-only, live never tradable, yet WLA=1.
-        if would_live and spec.allowed_regimes and (mkt.btc_trend_state or "NA") not in spec.allowed_regimes:
-            would_live = 0
-        if would_live and spec.regime_hours is not None:
-            # regime-resolved live hour matrix: base per regime, minus weekday
-            # exclusions, plus (weekday, regime) additions — mirrors the engine.
-            hours = set(spec.regime_hours.get(mkt.btc_trend_state or "NA", frozenset()))
-            hours -= set((spec.excluded_wd_hours or {}).get(f["bar_time"].weekday(), frozenset()))
-            hours |= set((spec.added_wd_regime_hours or {}).get(
-                f["bar_time"].weekday(), {}).get(mkt.btc_trend_state or "NA", frozenset()))
-            if hours and f["bar_time"].hour not in hours:
+        # 2026-09-01: live-gate mirror — weekday, regime, hour, decile all
+        # resolved from spec.live_gates (bound from the live yaml at import;
+        # the hour gate calls the SAME SessionBurstRule.hour_gate_reason the
+        # live engine uses, so mirror and engine cannot diverge). History:
+        # 08-30 weekday mirror, 08-31 regime/hours/decile mirror after the
+        # asia gap (66 bull rows −4.6R and all dec-1 rows wrongly WLA=1,
+        # e.g. the 08-31 00:15Z cluster). live_gates=None = research-only
+        # strategy, no live analog — WLA untouched.
+        g = spec.live_gates
+        if would_live and g is not None:
+            wd = f["bar_time"].weekday()
+            regime = mkt.btc_trend_state or "NA"
+            if wd in g.exclude_weekdays:
                 would_live = 0
-        if would_live and spec.live_min_decile > 0 and (f.get("decile", 0) or 0) < spec.live_min_decile:
-            would_live = 0
+            elif regime not in g.allowed_regimes:
+                would_live = 0
+            elif (
+                g.rule is not None
+                and g.rule.hour_gate_reason(f["bar_time"].hour, wd, regime) is not None
+            ):
+                would_live = 0
+            elif g.min_decile > 0 and (f.get("decile", 0) or 0) < g.min_decile:
+                would_live = 0
 
         self.conn.execute(
             """
