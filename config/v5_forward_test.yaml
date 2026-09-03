@@ -50,6 +50,13 @@ symbols:
     - PENGUUSDT
     - HYPEUSDT
     - PUMPUSDT
+    # 2026-09-03 owner wire-in (G0 watch-only, is_experimental=1): LITUSDT +
+    # USELESSUSDT perps verified TRADING on fapi. Same tier_c rules: full
+    # scan+shadow, excluded from core stats until floors (n>=15, >=5d, +E both
+    # scopes). Removal rule (08-30 registration): n>=100, >=5d, avg<-0.10R
+    # ex-bleed-days -> remove.
+    - LITUSDT
+    - USELESSUSDT
 
 risk:
   max_leverage: 10
