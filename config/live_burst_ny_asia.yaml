@@ -193,27 +193,38 @@ burst_follow:
   btc_regime_gate_enabled: true
   allowed_btc_regimes: ["neutral", "bear"]
   session_rules:
-    asia:
-      shadow_strategy: asia_pump_short_4h
-      side_mode: follow
-      neg_imb_only: true
-      min_imb: 0.5
-      # 2026-08-30 owner: block Tue (shadow asia_pump_short_4h Tue-neutral
-      # n=33 -0.086R PF 0.50, losses spread across hours, h00 worst -0.25R n9).
-      # NOTE loader convention: 0=Mon..6=Sun. Sat+Sun were already excluded
-      # pre-2026-08-30 ("weekends never traded" — owner confirmed correct).
-      # 17:07Z edit [0,2,5,6] was WRONG (blocked Mon+Wed, left Tue open) —
-      # caught on verification, corrected: [1,5,6] = Tue+Sat+Sun.
-      exclude_weekdays: [1, 5, 6]
-      allowed_btc_regimes: ["neutral"]
-      stop_atr: 10.0
-      tp_atr: 999.0
-      time_bars: 48
-      time_exit_only: true
-      min_cascade_strength: 0.0
-      min_vol_z: 0.0
-      min_n_confirms: 1
-      min_decile: 2
+    # ── 2026-09-03 01:35Z OWNER ORDER: ASIA ARM DISABLED ("Disable.") ──────
+    # Context: BTC ADX riding the 25.0 boundary — the regime-flip cron (fapi,
+    # 15-min) notified bull 00:15Z while the live gate (hourly refresh, last
+    # 01:08:29Z) still read neutral; asia (neutral-only) kept firing shorts
+    # into the rising-ADX transition. Owner manually closed ETH (+0.16,
+    # 01:13) and ADA (-0.55, 01:25). Asia DISABLED pending clean regime
+    # resolution so no further manual flattening is needed.
+    # RE-ENABLE: uncomment the block below (indentation intact), dry-load
+    # via config.loader, restart bitana-live-burst-follow AND bitana-v5-paper
+    # (mirror re-binds asia WLA on paper restart). Backup of the pre-disable
+    # file: config/live_burst_ny_asia.yaml.pre_disable_asia_20260903.
+    # asia:
+    #   shadow_strategy: asia_pump_short_4h
+    #   side_mode: follow
+    #   neg_imb_only: true
+    #   min_imb: 0.5
+    #   # 2026-08-30 owner: block Tue (shadow asia_pump_short_4h Tue-neutral
+    #   # n=33 -0.086R PF 0.50, losses spread across hours, h00 worst -0.25R n9).
+    #   # NOTE loader convention: 0=Mon..6=Sun. Sat+Sun were already excluded
+    #   # pre-2026-08-30 ("weekends never traded" — owner confirmed correct).
+    #   # 17:07Z edit [0,2,5,6] was WRONG (blocked Mon+Wed, left Tue open) —
+    #   # caught on verification, corrected: [1,5,6] = Tue+Sat+Sun.
+    #   exclude_weekdays: [1, 5, 6]
+    #   allowed_btc_regimes: ["neutral"]
+    #   stop_atr: 10.0
+    #   tp_atr: 999.0
+    #   time_bars: 48
+    #   time_exit_only: true
+    #   min_cascade_strength: 0.0
+    #   min_vol_z: 0.0
+    #   min_n_confirms: 1
+    #   min_decile: 2
     ny:
       # Aug 10: NY-A early only (h14-15); D7 (NY-B) reverted — Early alone better in-sample
       # Aug 20: bull opened behind separate h14-15 window (10 ATR). Neutral stays [16,17].
