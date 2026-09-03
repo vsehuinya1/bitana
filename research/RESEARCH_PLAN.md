@@ -247,6 +247,9 @@ shifts entirely to pre-registration + kill criteria per row.
 | Bear-regime enablement — **NY flush-buy 8h/24h** (`ny_flush_buy_8h`, `ny_flush_buy_24h` LONG) | G0 registered Aug 30. Basis — shadow full window: 8h +1.57R/n383 (73% WR, 7d), 24h +2.84R/n352 (55% WR, 38d); both LONG-only, extended hold (96/288 bars). Fresh 14d: 8h +0.184R/n43, 24h +0.193R/n44. Promotion = new strategy variant + config (engine supports time_bars). **Distinct from 4h family** — longer hold, different exit dynamics. | Promotion G0→G2 at Sep 20: fresh 14d (Aug 23–Sep 5) each variant avg > +0.10R on n≥15, ≥5 days, top-day <40%, rvol tercile control. | Kill (any): fresh avg ≤ 0 at n≥20; giveback_share ≥ 0.55 vs 4h baseline; live cohort ≤ −0.3R at n≥15 after ≥14d. |
 | Bear-regime enablement — **London follow/fade 6h** (`follow_6h_london` LONG, `fade_6h_london` SHORT) | G0 registered Aug 30. Basis — shadow full window: follow +4.53R/n44 (88.6% WR, 4d), fade +4.47R/n21 (66.7% WR, 6d); 6h hold (72 bars), 10 ATR stop. Fresh 14d: follow +5.66R/n39 (97% WR), fade +4.47R/n21 (67% WR). **Requires NEW London session block** (currently bull-only structural LONG). Engine wiring needed: pos_imb_only + allowed_side split per strategy. | Promotion G0→G2 at Sep 20: fresh 14d each strategy avg > +1.0R on n≥15, ≥5 days, top-day <40%, both sides positive. | Kill (any): fresh avg ≤ 0 at n≥15; one side ≤ 0 while other >0 (asymmetric rescue); live cohort ≤ −0.5R at n≥15 after ≥14d. |
 | Late fade neutral (`late_fade`, h22-23, dec≥2) — **PREREG-LATEFADE** | G0 registered Sep 1 06:29Z pre-outcome (owner accepted same day as draft). Basis disclosed in prereg: bound pop n=178 +0.053R/tr PF 2.13 over 22 days — BUT top-day 70% (Aug30 storm 53 legs), ex-top-2 days NEGATIVE, all net SHORT-carried. **Zero wiring footprint** (strategy already logs; no live late arm exists; WLA on late rows ≠ live-arm flag) | Counts-only until Sep 6; first R-read Sun Sep 6 (alongside AGE/OI); formal call Sep 20; extension max Oct 4 → park | E<0 with floors met; top-day>40% at formal read; storm-dominance (storm days ≥80% ΣR AND non-storm E≤0); NULL-regime row on in-window day = read VOID |
+| setup_fade_london h11-12 — **PREREG-LNC** | G0 registered Sep 3. Basis: n=489 +0.041 R/tr (SL4/TP3/30m) PF-strong, 63 days, top-day 23%, positive ALL regimes — no concentration red flag | counts-only until Sep 13; first R-read Sep 13; formal Sep 27; ext Nov 8 | E<0 at floors; top-day>40% at formal read |
+| Tuesday asia neutral re-open — **PREREG-TUEASIA** | G0 registered Sep 3. Basis: dec≥2 n=32 +0.053 R/tr BUT top-day 181% (Sep-1 storm), ex-top-day NEGATIVE. Three owner gates on promote (verdict + arm re-enable + weekday unblock); asia STAYS DISABLED during accrual | counts-only until Sep 21; first read Sep 27; formal Oct 4 (4 Tuesdays); ext Nov 8 | E<0 at floors; top-day>40% at formal read (in-sample 181% would fail) |
+| ADX hysteresis + 5-min gate refresh — **PREREG-ADXBAND** | infra patch spec (pending Martin): deadband 25.5-in/24.5-out, refresh 3600→300s, notifier aligned | 7 days post-deploy: zero cron-vs-gate divergence >10 min; every fapi transition mirrored within one cycle | revert on any missed flip or persistent divergence |
 | ~~Confirmed/delayed entry for burst books~~ | **KILLED Aug 22 night replay** (own kill criteria). Validated harness: 3503/3606 exact match, Σdiff +3.7R on −360R, exit mix reproduced. Grid Δ/signal: A +0.054 / B0.25 +0.073 / B0.5 +0.067 / B0.75 +0.041 / C +0.068 — three variants cleared the +0.05 gate BUT: (1) take-rate 33–56% < 70% floor → kill #2 fires; (2) flagship damage — london h8-13 bull LONG dE/fill **−0.249** (base +0.286/n148 → var +0.037/n83), ny LONG −0.059, london SHORT −0.060; (3) weekly concentration: net +242R of which W34 alone +237R (crisis week, base −414R→−178R) while W30 cost −72R — regime insurance, not expectancy. Per-fill E stays negative in every variant (best −0.059). o2-fill robustness check passed (gap≈0 median, Δ/signal +0.064 unchanged) | — | see decision log; asymmetric session-scoped confirm (bleeding cells only) is a DIFFERENT hypothesis — needs fresh pre-registration if pursued, no retrofit. **Part3 per-session×side full grid (Aug 22 night):** take-rate NEVER ≥70% in any cell×variant (max 68%) → kill #2 fires even session-scoped. Beneficiary set = exactly the 4 losing cells (dE/signal: ny SHORT +0.26…+0.44, late LONG +0.30…+0.40, asia SHORT +0.09…+0.14, asia LONG +0.03…+0.08); every profitable cell negative per-signal (london L/S, ny LONG −0.02…−0.05; late SHORT per-fill +0.19…+0.31 BUT per-signal −0.08…−0.12 — skipped winners cost more than saved losers). Flagship london h8-13 bull LONG dE/fill negative in ALL 5 variants (−0.22…−0.34). Symbol concentration benign (top1 ≤33% gross-pos) |
 
 **Open register slot:** uncapped as of Aug 19. Candidates only via pre-registration
@@ -1054,3 +1057,68 @@ Watch items:
 **Action:** asia session block commented out of live_burst_ny_asia.yaml (dated marker + re-enable instructions; backup *.pre_disable_asia_20260903). session_rules = [ny, london]; ny/london untouched. Mirror pins asia WLA=0 via the disabled-arm sentinel path (verified in dry-load); parity test unaffected (arms⊆mapped holds). Both services restarted (live 01:35:45, paper 01:36:30 — ExecMainStartTimestamp freshness verified per the Sep-1 discipline); 0 err/warn. Commit 61ed7ec.
 
 **Boundary-flap finding (unresolved):** the gate's OWN fresh REST fetch at 01:35:51 (post-restart startup refresh, 250 fapi bars) STILL read neutral (dist +7.3976, age 25) while direct fapi computations read bull (ADX 25.23 on 260/249/300-bar windows, dist +7.38-7.42). Same source, same detector function, different candle streams (bot's candle_mgr WS-merged series vs raw REST klines; dist differs in the 3rd decimal). ADX 25.0-25.3 = genuinely ON the line; the two feeds currently sit on opposite sides. Consequence: the cron may keep reporting bull while the GATE trades neutral — if so, today's NY trades the neutral h16-17 window (16:00Z), not bull. Read-only watch: 02:15Z one-shot cron reports gate line + fapi snapshot + asia fires (expect zero). No gate/notifier code change — both are computing correctly on their own inputs; the discrepancy is the boundary itself.
+
+## PREREG-ADXBAND — regime hysteresis + 5-min gate refresh (infra patch spec, pending Martin) — registered 2026-09-03T04:35Z
+
+**Problem (documented Sep 2-3):** the live gate refreshes hourly (`main.py` equity task, >=3600s) while the regime cron reads fresh fapi data every 15 min; BTC ADX riding 25.0 → cron notified bull 00:15Z while the gate stayed neutral for hours; asia fired shorts into the transition (owner closed 2, then disabled the arm).
+
+**Spec (for Martin to apply or authorize):**
+1. `_refresh_btc_regime` cadence 3600s → 300s (same fetch path, limit=250 — cheap: 1 kline call/5m).
+2. Hysteresis state machine on `self._btc_regime`: from neutral → bull requires ADX >= 25.5 AND dist > 0; → bear requires ADX >= 25.5 AND dist <= 0; from bull/bear → neutral requires ADX < 24.5; bull<->bear on dist sign flip while ADX >= 24.5.
+3. The regime-flip notifier applies the SAME deadband to its fapi-side state machine (else cron-vs-gate flap returns inverted).
+4. Session-gate semantics unchanged (session_rules consume state as today); asia stays config-disabled regardless.
+5. Rollback: revert commit; hysteresis last-state is in-memory — on restart the state re-derives with the ENTRY threshold (documented: a restart inside the deadband reads neutral until 25.5).
+6. Success criteria (7 days post-deploy): zero cron-vs-gate state disagreements persisting > 10 min; every fapi-side transition mirrored by the gate within one cycle.
+**Prereg note:** the deadband delays regime transitions (~+0.5 ADX on entry) — arms react later by design; accepted tradeoff for flap elimination. Logged as infra, not a strategy read.
+
+## PREREG-LNC — setup_fade_london h11-12 — registered 2026-09-03T04:35Z
+
+**Hypothesis.** The London midday setup-fade (h11-12) carries a positive edge robust across regimes at the shadow spec's own exits (SL4/TP3/30m, trigger=bar).
+
+**Historical basis (disclosed; full shadow book, read pre-registration):** n=489, +79.7 ATR, avg +0.163 ATR/tr = **+0.041 R/tr** @ 4.0-ATR stop, 63 days, 38/63 positive days, **top-day 23% of net** (2026-07-06, n=8, +18.4) — no concentration red flag. Positive in ALL regimes: neutral +39.6/n=221, bear +23.2/n=128, bull +18.7/n=134.
+
+**Population binding (frozen):**
+`status='closed' AND strategy='setup_fade_london' AND session='london' AND hour IN (11,12) AND entry_time >= '2026-09-03T04:35'`, dedup(symbol, entry_time, side). Metric: `R = pnl_atr / stop_atr` (4.0); E = mean(R). Reader committed + smoke-tested (peek-mode + backdated validation gate) BEFORE first R-read.
+
+**Floors:** n >= 100; distinct days >= 15; top-day <= 40% of ΣR.
+
+**Decision rule (formal call Sun Sep 27):**
+- **PROMOTE** (→ G1 eval + exec review — a NEW london fade session rule; engine supports side_mode=fade; the current london arm is bull-only LONG burst_follow, no overlap conflict): E >= **+0.05 R/tr** with all floors met.
+- **KILL** (park permanently): E < 0 with floors met; OR top-day > 40% at formal read.
+- Else **INCONCLUSIVE** → stays unwired; ONE extension max → Sun Nov 8, then park.
+
+**Peek policy & timeline:** counts-only until 2026-09-13. First R-read Sun Sep 13. Formal call Sun Sep 27. Extension Nov 8 max. Expected volume ~7.8/day → n≈190 by Sep 27.
+
+**Power honesty:** in-sample +0.041 R/tr sits BELOW the +0.05 promote bar — catch-or-kill design (LATEFADE/LONDHOLD pattern); absent a stronger forward tape the expected outcome is INCONCLUSIVE. n≈190 gives CI half-width ≈ ±0.02-0.03 R/tr.
+
+**Pre-wire gate:** promotion does NOT auto-wire — a new london fade session rule is a config addition; exec review (fill quality, capacity sharing the session with the bull-only arm) + owner sign-off first.
+
+**Non-goals:** no change to the bull-only burst_follow london arm; no hour-slicing beyond the bound; no symbol policy changes (WLD/UNI fail the owner's removal rule — Sep 3 verification); asia stays disabled.
+
+## PREREG-TUEASIA — Tuesday Asia neutral re-open — registered 2026-09-03T04:35Z
+
+**Hypothesis.** Tuesday asia_pump_short_4h (neutral, dec>=2) carries positive expectancy — i.e., the Aug-30 Tuesday block, re-estimated on the full book, no longer holds.
+
+**Historical basis (disclosed; full book, read pre-registration):** dec>=2: n=32, +16.93 ATR, avg +0.529 ATR/tr = **+0.053 R/tr** @ 10-ATR stop, 5 days — **BUT top-day (2026-09-01, n=11, +30.5) = 181% of net; ex-top-day −13.6 ATR over 21 legs (NEGATIVE)**. All-decile: n=51, +30.5 ATR (+0.06 R/tr). The Aug-30 block basis (−0.086R PF 0.50, n=33) and this read disagree by window/scope — reconciled Sep 3: both real, the cell is storm-dominated.
+
+**Population binding (frozen):**
+`status='closed' AND strategy='asia_pump_short_4h' AND session='asia' AND btc_trend_state='neutral' AND decile>=2 AND CAST(strftime('%w',entry_time) AS INT)=2 AND entry_time >= '2026-09-03T04:35'`, dedup(symbol, entry_time, side). R = pnl_atr / 10.0. NULL-regime rows counted + excluded-with-count; a NULL on an in-window Tuesday = read VOID.
+
+**Floors:** n >= 12; distinct Tuesdays >= 4; **top-day <= 40% of ΣR** — in-sample 181% would FAIL; that is the honest bar (the storm morning is the hypothesis's weakest point — this prereg exists to test weekday-edge vs one-day artifact).
+
+**Decision rule (formal call Sun Oct 4, after 4 accrued Tuesdays: Sep 8/15/22/29):**
+- **PROMOTE** (→ THREE owner gates: (1) verdict PROMOTE, (2) re-enable the asia arm if still disabled, (3) unblock Tuesday [1,5,6]→[5,6] — promotion ≠ auto-wire on any of them): E >= **+0.05 R/tr** with all floors met.
+- **KILL** (park permanently): E < 0 with floors met; OR top-day > 40% at formal read.
+- Else **INCONCLUSIVE** → Tuesday stays blocked; ONE extension max → Sun Nov 8 (2 more Tuesdays), then park.
+
+**Peek policy & timeline:** counts-only until 2026-09-21. First R-read Sun Sep 27 loop. Formal call Sun Oct 4. Extension Nov 8 max. Expected volume ~4-6 legs/Tue (basis 32/5 ≈ 6.4, storm-inflated).
+
+**Power honesty:** in-sample +0.053 R/tr sits AT the promote bar; ex-top-day the cell is NEGATIVE — the prior favors KILL. n≈12-20 by Oct 4 gives CI ±0.06-0.09 R/tr — likely INCONCLUSIVE band. Registered because two historical reads conflict and only forward data resolves them.
+
+**Pre-wire gate:** THREE owner gates as above; no auto-wiring of any kind.
+
+**Non-goals:** no asia re-enable from this prereg (asia STAYS DISABLED regardless of accrual — shadow rows accrue with WLA=0 via the disabled-arm pin); no hour-slicing; no other weekday changes.
+
+## 2026-09-03T04:35Z — NY-G restructure REFUTED pre-registration (decision log)
+
+Gemini-proposed NY bull restructure (drop h14/h16, add h21) tested on the correctly-scoped book (current-config hour resolution per weekday, bull, closed): **CURRENT (h14-20 + micro-exclusions): n=109, +167.8 ATR, avg +1.539 ATR/tr (+0.154 R/tr)** vs **PROPOSED (flat h17-21): n=93, +60.8 ATR, avg +0.654 ATR/tr (+0.065 R/tr)**. The restructure would surrender ~107 ATR of net. The "h14/h16 toxic" hour-table was contaminated by MONDAY (session-excluded live) and the pre-exclusion era — scoped to the actual config, the micro-exclusion lattice is VINDICATED (its book is the strong one). Restructure REJECTED pre-registration; the lattice stays. (The 10-ATR stop revert remains a separate open question pending min-notional quantification at current equity.) Also corrected: Gemini's "micro-exclusions caused the Sep 1 incident" — false; the incident was the stale-process deploy bug (postmortem Sep 1).
