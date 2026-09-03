@@ -189,6 +189,23 @@ def test_oi_gate_binds_from_live_yaml():
     assert cfg.oi_inflow_max_pct == float(bf["oi_inflow_max_pct"])
 
 
+def test_dist_cap_bindings():
+    """PREREG-ASIA-DISTCAP parity: NY/London rules carry no dist cap (None =
+    inert); the field exists on SessionBurstRule and LiveGateSnapshot and the
+    mirror binding copies the rule's value (asia's commented block carries
+    5.0 for the future re-arm — verified by text, loader can't see comments)."""
+    from config.loader import SessionBurstRule
+    from research.signal_shadow import _STRATEGY_BY_NAME
+
+    assert SessionBurstRule.model_fields["btc_dist_max_pct"].default is None
+    # active arms bind None (no cap key in the live yaml session rules)
+    for strat in ("burst_follow", "ny_flush_buy_4h"):
+        g = _STRATEGY_BY_NAME[strat].live_gates
+        assert g is not None and g.btc_dist_max_pct is None, strat
+    # commented asia block documents the cap for the re-arm path
+    assert "btc_dist_max_pct: 5.0" in LIVE_YAML.read_text()
+
+
 def test_disabled_arm_pins_wla_to_zero():
     """A session rule commented out of the live yaml must dark-flag its
     shadow arm (WLA=0 on every cell), never silently keep stale gates."""

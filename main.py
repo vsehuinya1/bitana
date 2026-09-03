@@ -674,6 +674,7 @@ class Bitana:
                         burst=burst_stats,
                         btc_regime=btc_regime,
                         btc_regime_age_bars=self._btc_regime_age_bars,
+                        btc_regime_dist=self._btc_regime_dist,
                     )
                 else:
                     sig = await engine.evaluate(symbol, candles_5m, candles_15m, candles_1m)

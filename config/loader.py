@@ -72,6 +72,11 @@ class SessionBurstRule(BaseModel):
     # the 2026-08-31 Tue-neutral-h14 addition was withdrawn by owner 2026-09-01
     # on concentration grounds: basis was 2 days, top-day 111% of net.)
     excluded_weekday_regime_hours: dict[int, dict[str, list[int]]] | None = None
+    # PREREG-ASIA-DISTCAP (2026-09-03, owner wire order): per-arm EMA200-stretch
+    # ceiling. Entry blocked when btc_distance_from_ema_pct > cap; fail-open on
+    # None. Basis: asia shorts at dist>+5% n=242 -4.41R (dist +2..5%: +1.25R).
+    # Only the asia rule carries a value; NY/London default None = inert.
+    btc_dist_max_pct: float | None = None
     min_imb: float = 0.0
     min_cascade_strength: float = 0.0
     min_vol_z: float = 0.0

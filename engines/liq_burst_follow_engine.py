@@ -299,6 +299,7 @@ class LiqBurstFollowEngine:
         burst: dict | None = None,
         btc_regime: str | None = None,
         btc_regime_age_bars: int | None = None,
+        btc_regime_dist: float | None = None,
     ) -> Signal | None:
         if burst is None:
             return None
@@ -358,6 +359,21 @@ class LiqBurstFollowEngine:
             logger.debug(
                 "Burst session skip", symbol=symbol, session=f["session"],
                 reason=hour_reason, weekday=bar_time.weekday(), hour=f["hour"],
+            )
+            return None
+
+        # PREREG-ASIA-DISTCAP (2026-09-03): per-arm EMA200-stretch ceiling.
+        # Fail-open on missing dist (None -> allow), same convention as the
+        # OI gate. Only arms whose rule carries btc_dist_max_pct are gated.
+        if (
+            rule.btc_dist_max_pct is not None
+            and btc_regime_dist is not None
+            and btc_regime_dist > rule.btc_dist_max_pct
+        ):
+            logger.info(
+                "Burst entry blocked", symbol=symbol, session=f["session"],
+                reason="btc_dist_cap", btc_dist_pct=btc_regime_dist,
+                max_pct=rule.btc_dist_max_pct,
             )
             return None
 

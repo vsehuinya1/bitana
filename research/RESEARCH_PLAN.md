@@ -1134,3 +1134,15 @@ Gemini-proposed NY bull restructure (drop h14/h16, add h21) tested on the correc
 **Timeline:** counts-only until Sep 20 (rides PREREG-LNC formal read); first blocked-set R-read Sep 6 weekly loop. Promote bar n/a (removal gate): success = blocked-set forward avg ≤ 0 with n≥30, 5+ days, top-day ≤40% concentration standard.
 
 **Scope:** burst_follow only (live engine + WLA mirror via LiveGateSnapshot binding from the same yaml keys — parity-tested). No other strategy armed with OI gating; no other config touched.
+
+## 2026-09-03T08:35Z — PREREG-ASIA-DISTCAP: EMA200-stretch ceiling for the asia arm (wired by owner order; asia itself stays DISABLED)
+
+**Spec (frozen before wire):** `asia_pump_short_4h` entry blocked when `btc_distance_from_ema_pct > +5.0` at evaluation, fail-open on missing dist (None → allow, same convention as PREREG-OIGATE). Per-session-rule knob `btc_dist_max_pct` (SessionBurstRule) so only the asia arm carries it; NY/London arms inert. The knob is added INSIDE the commented-out asia yaml block — it arms automatically on any future re-arm. Wired while asia is dark: no live behavior change today; the WLA mirror applies the cap once asia re-arms, and blocked-set counts accrue from shadow data either way (dist is a stored shadow field).
+
+**Basis (shadow asia book, 2026-07-15→09-03, closed):** dist>+5%: n=242 ΣR −4.41 (avg −0.018 R/tr); dist +2..5%: n=54 ΣR +1.25 (avg +0.023); dist −2..2: n=96 ΣR −1.24; dist<−2: n=0 (asia never fires deep under EMA). Mechanism (engine-exact 4h series, Mar-20→Sep-03): neutral-episode resolution predicted by dist SIGN 7/7 (negative→bear 4/4, positive→bull 2/2, −0.6%→bear); age alone has zero power (7 bull/7 bear next-state). Current neutral: age 28 bars, dist +8.04% — second-largest in-episode stretch ever (max +11.61%). Asia shorts at >+5% are positioned against the bull-resolution branch.
+
+**Concentration disclosure (verbatim):** today's −21.8 ATR session (dist +7.8%) is a large share of the >+5% bucket loss — the in-sample read does NOT meet the top-day ≤40% standard. Registered as G0 with the gate wired dark; the formal read rides the Sep 6 loop and REQUIRES the top-day check before any promote/keep verdict.
+
+**Kill criteria (forward):** (K1) blocked-set forward avg > +0.05 R/tr over first 30 legs → unwind knob. (K2) if dist blocks >60% of asia legs over 14 days the threshold is miscalibrated (basis split was 242/392 = 62% in-sample — forward rate materially above that means regime mix shifted; re-split, do not silently keep). (K3) missing-dist (fail-open) >5% of asia evaluations → fix data path before judging.
+
+**Timeline:** counts-only Sep 6; formal verdict at the asia re-arm decision, whichever comes later. **Scope:** asia arm only; no other config touched; asia ENABLEMENT unchanged (still owner-gated).

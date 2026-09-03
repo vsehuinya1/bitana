@@ -487,6 +487,9 @@ class LiveGateSnapshot:
     # by _load_live_gate_snapshots — same keys the live engine reads.
     oi_gate_enabled: bool = False
     oi_inflow_max_pct: float = 0.5
+    # PREREG-ASIA-DISTCAP (2026-09-03): per-arm EMA200-stretch ceiling bound
+    # from the arm's SessionBurstRule (None = arm ungated, fail-open).
+    btc_dist_max_pct: float | None = None
 
 
 _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
@@ -523,6 +526,8 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
             # LiqBurstFollowConfig block the live engine's engine gets.
             oi_gate_enabled=bf.oi_inflow_gate_enabled,
             oi_inflow_max_pct=bf.oi_inflow_max_pct,
+            # PREREG-ASIA-DISTCAP: per-arm knob from the rule itself.
+            btc_dist_max_pct=rule.btc_dist_max_pct,
         )
     return snaps
 
@@ -1701,6 +1706,14 @@ class SignalShadow:
             ):
                 # PREREG-OIGATE (2026-09-03): mirror the live OI-inflow gate —
                 # fail-open on None (same semantics as the engine).
+                would_live = 0
+            elif (
+                g.btc_dist_max_pct is not None
+                and mkt.btc_distance_from_ema_pct is not None
+                and mkt.btc_distance_from_ema_pct > g.btc_dist_max_pct
+            ):
+                # PREREG-ASIA-DISTCAP (2026-09-03): mirror the per-arm
+                # EMA200-stretch ceiling — fail-open on None (engine parity).
                 would_live = 0
 
         self.conn.execute(

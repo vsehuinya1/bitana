@@ -223,6 +223,13 @@ burst_follow:
     #   # caught on verification, corrected: [1,5,6] = Tue+Sat+Sun.
     #   exclude_weekdays: [1, 5, 6]
     #   allowed_btc_regimes: ["neutral"]
+    #   # PREREG-ASIA-DISTCAP (2026-09-03): EMA200-stretch ceiling — block asia
+    #   # shorts when BTC >+5% above 4h EMA200 (basis: dist>+5% n=242 -4.41R;
+    #   # +2..5% n=54 +1.25R; neutral-with-stretch resolves bull 7/7 by dist
+    #   # sign). Fail-open on missing dist. Concentration caveat: today's
+    #   # -21.8 ATR session is a large share of the bucket — top-day check at
+    #   # the Sep 6 loop before any keep verdict.
+    #   btc_dist_max_pct: 5.0
     #   stop_atr: 10.0
     #   tp_atr: 999.0
     #   time_bars: 48
