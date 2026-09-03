@@ -9,7 +9,9 @@ Session-aware burst entries mirroring shadow-validated strategies:
 """
 from __future__ import annotations
 
+import time
 import uuid
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
@@ -72,8 +74,44 @@ def _resolve_side(mode: SideMode, imb: float) -> Side | None:
 class LiqBurstFollowEngine:
     """Engine: session-specific burst follow/fade with shadow-aligned exits."""
 
-    def __init__(self, cfg: LiqBurstFollowConfig) -> None:
+    def __init__(
+        self,
+        cfg: LiqBurstFollowConfig,
+        rest_client=None,  # data.binance_rest.BinanceRestClient (OI gate data)
+    ) -> None:
         self.cfg = cfg
+        self._rest_client = rest_client
+        # PREREG-OIGATE: OI cache cloned from tools/v5_forward_test.py
+        # (_refresh_oi_delta) so the live gate computes the SAME
+        # oi_delta_30m_pct field the shadow basis was measured on.
+        self._oi_cache: dict[str, tuple[float, float]] = {}
+        self._oi_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=12))
+
+    async def _oi_delta_30m(self, symbol: str) -> float | None:
+        """OI % change vs oldest cached sample. Fail-open: returns None on
+        fetch error, <2 samples, or non-positive baseline -> gate allows."""
+        if self._rest_client is None:
+            return None
+        now = time.monotonic()
+        cached = self._oi_cache.get(symbol)
+        if not cached or now - cached[1] > 300:
+            try:
+                resp = await self._rest_client.get_open_interest(symbol)
+                oi = float(resp.get("openInterest", 0))
+                self._oi_cache[symbol] = (oi, now)
+                self._oi_history[symbol].append((now, oi))
+            except Exception as e:  # noqa: BLE001 — fail-open by design
+                logger.debug("OI fetch failed", symbol=symbol, error=str(e))
+                return None
+        else:
+            oi = cached[0]
+        hist = self._oi_history[symbol]
+        if len(hist) < 2:
+            return None
+        old_oi = hist[0][1]
+        if old_oi <= 0:
+            return None
+        return round((oi - old_oi) / old_oi * 100.0, 4)
 
     def _rule_for_session(self, session: str) -> SessionBurstRule | None:
         if self.cfg.session_rules:
@@ -333,6 +371,21 @@ class LiqBurstFollowEngine:
         if state.last_burst_time is not None:
             elapsed = (bar_time - state.last_burst_time).total_seconds()
             if elapsed < self.cfg.dedup_bars * 300:
+                return None
+
+        # PREREG-OIGATE (2026-09-03): block entries into aggressive OI inflow
+        # (oi_delta_30m > +0.5%), both sides. Fail-open on missing data
+        # (None -> allow). Placed after all free gates so only near-final
+        # candidates pay the OI fetch; before _matches/dedup-mutation so a
+        # data hiccup never suppresses the next legit re-entry.
+        if self.cfg.oi_inflow_gate_enabled:
+            oi_delta = await self._oi_delta_30m(symbol)
+            if oi_delta is not None and oi_delta > self.cfg.oi_inflow_max_pct:
+                logger.info(
+                    "Burst entry blocked", symbol=symbol, session=f["session"],
+                    reason="oi_inflow_gate", oi_delta_30m_pct=oi_delta,
+                    max_pct=self.cfg.oi_inflow_max_pct,
+                )
                 return None
 
         matched, side = self._matches(f, rule, symbol)

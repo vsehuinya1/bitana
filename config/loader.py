@@ -154,6 +154,11 @@ class LiqBurstFollowConfig(BaseModel):
     allowed_btc_regimes: list[str] = Field(default_factory=lambda: ["bear"])
     max_regime_age_bars: int | None = None
     session_rules: dict[str, SessionBurstRule] = Field(default_factory=dict)
+    # PREREG-OIGATE (2026-09-03, owner wire order): block burst entries into
+    # aggressive OI inflow (delta > +0.5%), both sides, fail-open on missing
+    # data. Basis: WLA blocked set -13.2R/584 legs (shadow -11.5R/1411).
+    oi_inflow_gate_enabled: bool = False
+    oi_inflow_max_pct: float = 0.5
 
 
 class EnginesConfig(BaseModel):
@@ -337,6 +342,8 @@ class Secrets(BaseSettings):
     binance_testnet: bool = True
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    # bitana-dashboard.service auth token (shares .env; bot itself does not use it)
+    dashboard_token: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -188,6 +188,12 @@ burst_follow:
   min_burst_volume_30m: 20000
   min_burst_events_30m: 3
   dedup_bars: 3
+  # PREREG-OIGATE (2026-09-03, owner wire order): block burst entries into
+  # aggressive OI inflow (oi_delta_30m > +0.5%), both sides, fail-open on
+  # missing data. Basis: WLA blocked set -13.2R/584 legs. Kill criteria in
+  # RESEARCH_PLAN.md; first blocked-set R-read Sep 6.
+  oi_inflow_gate_enabled: true
+  oi_inflow_max_pct: 0.5
   # 2026-08-30: moved with symbols.defaults (owner 24% -> 10%).
   risk_pct: 10.0
   btc_regime_gate_enabled: true

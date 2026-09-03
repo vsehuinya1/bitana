@@ -124,6 +124,11 @@ def test_wla_parity_full_grid():
     raw_rules = bf_raw["session_rules"]
     for arm, strat in STRATEGY_FOR_ARM.items():
         spec = _STRATEGY_BY_NAME[strat]
+        if arm not in raw_rules:
+            # Session-disable pattern (arm commented out of live yaml):
+            # grid parity is vacuous — the dark-pin contract is covered by
+            # test_disabled_arm_pins_wla_to_zero.
+            continue
         raw_rule = raw_rules[arm]
         mismatches = []
         for wd in WEEKDAYS:
@@ -162,6 +167,26 @@ def test_tuesday_neutral_ny_dark():
     ]:
         resolved = [h for h in HOURS if g.rule.hour_gate_reason(h, wd, regime) is None]
         assert resolved == hours_open, f"wd{wd}/{regime}: {resolved} != {hours_open}"
+
+
+def test_oi_gate_binds_from_live_yaml():
+    """PREREG-OIGATE parity: the WLA mirror's OI gate keys must equal the
+    raw yaml values the live engine reads (independent yaml.safe_load)."""
+    raw = yaml.safe_load(LIVE_YAML.read_text())
+    bf = raw["burst_follow"]
+    from research.signal_shadow import _STRATEGY_BY_NAME
+
+    snap = _STRATEGY_BY_NAME["burst_follow"].live_gates
+    assert snap is not None
+    assert snap.oi_gate_enabled == bool(bf["oi_inflow_gate_enabled"])
+    assert snap.oi_inflow_max_pct == float(bf["oi_inflow_max_pct"])
+    # and the engine-side loader must agree with the same raw yaml
+    from config.loader import LiqBurstFollowConfig
+
+    cfg = LiqBurstFollowConfig(**{k: v for k, v in bf.items()
+                                  if k in LiqBurstFollowConfig.model_fields})
+    assert cfg.oi_inflow_gate_enabled == bool(bf["oi_inflow_gate_enabled"])
+    assert cfg.oi_inflow_max_pct == float(bf["oi_inflow_max_pct"])
 
 
 def test_disabled_arm_pins_wla_to_zero():

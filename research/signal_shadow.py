@@ -483,6 +483,10 @@ class LiveGateSnapshot:
     exclude_weekdays: frozenset[int]
     allowed_regimes: frozenset[str]  # effective: session override or global fallback
     min_decile: int
+    # PREREG-OIGATE (2026-09-03): bound from the live yaml burst_follow block
+    # by _load_live_gate_snapshots — same keys the live engine reads.
+    oi_gate_enabled: bool = False
+    oi_inflow_max_pct: float = 0.5
 
 
 _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
@@ -515,6 +519,10 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
             # engine-exact: session override falls back to the global list
             allowed_regimes=frozenset(rule.allowed_btc_regimes or bf.allowed_btc_regimes),
             min_decile=rule.min_decile,
+            # PREREG-OIGATE: global (non-session) gate keys read from the same
+            # LiqBurstFollowConfig block the live engine's engine gets.
+            oi_gate_enabled=bf.oi_inflow_gate_enabled,
+            oi_inflow_max_pct=bf.oi_inflow_max_pct,
         )
     return snaps
 
@@ -1685,6 +1693,14 @@ class SignalShadow:
             ):
                 would_live = 0
             elif g.min_decile > 0 and (f.get("decile", 0) or 0) < g.min_decile:
+                would_live = 0
+            elif (
+                g.oi_gate_enabled
+                and mkt.oi_delta_30m_pct is not None
+                and mkt.oi_delta_30m_pct > g.oi_inflow_max_pct
+            ):
+                # PREREG-OIGATE (2026-09-03): mirror the live OI-inflow gate —
+                # fail-open on None (same semantics as the engine).
                 would_live = 0
 
         self.conn.execute(

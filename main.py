@@ -39,7 +39,7 @@ from data.candle_manager import CandleManager
 from data.rate_limiter import RateLimiterGroup
 from data.symbol_info import SymbolInfoManager
 from engines.compression_breakout import CompressionBreakoutEngine
-from engines.btc_regime import compute_btc_regime, compute_regime_age_bars
+from engines.btc_regime import compute_btc_regime, compute_regime_age_bars, compute_regime_snapshot
 from engines.liq_burst_follow_engine import BurstFollowState, LiqBurstFollowEngine
 from engines.regime_filter import RegimeFilter
 from engines.squeeze_engine import SqueezeEngine
@@ -251,7 +251,9 @@ class Bitana:
             if self.cfg.engines.squeeze_enabled and self.cfg.squeeze.enabled:
                 sym_engines["squeeze"] = SqueezeEngine(self.cfg.squeeze)
             if burst_enabled and resolved.burst_follow.enabled:
-                sym_engines["burst_follow"] = LiqBurstFollowEngine(resolved.burst_follow)
+                sym_engines["burst_follow"] = LiqBurstFollowEngine(
+                    resolved.burst_follow, rest_client=self.rest_client,
+                )
                 sym_engines["burst_follow_cfg"] = resolved.burst_follow
             self.engines[sym] = sym_engines
 
@@ -368,7 +370,7 @@ class Bitana:
                 try:
                     if (
                         self.cfg.burst_follow.btc_regime_gate_enabled
-                        and time.monotonic() - self._last_btc_regime_fetch >= 3600
+                        and time.monotonic() - self._last_btc_regime_fetch >= 300
                     ):
                         await self._refresh_btc_regime()
                     balance = await self.executor.get_balance()
@@ -536,13 +538,33 @@ class Bitana:
         return True, ""
 
     async def _refresh_btc_regime(self) -> None:
-        """Load BTC 4h bars and compute bull/bear/neutral (shadow-aligned)."""
+        """Load BTC 4h bars and compute bull/bear/neutral (shadow-aligned).
+
+        2026-09-03 ADXBAND (PREREG-ADXBAND, owner-authorized): hysteresis
+        deadband — enter bull/bear at ADX >= 25.5, revert to neutral at
+        ADX < 24.5; bull<->bear sign flips transition immediately while
+        ADX >= 24.5. Kills the boundary flap at ADX ~25 (cron-vs-gate
+        divergence Sep 3 00:15-01:08).
+        """
         try:
             await self.candle_mgr.load_history_from_rest(
                 self.rest_client, "BTCUSDT", "4h", limit=250,
             )
             candles = self.candle_mgr.get_candles("BTCUSDT", "4h")
-            state, dist = compute_btc_regime(candles)
+            snap = compute_regime_snapshot(candles)
+            prev = self._btc_regime
+            if prev in ("bull", "bear"):
+                if snap.adx is not None and snap.adx < 24.5:
+                    state = "neutral"
+                elif snap.state in ("bull", "bear"):
+                    state = snap.state
+                else:
+                    state = prev
+            else:
+                state = snap.state if (
+                    snap.state in ("bull", "bear") and (snap.adx or 0) >= 25.5
+                ) else "neutral"
+            dist = snap.distance_from_ema_pct
             self._btc_regime = state
             self._btc_regime_dist = dist
             self._btc_regime_age_bars = compute_regime_age_bars(candles)
