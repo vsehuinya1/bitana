@@ -1146,3 +1146,34 @@ Gemini-proposed NY bull restructure (drop h14/h16, add h21) tested on the correc
 **Kill criteria (forward):** (K1) blocked-set forward avg > +0.05 R/tr over first 30 legs → unwind knob. (K2) if dist blocks >60% of asia legs over 14 days the threshold is miscalibrated (basis split was 242/392 = 62% in-sample — forward rate materially above that means regime mix shifted; re-split, do not silently keep). (K3) missing-dist (fail-open) >5% of asia evaluations → fix data path before judging.
 
 **Timeline:** counts-only Sep 6; formal verdict at the asia re-arm decision, whichever comes later. **Scope:** asia arm only; no other config touched; asia ENABLEMENT unchanged (still owner-gated).
+
+## 2026-09-04T09:20Z — PREREG-BEAR-* : bear-regime playbook (owner-ordered registration; wiring NOW while bull = zero behavior change until the flip)
+
+**Verification basis (research/bear_verify_20260904.py, all Gemini claims re-measured):** headline table reproduces exactly (LONG 2,816 +0.0473 / SHORT 2,107 −0.0423 / n=4,923). CORRECTIONS found: London bear SHORTs −7.31R (not −38.62); h21 short REFUTED (below); symbol table not reproducible (UNI +2.88 measured, WLD +15.98 measured — Gemini had both as bleeders); asia bear −0.37R/46. **Era finding (the big one): July bear n=3,263 +69.4R vs August bear n=1,660 −25.4R** — the pooled bear book is 60% July; the most recent bear was net-negative for the whole shadow book. All bear cells carry a storm-day concentration signature (top-days 51–62%). Every number below is read with that caveat.
+
+### PREREG-BEAR-NY (wired now, activates only at the ADXBAND bear flip)
+- **Wire:** `ny.allowed_btc_regimes: ["neutral","bull","bear"]`; `regime_hours.bear: [14,15,20]`; `regime_stop_atr.bear: 10.0`. Neutral (h16–17 + Tue exclusions) and bull (Fri-scoped h18/20) cells unchanged.
+- **Basis (in-sample, disclosed verbatim):** ny_flush_buy_4h bear all-hours n=80 +5.47R WR65.0% — **top-day Aug-16 62%**; Gemini hours 14/15/20 n=21 +4.81R avg +0.229 WR71.4% — **top-day Jul-29 55%**; hours 16–19 +0.66R/59 (flat, excluded). Concentration standard NOT met in-sample — registered as G0 with kill criteria front-loaded.
+- **Frozen kill criteria:** (K1) forward bear-cell avgR < −0.02 R/tr at n≥20 → revert allowed_btc_regimes to [neutral,bull]. (K2) top-day >40% of forward ΣR at n≥20 → suspend cell + re-register. (K3) excluded_weekday_hours interplay: bear h20 is dropped Tue(1)/Thu(3) by the existing map — accepted; Friday keeps h20.
+- **Why wire now:** regime gate makes it inert in bull; deferring to the flip recreates the Sep-1 stale-config failure mode.
+
+### PREREG-BEAR-LON (wired now, activates only at the flip)
+- **Wire:** `london.allowed_btc_regimes: ["bull","bear"]` — burst_follow LONG-only pin + hours [9,10,11,13] unchanged.
+- **Basis:** burst_follow LON bear LONG n=77 +5.21R avg +0.068 WR66.2% — **top-day Jul-6 53%**; LON bear SHORT n=130 −7.31R avg −0.056 (LONG pin already blocks these).
+- **Frozen kill criteria:** (K1) forward avgR < −0.02 at n≥30 → revert to [bull]. (K2) top-day >40% at n≥30 → suspend + re-register.
+- **NOT wired (separate decision):** setup_fade_london LONG h10-12 bear (n=69 +9.51R avg +0.138, top-day 31% ✓ — the strongest bear cell) requires wiring the strategy itself, which rides the PREREG-LNC engine-integration decision (formal Sep 20). Preregistered here as BEAR-LON-2: on LN-C promotion, the bear extension is pre-approved with the same kill criteria.
+
+### PREREG-BEAR-A (tracking only — variant strategies already accrue; no wiring)
+- 4h vs 8h vs 24h exit horizons on NY bear flushes. Basis: ny_flush_buy_24h bear n=41 +11.45R (real shadow variant, not MFE artifact); 8h variant accrues in parallel.
+- **Promotion bar (adopted from review, frozen):** n≥25, E[R]8h−E[R]4h ≥ +0.05 R/tr, forward DD not worse by >20%. Else stay 4h.
+
+### PREREG-BEAR-C (tracking only — condition, not a gate)
+- hi-cascade (entry_cascade_strength≥0.4 AND market_liq_flow_usd≥500k) bear LONG legs: measured n=94 WR78.7% avg +0.216 R/tr vs lo-cascade n=2,116 WR55.7% avg +0.035. WR claim verified; hard-gating would trade away 78% of volume for 22% of R.
+- **Forward tracking:** monthly hi-vs-lo split. **Promotion bar (frozen):** hi-cascade forward avgR ≥ +0.10 R/tr at n≥30 AND coverage ≥15% of bear legs → then consider soft weight. Hard gate requires a separate owner decision.
+
+### REFUSALS (decision log — final unless new data)
+- **BEAR-B h21 NY SHORT: REFUTED.** Measured n=51 +1.20R WR62.7% (not 36/+2.84/75%) and top-day Jul-6 = 209% of ΣR — fails Gemini's own ≤40% bar; ex-top-day negative. No arm.
+- **BEAR symbol table: REFUSED as unreproducible** (UNI +2.88 and WLD +15.98 measured positive; Gemini had both as bleeders). FIL is the only standing-rule removal (n=186, avg −0.1005, 11 days) — handled by the existing n≥100/≥5d/avg<−0.10 rule, regime-independent.
+- **BEAR-D ADX>35: PARKED — zero in-sample data** (no bear leg has btc_adx>35 in the book). Speculation; revisit only when such bars exist.
+
+**Global kill criteria (all bear cells):** era-mix guard — if the bear flip comes with July-style tape (measured by first-20-forward-leg top-day >40% OR forward avgR < 0 at n≥20 on ANY wired cell) → all bear cells revert to [bull-only/neut-only] in one revert commit; re-registration required. First reads ride the Sunday loops; formal Sep 20; ext Nov 8.

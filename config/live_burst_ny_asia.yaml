@@ -262,6 +262,11 @@ burst_follow:
         # 2026-08-28 same-day owner call: Wed h20 wired (+4.25R n6, 6/6 win, spread
         # Jul22 +0.52 / Aug26 +3.73 — two Wednesdays); h18 Wed stays locked (+0.08R n3).
         bull: [14, 16, 17, 18, 19, 20]
+        # PREREG-BEAR-NY (2026-09-04, owner order): bear flush-bounce hours.
+        # Basis: bear n=21 +4.81R avg +0.229 WR71.4% — top-day Jul-29 55%,
+        # concentration caveat frozen as kill criteria in RESEARCH_PLAN.md.
+        # h20 auto-dropped Tue/Thu by excluded_weekday_hours below.
+        bear: [14, 15, 20]
       # 2026-08-26 owner instruction ("set the correct hours"): Tue-only drop of
       # h17/h19. ny_flush book (n=661 closed LONGs, live weekdays): Tue h17
       # -31.2R avg -3.9 (bull-regime -25.7), Tue h19 -16.8 vs Wed/Fri cells
@@ -290,7 +295,9 @@ burst_follow:
       regime_stop_atr:
         bull: 8.0
         neutral: 6.0
-      allowed_btc_regimes: ["neutral", "bull"]
+        # PREREG-BEAR-NY: static 10-ATR stop in bear (per registration).
+        bear: 10.0
+      allowed_btc_regimes: ["neutral", "bull", "bear"]
       stop_atr: 10.0
       tp_atr: 999.0
       time_bars: 48
@@ -327,7 +334,12 @@ burst_follow:
       exclude_weekdays: [5, 6]
       # h9/h10/h11/h13 only — h8+h12 dropped (owner, Aug26), h14+ is NY territory.
       hours: [9, 10, 11, 13]
-      allowed_btc_regimes: ["bull"]
+      # PREREG-BEAR-LON (2026-09-04, owner order): bear dip-buy extension.
+      # Basis: bear LONG n=77 +5.21R avg +0.068 WR66.2% (top-day 53% — kill
+      # criteria frozen in RESEARCH_PLAN.md); bear SHORT n=130 -7.31R stays
+      # blocked by the allowed_side: LONG pin above. Kill: forward avgR <-0.02
+      # at n>=30 or top-day >40% -> revert to [bull].
+      allowed_btc_regimes: ["bull", "bear"]
       stop_atr: 10.0
       tp_atr: 3.0
       time_bars: 6
