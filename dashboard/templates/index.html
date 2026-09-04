@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0b0f19">
+    <title>Bitana Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --bg-card: #111827;
+            --bg-hover: #1e293b;
+            --border: #1e293b;
+            --border-hi: #334155;
+            --text: #f1f5f9;
+            --text-2: #94a3b8;
+            --text-3: #64748b;
+            --green: #22c55e;
+            --green-bg: rgba(34,197,94,0.1);
+            --red: #ef4444;
+            --red-bg: rgba(239,68,68,0.1);
+            --amber: #f59e0b;
+            --amber-bg: rgba(245,158,11,0.1);
+            --blue: #3b82f6;
+            --blue-bg: rgba(59,130,246,0.1);
+            --purple: #8b5cf6;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            --mono: 'SF Mono', SFMono-Regular, 'Cascadia Code', 'Fira Code', Consolas, monospace;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Header --- */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(11,15,25,0.82);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-l { display: flex; align-items: center; gap: 10px; }
+        .header-l h1 {
+            font-size: 18px; font-weight: 700; letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header-r { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+
+        .badge {
+            font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .b-live  { background: var(--green-bg); color: var(--green); }
+        .b-paper { background: var(--blue-bg);  color: var(--blue); }
+        .b-off   { background: var(--red-bg);   color: var(--red); }
+
+        .dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+            flex-shrink: 0;
+        }
+        .dot.on  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        .dot.off { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+        .dot.psd { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+        /* --- Connection banner --- */
+        .conn { display: none; background: var(--red-bg); color: var(--red); text-align: center; padding: 8px; font-size: 13px; font-weight: 500; }
+        .conn.show { display: block; }
+
+        /* --- Main --- */
+        .dash { padding: 16px; max-width: 1200px; margin: 0 auto; }
+
+        /* --- Cards --- */
+        .cards { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-bottom: 20px; }
+        @media (min-width:768px) { .cards { grid-template-columns: repeat(4,1fr); gap: 16px; } }
+
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 16px;
+            transition: border-color .2s;
+        }
+        .card:hover { border-color: var(--border-hi); }
+        .card-lbl {
+            font-size: 11px; font-weight: 600; color: var(--text-3);
+            letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+        }
+        .card-val { font-size: 22px; font-weight: 700; font-family: var(--mono); line-height: 1.2; }
+        @media (min-width:768px) { .card-val { font-size: 26px; } }
+        .card-sub { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+
+        .prog-track { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .prog-fill  { height: 100%; border-radius: 2px; transition: width .5s ease; }
+
+        /* --- Sections --- */
+        .sec { margin-bottom: 24px; }
+        .sec h2 {
+            font-size: 14px; font-weight: 600; color: var(--text-2);
+            letter-spacing: .5px; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .cnt {
+            font-size: 11px; background: var(--blue-bg); color: var(--blue);
+            padding: 1px 7px; border-radius: 10px; font-weight: 600;
+        }
+
+        /* --- Positions --- */
+        .pos-grid { display: grid; gap: 10px; }
+        @media (min-width:768px) { .pos-grid { grid-template-columns: repeat(2,1fr); } }
+
+        .pos-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 14px;
+        }
+        .pos-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .pos-sym { font-weight: 700; font-size: 15px; font-family: var(--mono); }
+        .pos-side {
+            font-size: 11px; font-weight: 700; padding: 2px 8px;
+            border-radius: 4px; letter-spacing: .5px;
+        }
+        .pos-side.long  { background: var(--green-bg); color: var(--green); }
+        .pos-side.short { background: var(--red-bg);   color: var(--red); }
+
+        .pos-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+        .pos-r { display: flex; justify-content: space-between; font-size: 13px; }
+        .pos-rl { color: var(--text-3); }
+        .pos-rv { font-family: var(--mono); font-weight: 500; }
+
+        /* --- Empty state --- */
+        .empty {
+            text-align: center; padding: 32px 16px; color: var(--text-3);
+            font-size: 14px; background: var(--bg-card);
+            border: 1px dashed var(--border); border-radius: var(--radius);
+        }
+
+        /* --- Regime & Session --- */
+        .regime-panel {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 16px; margin-bottom: 24px;
+        }
+        .regime-top {
+            display: flex; gap: 16px; flex-wrap: wrap;
+            margin-bottom: 16px; align-items: center;
+        }
+        .regime-item { display: flex; flex-direction: column; gap: 2px; }
+        .regime-item .ri-lbl {
+            font-size: 11px; font-weight: 600; color: var(--text-3);
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .regime-item .ri-val {
+            font-size: 18px; font-weight: 700; font-family: var(--mono);
+        }
+        .regime-bull { color: var(--green); }
+        .regime-bear { color: var(--red); }
+        .regime-neutral { color: var(--amber); }
+
+        .sess-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .sess-badge {
+            font-size: 11px; font-weight: 600; padding: 3px 10px;
+            border-radius: 6px; letter-spacing: .5px;
+            border: 1px solid var(--border); color: var(--text-3);
+            background: transparent;
+        }
+        .sess-badge.active {
+            border-color: var(--blue); color: var(--blue);
+            background: var(--blue-bg);
+        }
+
+        .setup-matrix { margin-top: 12px; }
+        .setup-matrix table { font-size: 12px; }
+        .setup-matrix th { font-size: 10px; padding: 6px 8px; }
+        .setup-matrix td { padding: 6px 8px; font-family: var(--font); font-size: 12px; }
+        .setup-matrix td.active-row { background: rgba(59,130,246,.06); }
+        .setup-lbl { font-family: var(--font); font-weight: 600; }
+        .chk { color: var(--green); }
+        .blk { color: var(--text-3); }
+
+        /* --- Chart --- */
+        .chart-wrap {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 16px; height: 260px;
+            position: relative;
+        }
+
+        /* --- Tables --- */
+        .tbl-wrap {
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+        th {
+            text-align: left; font-size: 11px; font-weight: 600; color: var(--text-3);
+            letter-spacing: .5px; text-transform: uppercase;
+            padding: 10px 12px; border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; background: var(--bg-card);
+        }
+        td {
+            padding: 8px 12px; border-bottom: 1px solid rgba(30,41,59,.5);
+            font-family: var(--mono); font-size: 12px;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(30,41,59,.3); }
+
+        /* --- Stats grid --- */
+        .st-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+        @media (min-width:768px) { .st-grid { grid-template-columns: repeat(3,1fr); } }
+
+        .st-item {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 14px; text-align: center;
+        }
+        .st-lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .st-val { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+
+        /* --- Utility --- */
+        .green { color: var(--green); }
+        .red   { color: var(--red); }
+        .amber { color: var(--amber); }
+        .blue  { color: var(--blue); }
+
+        /* --- Footer --- */
+        .foot {
+            padding: 12px 16px; text-align: center; font-size: 12px;
+            color: var(--text-3); border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+
+<div class="conn" id="conn">⚠ Connection lost — retrying…</div>
+
+<header class="header">
+    <div class="header-l">
+        <h1>BITANA</h1>
+        <span class="badge b-off" id="mode">—</span>
+    </div>
+    <div class="header-r">
+        <span class="dot off" id="dot"></span>
+        <span id="uptime">—</span>
+    </div>
+</header>
+
+<main class="dash">
+    <!-- Metric Cards -->
+    <section class="cards">
+        <div class="card">
+            <div class="card-lbl">Equity</div>
+            <div class="card-val" id="equity">—</div>
+            <div class="card-sub" id="peak">Peak: —</div>
+        </div>
+        <div class="card">
+            <div class="card-lbl">Drawdown</div>
+            <div class="card-val" id="dd">—</div>
+            <div class="prog-track"><div class="prog-fill" id="dd-bar" style="width:0"></div></div>
+        </div>
+        <div class="card">
+            <div class="card-lbl">Risk</div>
+            <div class="card-val" id="rsk">—</div>
+            <div class="card-sub" id="rsk-d">—</div>
+        </div>
+        <div class="card">
+            <div class="card-lbl">Brakes</div>
+            <div class="card-val" id="brk">—</div>
+            <div class="card-sub" id="brk-d">—</div>
+        </div>
+    </section>
+
+    <!-- BTC Regime & Session -->
+    <section class="sec">
+        <h2>Regime &amp; Session</h2>
+        <div class="regime-panel">
+            <div class="regime-top">
+                <div class="regime-item">
+                    <span class="ri-lbl">BTC Regime</span>
+                    <span class="ri-val" id="regime">—</span>
+                </div>
+                <div class="regime-item">
+                    <span class="ri-lbl">EMA Distance</span>
+                    <span class="ri-val" id="ema-dist">—</span>
+                </div>
+                <div class="regime-item">
+                    <span class="ri-lbl">Session</span>
+                    <div class="sess-badges" id="sess-badges">
+                        <span class="sess-badge" data-s="asia">ASIA</span>
+                        <span class="sess-badge" data-s="london">LONDON</span>
+                        <span class="sess-badge" data-s="ny">NY</span>
+                        <span class="sess-badge" data-s="late">LATE</span>
+                    </div>
+                </div>
+                <div class="regime-item">
+                    <span class="ri-lbl">UTC</span>
+                    <span class="ri-val" id="utc-time" style="font-size:14px">—</span>
+                </div>
+            </div>
+            <div class="setup-matrix tbl-wrap" id="setup-matrix"></div>
+            <div class="tbl-wrap" id="gate-panel" style="margin-top:12px"></div>
+        </div>
+    </section>
+
+    <!-- Open Positions -->
+    <section class="sec">
+        <h2>Open Positions <span class="cnt" id="pc">0</span></h2>
+        <div class="pos-grid" id="pg">
+            <div class="empty">No open positions</div>
+        </div>
+    </section>
+
+    <!-- Cumulative P&L Chart -->
+    <section class="sec">
+        <h2>Cumulative P&amp;L</h2>
+        <div class="chart-wrap">
+            <canvas id="chart"></canvas>
+        </div>
+    </section>
+
+    <!-- Recent Trades -->
+    <section class="sec">
+        <h2>Recent Trades <span class="cnt" id="tc">0</span></h2>
+        <div class="tbl-wrap">
+            <table>
+                <thead><tr>
+                    <th>Time</th><th>Symbol</th><th>Side</th>
+                    <th>Entry</th><th>Exit</th><th>PnL</th><th>R</th><th>Reason</th>
+                </tr></thead>
+                <tbody id="tb"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="sec">
+        <h2>Performance</h2>
+        <div class="st-grid" id="sg"></div>
+    </section>
+
+    <!-- Transfers -->
+    <section class="sec">
+        <h2>Transfers <span class="cnt" id="xc">0</span></h2>
+        <div class="tbl-wrap">
+            <table>
+                <thead><tr>
+                    <th>Time</th><th>Direction</th><th>Amount</th><th>Asset</th><th>Equity After</th>
+                </tr></thead>
+                <tbody id="xb"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<footer class="foot">
+    <span id="lr">Connecting…</span> · Auto-refresh 15s
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+'use strict';
+
+const TK = new URLSearchParams(location.search).get('token') || '';
+const API = '/api/dashboard?token=' + encodeURIComponent(TK);
+const INT = 15000;
+let _chart = null;
+let _fails = 0;
+
+/* ---- helpers ---- */
+
+const $ = id => document.getElementById(id);
+
+function fmt$(n) {
+    if (n == null || isNaN(n)) return '—';
+    return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtS$(n) {
+    if (n == null || isNaN(n)) return '—';
+    const p = n >= 0 ? '+$' : '-$';
+    return p + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtR(n) {
+    if (n == null || isNaN(n)) return '—';
+    return (n >= 0 ? '+' : '') + n.toFixed(2) + 'R';
+}
+
+function fmtP(n) {
+    if (n == null || isNaN(n)) return '—';
+    return Math.abs(n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : n >= 1 ? n.toFixed(4) : n.toFixed(6));
+}
+
+function fmtT(iso) {
+    if (!iso) return '—';
+    try {
+        return new Date(iso + (iso.endsWith('Z') || iso.includes('+') ? '' : 'Z'))
+            .toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch { return iso; }
+}
+
+function fmtMs(ms) { return ms ? fmtT(new Date(ms).toISOString()) : '—'; }
+
+function fmtUp(s) {
+    if (!s) return '—';
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    return d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+}
+
+function clr(n) { return n > 0 ? 'green' : n < 0 ? 'red' : ''; }
+
+/* ---- updaters ---- */
+
+function uStatus(d) {
+    const b = d.bot || {}, br = d.brakes || {};
+    const dot = $('dot'), badge = $('mode');
+
+    if (!b.online) {
+        dot.className = 'dot off';
+        badge.textContent = 'OFFLINE'; badge.className = 'badge b-off';
+    } else if (br.is_shutdown) {
+        dot.className = 'dot off';
+        badge.textContent = 'SHUTDOWN'; badge.className = 'badge b-off';
+    } else if (br.is_paused) {
+        dot.className = 'dot psd';
+        badge.textContent = 'PAUSED'; badge.className = 'badge b-off';
+    } else {
+        dot.className = 'dot on';
+        const m = (b.mode || 'unknown').toUpperCase();
+        badge.textContent = m;
+        badge.className = 'badge ' + (m === 'LIVE' ? 'b-live' : 'b-paper');
+    }
+    $('uptime').textContent = b.uptime_s ? fmtUp(b.uptime_s) : '—';
+}
+
+/* Session arms are served by the bot's /metrics endpoint (arms + oi_gate)
+ * from the RUNNING config — no client-side hardcode. Stale SESSION_RULES
+ * removed 2026-09-04 (it showed asia bull-allowed and NY h14-15, both wrong). */
+
+const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function uRegime(d) {
+    const m = (d.bot && d.bot.metrics) || {};
+    const regime = m.btc_regime;
+    const dist = m.btc_regime_dist;
+    const session = m.session;
+    const hour = m.utc_hour;
+    const weekday = m.utc_weekday;
+
+    /* Regime display */
+    const re = $('regime');
+    if (regime) {
+        re.textContent = regime.toUpperCase();
+        re.className = 'ri-val regime-' + regime;
+    } else {
+        re.textContent = '—';
+        re.className = 'ri-val';
+    }
+
+    /* EMA distance */
+    $('ema-dist').textContent = dist != null ? (dist >= 0 ? '+' : '') + dist.toFixed(2) + '%' : '—';
+
+    /* Session badges */
+    document.querySelectorAll('.sess-badge').forEach(b => {
+        b.classList.toggle('active', b.dataset.s === session);
+    });
+
+    /* UTC time */
+    $('utc-time').textContent = hour != null ? String(hour).padStart(2,'0') + ':xx UTC · ' + (weekday != null ? DAY_NAMES[weekday] : '') : '—';
+
+    /* Setup matrix table — data-driven from /metrics arms (running config) */
+    const regimes = ['bull', 'neutral', 'bear'];
+    let html = '<table><thead><tr><th>Session</th><th>Strategy</th><th>Side</th><th>Hours</th><th>Skip Days</th><th>Exit</th>';
+    regimes.forEach(r => { html += `<th>${r.charAt(0).toUpperCase() + r.slice(1)}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    const armsData = (m.arms && m.arms.arms) || {};
+    const fmtH = hs => (hs || []).map(h => String(h).padStart(2, '0')).join(', ');
+    ['asia', 'london', 'ny', 'late'].forEach(s => {
+        const isActive = session === s;
+        const rowCls = isActive ? ' class="active-row"' : '';
+        const rule = armsData[s];
+        if (!rule) {
+            html += `<tr>`;
+            html += `<td${rowCls}><span class="setup-lbl${isActive ? ' blue' : ''}">${s.toUpperCase()}${isActive ? ' ◀' : ''}</span></td>`;
+            html += `<td${rowCls} colspan="5" style="color:var(--text-3)">No active strategy</td>`;
+            regimes.forEach(() => { html += `<td${rowCls}><span class="blk">—</span></td>`; });
+            html += '</tr>';
+            return;
+        }
+        const skipLbl = (rule.skip_days || []).length
+            ? rule.skip_days.map(d => DAY_NAMES[d]).join(', ') : '—';
+        let hoursLbl = fmtH(rule.hours_base) || '—';
+        if (rule.regime_hours && Object.keys(rule.regime_hours).length) {
+            const parts = Object.entries(rule.regime_hours).map(([rg, hs]) => `${rg}: ${fmtH(hs)}`);
+            hoursLbl = `${fmtH(rule.hours_base)}<br><span style="color:var(--text-2)">${parts.join(' · ')}</span>`;
+        }
+        const decLbl = `dec≥${rule.min_decile} · imb≥${rule.min_imb}` +
+            (rule.dist_cap != null ? ` · dist≤${rule.dist_cap}%` : '');
+        const exitLbl = `${rule.time_bars} bars · ${rule.time_exit_only ? 'time-exit' : 'SL' + rule.stop_atr + '/TP' + rule.tp_atr}`;
+        const armedBadge = rule.armed_now ? ' <span class="chk">● ARMED</span>' : '';
+
+        html += `<tr>`;
+        html += `<td${rowCls}><span class="setup-lbl${isActive ? ' blue' : ''}">${s.toUpperCase()}${isActive ? ' ◀' : ''}</span>${isActive ? armedBadge : ''}</td>`;
+        html += `<td${rowCls}>${rule.strategy}<br><span style="color:var(--text-2)">${decLbl}</span></td>`;
+        html += `<td${rowCls}>${rule.side}</td>`;
+        html += `<td${rowCls}>${hoursLbl}</td>`;
+        html += `<td${rowCls}>${skipLbl}${isActive && weekday != null && (rule.skip_days || []).includes(weekday) ? ' 🚫' : ''}</td>`;
+        html += `<td${rowCls}>${exitLbl}</td>`;
+
+        regimes.forEach(r => {
+            const allowed = rule.regimes.includes(r);
+            const isCurrent = r === regime;
+            let cell = allowed ? '<span class="chk">✓</span>' : '<span class="blk">✗</span>';
+            if (isCurrent && isActive) {
+                cell = allowed
+                    ? '<span class="chk" style="font-weight:700">✓ NOW</span>'
+                    : '<span class="red" style="font-weight:700">✗ BLOCKED</span>';
+            }
+            html += `<td${rowCls}>${cell}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    $('setup-matrix').innerHTML = html;
+
+    /* OI gate panel */
+    const gp = $('gate-panel');
+    if (gp) {
+        const g = m.oi_gate || {};
+        const st = g.stats || {};
+        const last = st.last_block;
+        gp.innerHTML =
+            `<div><span class="setup-lbl">OI GATE</span> ${g.enabled
+                ? `<span class="chk">ARMED</span> — blocks entry when ΔOI(30m) > +${g.max_pct}%`
+                : '<span class="blk">OFF</span>'}</div>` +
+            `<div style="color:var(--text-2)">blocked since restart: OI ${st.oi_inflow_gate || 0} · dist-cap ${st.btc_dist_cap || 0}</div>` +
+            `<div style="color:var(--text-2)">${last
+                ? `last block: ${last.reason} · ${last.symbol} · ${last.session} · ${last.detail} · ${String(last.ts).slice(11, 16)}Z`
+                : 'no blocks since restart'}</div>` +
+            `<div style="color:var(--text-3)">asia dist-cap 5.0% arms on asia re-arm (asia currently disabled)</div>`;
+    }
+}
+
+function uCards(d) {
+    const r = d.risk || {}, br = d.brakes || {};
+
+    /* equity */
+    $('equity').textContent = fmt$(r.current_equity);
+    $('peak').textContent = 'Peak: ' + fmt$(r.peak_equity);
+
+    /* drawdown */
+    const dd = r.current_drawdown_pct || 0;
+    const ddP = (dd * 100).toFixed(2);
+    $('dd').textContent = '-' + ddP + '%';
+    $('dd').className = 'card-val ' + (dd > .15 ? 'red' : dd > .05 ? 'amber' : 'green');
+    const bar = $('dd-bar');
+    bar.style.width = Math.min(dd / .5 * 100, 100) + '%';
+    bar.style.background = dd > .15 ? 'var(--red)' : dd > .05 ? 'var(--amber)' : 'var(--green)';
+
+    /* risk */
+    $('rsk').textContent = (r.risk_pct_active || 0).toFixed(1) + '%';
+    const bits = [];
+    if (r.consecutive_losses > 0) bits.push(r.consecutive_losses + ' losses');
+    if (r.reduced_risk_trades_remaining > 0) bits.push(r.reduced_risk_trades_remaining + ' reduced left');
+    $('rsk-d').textContent = bits.length ? bits.join(' · ') : 'Normal';
+
+    /* brakes */
+    if (br.is_shutdown) {
+        $('brk').textContent = '🔴 SHUTDOWN'; $('brk').className = 'card-val red';
+    } else if (br.is_paused) {
+        $('brk').textContent = '🟡 PAUSED'; $('brk').className = 'card-val amber';
+    } else {
+        $('brk').textContent = '🟢 Clear'; $('brk').className = 'card-val green';
+    }
+    let bi = 'Daily loss: ' + fmtS$(br.daily_realized_loss || 0);
+    if (br.pause_reason) bi += ' · ' + br.pause_reason;
+    $('brk-d').textContent = bi;
+}
+
+function uPos(pos) {
+    const g = $('pg');
+    $('pc').textContent = pos.length;
+    if (!pos.length) { g.innerHTML = '<div class="empty">No open positions</div>'; return; }
+
+    g.innerHTML = pos.map(p => `
+        <div class="pos-card">
+            <div class="pos-hd">
+                <span class="pos-sym">${p.symbol}</span>
+                <span class="pos-side ${p.side.toLowerCase()}">${p.side}</span>
+            </div>
+            <div class="pos-rows">
+                <div class="pos-r"><span class="pos-rl">Entry</span><span class="pos-rv">${fmtP(p.entry_price)}</span></div>
+                <div class="pos-r"><span class="pos-rl">Stop</span><span class="pos-rv red">${fmtP(p.stop_price)}</span></div>
+                <div class="pos-r"><span class="pos-rl">R</span><span class="pos-rv ${clr(p.risk_r)}">${fmtR(p.risk_r)}</span></div>
+                <div class="pos-r"><span class="pos-rl">Leverage</span><span class="pos-rv">${p.leverage}x</span></div>
+                <div class="pos-r"><span class="pos-rl">Engine</span><span class="pos-rv">${p.engine}</span></div>
+                <div class="pos-r"><span class="pos-rl">Held</span><span class="pos-rv">${p.candles_held} bars</span></div>
+                <div class="pos-r"><span class="pos-rl">State</span><span class="pos-rv">${p.state}</span></div>
+                <div class="pos-r"><span class="pos-rl">Qty</span><span class="pos-rv">${p.quantity}</span></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function uTrades(trades) {
+    $('tc').textContent = trades.length;
+    const b = $('tb');
+    if (!trades.length) { b.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-3)">No trades yet</td></tr>'; return; }
+
+    b.innerHTML = trades.map(t => `<tr>
+        <td>${fmtT(t.timestamp)}</td>
+        <td>${t.symbol.replace('USDT','')}</td>
+        <td class="${t.side === 'LONG' ? 'green' : 'red'}">${t.side}</td>
+        <td>${fmtP(t.entry_price)}</td>
+        <td>${fmtP(t.exit_price)}</td>
+        <td class="${clr(t.pnl_usd)}">${fmtS$(t.pnl_usd)}</td>
+        <td class="${clr(t.pnl_r)}">${fmtR(t.pnl_r)}</td>
+        <td>${t.exit_reason}</td>
+    </tr>`).join('');
+}
+
+function uXfers(xfers) {
+    $('xc').textContent = xfers.length;
+    const b = $('xb');
+    if (!xfers.length) { b.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-3)">No transfers</td></tr>'; return; }
+
+    b.innerHTML = xfers.map(t => `<tr>
+        <td>${fmtMs(t.event_time_ms)}</td>
+        <td class="${t.direction === 'in' ? 'green' : 'red'}">${t.direction === 'in' ? '↗ IN' : '↙ OUT'}</td>
+        <td class="${t.direction === 'in' ? 'green' : 'red'}">${fmt$(Math.abs(t.amount))}</td>
+        <td>${t.asset}</td>
+        <td>${t.equity_after != null ? fmt$(t.equity_after) : '—'}</td>
+    </tr>`).join('');
+}
+
+function uStats(s) {
+    if (!s) return;
+    const pf = s.profit_factor;
+    const items = [
+        ['Total Trades', s.total_trades, ''],
+        ['Win Rate', s.win_rate + '%', s.win_rate >= 50 ? 'green' : 'red'],
+        ['Expectancy', fmtR(s.expectancy_r), clr(s.expectancy_r)],
+        ['Profit Factor', pf > 99 ? '∞' : (pf || 0).toFixed(2), pf >= 1 ? 'green' : 'red'],
+        ['Total P&L', fmtS$(s.total_pnl), clr(s.total_pnl)],
+        ['Best / Worst', fmtS$(s.best_trade) + ' / ' + fmtS$(s.worst_trade), ''],
+    ];
+    $('sg').innerHTML = items.map(([l, v, c]) =>
+        `<div class="st-item"><div class="st-lbl">${l}</div><div class="st-val ${c}">${v}</div></div>`
+    ).join('');
+}
+
+function uChart(curve) {
+    const canvas = $('chart');
+    if (!curve || curve.length < 2) {
+        if (_chart) { _chart.destroy(); _chart = null; }
+        return;
+    }
+
+    const labels = curve.map(p => p.t ? fmtT(p.t) : 'Start');
+    const vals = curve.map(p => p.v);
+    const last = vals[vals.length - 1] || 0;
+    const lnC = last >= 0 ? '#22c55e' : '#ef4444';
+    const bgC = last >= 0 ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)';
+
+    if (_chart) {
+        _chart.data.labels = labels;
+        _chart.data.datasets[0].data = vals;
+        _chart.data.datasets[0].borderColor = lnC;
+        _chart.data.datasets[0].backgroundColor = bgC;
+        _chart.update('none');
+        return;
+    }
+
+    _chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: vals,
+                borderColor: lnC,
+                backgroundColor: bgC,
+                borderWidth: 2,
+                fill: true,
+                pointRadius: 0,
+                pointHitRadius: 8,
+                tension: .3,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtS$(c.parsed.y) } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxRotation: 0, maxTicksLimit: 6, font: { size: 10 } }, grid: { color: 'rgba(30,41,59,.5)' } },
+                y: { ticks: { color: '#64748b', callback: v => '$' + v.toLocaleString(), font: { size: 10 } }, grid: { color: 'rgba(30,41,59,.5)' } },
+            },
+            interaction: { intersect: false, mode: 'index' },
+        }
+    });
+}
+
+/* ---- main loop ---- */
+
+async function refresh() {
+    try {
+        const r = await fetch(API);
+        if (r.status === 403) {
+            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#ef4444;font-size:18px;font-family:sans-serif">🔒 Invalid token</div>';
+            return;
+        }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+
+        const d = await r.json();
+        uStatus(d);
+        uRegime(d);
+        uCards(d);
+        uPos(d.positions || []);
+        uTrades(d.trades || []);
+        uXfers(d.transfers || []);
+        uStats(d.stats);
+        uChart(d.pnl_curve);
+
+        $('lr').textContent = 'Updated ' + new Date().toLocaleTimeString();
+        $('conn').classList.remove('show');
+        _fails = 0;
+    } catch (e) {
+        console.error('Refresh failed:', e);
+        if (++_fails >= 2) $('conn').classList.add('show');
+    }
+}
+
+refresh();
+setInterval(refresh, INT);
+</script>
+</body>
+</html>

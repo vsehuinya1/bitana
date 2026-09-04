@@ -74,6 +74,11 @@ def _resolve_side(mode: SideMode, imb: float) -> Side | None:
 class LiqBurstFollowEngine:
     """Engine: session-specific burst follow/fade with shadow-aligned exits."""
 
+    # Gate observability (PREREG-OIGATE/DISTCAP): class-level so the main
+    # process metrics endpoint can expose cross-symbol counters to the
+    # dashboard. Counters reset on process restart.
+    gate_stats: dict = {"oi_inflow_gate": 0, "btc_dist_cap": 0, "last_block": None}
+
     def __init__(
         self,
         cfg: LiqBurstFollowConfig,
@@ -370,6 +375,12 @@ class LiqBurstFollowEngine:
             and btc_regime_dist is not None
             and btc_regime_dist > rule.btc_dist_max_pct
         ):
+            type(self).gate_stats["btc_dist_cap"] += 1
+            type(self).gate_stats["last_block"] = {
+                "reason": "btc_dist_cap", "symbol": symbol,
+                "session": f["session"], "ts": bar_time.isoformat(),
+                "detail": f"dist={btc_regime_dist}% > {rule.btc_dist_max_pct}%",
+            }
             logger.info(
                 "Burst entry blocked", symbol=symbol, session=f["session"],
                 reason="btc_dist_cap", btc_dist_pct=btc_regime_dist,
@@ -397,6 +408,12 @@ class LiqBurstFollowEngine:
         if self.cfg.oi_inflow_gate_enabled:
             oi_delta = await self._oi_delta_30m(symbol)
             if oi_delta is not None and oi_delta > self.cfg.oi_inflow_max_pct:
+                type(self).gate_stats["oi_inflow_gate"] += 1
+                type(self).gate_stats["last_block"] = {
+                    "reason": "oi_inflow_gate", "symbol": symbol,
+                    "session": f["session"], "ts": bar_time.isoformat(),
+                    "detail": f"oi_delta_30m={oi_delta}%",
+                }
                 logger.info(
                     "Burst entry blocked", symbol=symbol, session=f["session"],
                     reason="oi_inflow_gate", oi_delta_30m_pct=oi_delta,

@@ -956,8 +956,54 @@ class Bitana:
             "stats": {},
         }
 
+    def _arms_snapshot(self) -> dict:
+        """Running-config arm data for the dashboard (source of truth = the
+        loaded config, not the yaml text). armed_now is indicative: regime +
+        resolved-hours + weekday checks; excluded_weekday_regime_hours
+        micro-exclusions are applied inside the engine's hour_gate_reason."""
+        from engines.liq_burst_follow_engine import _session
+        bf = self.cfg.burst_follow
+        now_utc = datetime.now(timezone.utc)
+        cur_regime = self._btc_regime
+        arms = {}
+        for name, rule in bf.session_rules.items():
+            hours = rule.hours or []
+            regime_hours = rule.regime_hours or {}
+            if cur_regime and cur_regime in regime_hours:
+                hours = regime_hours[cur_regime]
+            regimes = rule.allowed_btc_regimes or bf.allowed_btc_regimes
+            armed_now = (
+                cur_regime in regimes
+                and now_utc.hour in hours
+                and not (rule.exclude_weekdays and now_utc.weekday() in rule.exclude_weekdays)
+            )
+            arms[name] = {
+                "strategy": rule.shadow_strategy,
+                "side": rule.allowed_side or rule.side_mode,
+                "hours_base": rule.hours,
+                "hours_now": hours,
+                "regime_hours": regime_hours,
+                "regimes": regimes,
+                "min_decile": rule.min_decile,
+                "min_imb": rule.min_imb,
+                "skip_days": rule.exclude_weekdays or [],
+                "time_bars": rule.time_bars,
+                "time_exit_only": rule.time_exit_only,
+                "stop_atr": rule.stop_atr,
+                "tp_atr": rule.tp_atr,
+                "dist_cap": rule.btc_dist_max_pct,
+                "armed_now": armed_now,
+            }
+        return {"current": _session(now_utc.hour), "regime": cur_regime, "arms": arms}
+
     def _get_metrics_snapshot(self) -> dict:
         """Metrics for health endpoint."""
+        # 2026-09-04 owner dashboard: expose regime/session context.
+        # (User's patch also carried stale-base reverts of ADXBAND/OI-gate/
+        # cluster-cap wiring — stashed to stash@{0}; only this hunk re-applied.)
+        from engines.liq_burst_follow_engine import _session, LiqBurstFollowEngine
+        now_utc = datetime.now(timezone.utc)
+        bf = self.cfg.burst_follow
         return {
             "open_positions": len(self.position_mgr.get_open_positions()),
             "equity": self.risk_mgr.state.current_equity,
@@ -965,6 +1011,17 @@ class Bitana:
             "paused": self.brake_mgr.state.is_paused,
             "ws_connected": self.ws.is_connected,
             "task_health": self.watchdog.get_health_summary(),
+            "btc_regime": self._btc_regime,
+            "btc_regime_dist": self._btc_regime_dist,
+            "session": _session(now_utc.hour),
+            "utc_hour": now_utc.hour,
+            "utc_weekday": now_utc.weekday(),
+            "arms": self._arms_snapshot(),
+            "oi_gate": {
+                "enabled": bf.oi_inflow_gate_enabled,
+                "max_pct": bf.oi_inflow_max_pct,
+                "stats": dict(LiqBurstFollowEngine.gate_stats),
+            },
         }
 
     async def shutdown(self) -> None:
