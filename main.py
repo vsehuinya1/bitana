@@ -990,6 +990,7 @@ class Bitana:
                 "time_bars": rule.time_bars,
                 "time_exit_only": rule.time_exit_only,
                 "stop_atr": rule.stop_atr,
+                "regime_stop_atr": rule.regime_stop_atr,
                 "tp_atr": rule.tp_atr,
                 "dist_cap": rule.btc_dist_max_pct,
                 "armed_now": armed_now,
