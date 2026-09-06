@@ -1038,6 +1038,24 @@ Watch items:
 
 **Non-goals:** no live config edit before PROMOTE + exec review; no post-hoc side/hour/symbol subsetting as decision inputs; no fade_6h_late / fade_3h_late promotion from this read (neutral cells are July-era, top-day 56% / 215% — separate hypotheses, unregistered); no asia/london weekend changes; no new shadow spec wiring.
 
+## Amendment 2026-09-06T12:02Z — PREREG-LATEFADE FIRST R-READ (forward window): floors unmet → counts-only accumulating; read ROLLS to formal call Sep 20
+
+Read executed 2026-09-06T12:02Z via committed reader (scripts/prereg_latefade_read.py, commit 1d8866f, read-only). Validation gate PASSED before the read — backdated partition reproduces the disclosed basis exactly (n=178, +113.3 ATR, E +0.053, PF 2.13, WR 60.1%, 22 days, dups 0, top-day 2026-08-30 69.5%).
+
+**Forward-window numbers (binding: closed late_fade late neutral dec≥2, entry ≥ 2026-09-01T06:29, dedup symbol+entry_time+side):**
+- n=15 · dups=0 · ΣR = **−0.19 R** · **E = −0.0128 R/tr** · PF 0.77 · WR 33.3% · **4 distinct days** (pos-days 1, legs/day 3.8)
+- Top-day: 2026-09-04, n=6, +0.49 R — share-of-ΣR not meaningful while ΣR<0 (reader prints −255%; floor arithmetic reported verbatim)
+- Side split: SHORT n=9 E=−0.040 · LONG n=6 E=+0.028
+- Storm split: ZERO storm days (≥40-leg threshold; none within 10% of threshold) → non-storm n=15 ΣR −0.19 E −0.013
+- NULL-regime audit: 3 strategy-wide all-time, all dated 2026-06-30 (pre-window) → in-window NULLs = 0 → **read not VOID**
+- Integrity: peek-leak rows 0 · open/accruing forward rows 0 · session/hour tags OK (0 mismatches) · stop_atr unit guard OK (med 12.0)
+
+**Floors:** n≥30 FAIL (15) · days≥5 FAIL (4) · top-day≤40% PASS (as computed; caveat above).
+
+**Verdict (frozen decision rule, evaluated at first read):** no criterion fires. KILL/E<0 requires the n/days floors MET (they are not); top-day>40% KILL is a formal-read (Sep 20) rule only; zero storm days → no storm-dominance. **VERDICT: counts-only / ACCUMULATING — the read ROLLS to the formal call Sun 2026-09-20. NO extension declared; the single extension (→ Oct 4) remains available only at the formal call if needed.**
+
+Volume honesty: 3.8 bound legs/day vs the 7–8/neutral-day expectation — LATEFADE is neutral-gated, so bull/non-neutral late windows accrue zero regardless of tape; 4 of 5 elapsed late windows produced bound legs. Read-only day: no strategy/config change, reader untouched (nothing to commit but this amendment).
+
 ## Amendment 2026-09-01T18:55Z — OPS POSTMORTEM: stale live process fired the withdrawn Tue-neutral cell (−$4.49, −20% equity). ZERO prereg impact.
 
 **Root cause (all OWL):** the 05:12 gate-revert commit (b83a565) was deployed to bitana-v5-paper only — the live service (bitana-live-burst-follow) was POLLED (is-active) instead of restarted, and a pre-existing owner-side restart at 04:29:45 made the poll no-op silently. The live bot therefore ran the SUPERSEDED Aug-31 config (Tue-neutral NY = {14,16} open) all day; the corrected files were on disk from 05:12 but never loaded. Morning verification ("both services restarted clean") validated liveness, not freshness — dry-loads and parity tests validate files, not processes. The Sep-1 parity guard (tests/test_wla_gate_parity.py) passed because it tests the same correct files the live process never loaded.
