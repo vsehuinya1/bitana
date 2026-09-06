@@ -286,12 +286,16 @@ burst_follow:
         1:
           neutral: [16, 17]
       excluded_weekday_hours:
-        # 2026-08-28: h18 Friday-only; h20 Friday+Wed (owner call, see note above).
-        # Tue/Thu drops kept: h18 Tue -2.21 n5 / Thu -0.39 n12; h20 Tue -2.54 n14.
-        # wd = python weekday (1=Tue, 2=Wed, 3=Thu); Mon/Sat/Sun out at session level.
-        1: [17, 18, 19, 20]
-        2: [18]
+        # 2026-09-06 RE-CUT for the 1h profile (owner order; matrix disclosed in
+        # RESEARCH_PLAN.md + commit): drop wired cells with WR=0% at n>=6 or
+        # E<=-0.10 at n>=20 — Tue h16 0/6 · Wed h19 0/8 · Wed h20 -3.2R/n26 ·
+        # Fri h17 0/9 (fresh 0/7). Re-open bar (higher): fresh E>+0.10 at n>=10,
+        # audited Sep-13/Sep-20. Original 4h-era basis: h18 Tue -2.21 n5 /
+        # Thu -0.39 n12; h20 Tue -2.54 n14 — those were 4h-hold losses.
+        1: [16, 17, 18, 19, 20]
+        2: [18, 19, 20]
         3: [18, 20]
+        4: [17]
       regime_stop_atr:
         bull: 8.0
         neutral: 6.0

@@ -159,11 +159,15 @@ def test_tuesday_neutral_ny_dark():
         reason = g.rule.hour_gate_reason(hour, 1, "neutral")
         assert reason is not None, f"Tue neutral NY unexpectedly open at h{hour}"
     # collateral-damage checks on the shared resolver
+    # 2026-09-06: lattice re-cut for the 1h profile (owner order) — expectations
+    # updated to the new excluded_weekday_hours {1:[16..20], 2:[18,19,20],
+    # 3:[18,20], 4:[17]}. Tue neutral dark assertion above UNCHANGED.
     for wd, regime, hours_open in [
-        (1, "bull", [14, 16]),        # Tue bull unchanged
-        (2, "neutral", [16, 17]),     # Wed neutral unchanged
-        (2, "bull", [14, 16, 17, 19, 20]),
-        (4, "bull", [14, 16, 17, 18, 19, 20]),  # Fri bull incl. wired h18/h20
+        (1, "bull", [14]),                     # Tue bull: h16 dropped (0/6)
+        (2, "neutral", [16, 17]),              # Wed neutral unchanged
+        (2, "bull", [14, 16, 17]),             # Wed bull: h19/h20 dropped (0/8, -3.2R/n26)
+        (3, "bull", [14, 16, 17, 19]),         # Thu bull unchanged
+        (4, "bull", [14, 16, 18, 19, 20]),     # Fri bull: h17 dropped (0/9)
     ]:
         resolved = [h for h in HOURS if g.rule.hour_gate_reason(h, wd, regime) is None]
         assert resolved == hours_open, f"wd{wd}/{regime}: {resolved} != {hours_open}"
