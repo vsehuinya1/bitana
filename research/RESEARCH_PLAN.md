@@ -1195,3 +1195,34 @@ Gemini-proposed NY bull restructure (drop h14/h16, add h21) tested on the correc
 - **BEAR-D ADX>35: PARKED — zero in-sample data** (no bear leg has btc_adx>35 in the book). Speculation; revisit only when such bars exist.
 
 **Global kill criteria (all bear cells):** era-mix guard — if the bear flip comes with July-style tape (measured by first-20-forward-leg top-day >40% OR forward avgR < 0 at n≥20 on ANY wired cell) → all bear cells revert to [bull-only/neut-only] in one revert commit; re-registration required. First reads ride the Sunday loops; formal Sep 20; ext Nov 8.
+
+## 2026-09-06T13:15Z — Sunday loop Sep-6 verdict batch (canonical numbers, reader of record gate_weekly_read.py)
+
+All advisory per plan; owner executed plan-bookkeeping only. No live config/strategy changes (book flat, wallet zero since Sep-6 06:38Z withdrawal).
+
+**KILLED (6+1):**
+- **PREREG-AGESHORT — KILLED at first read.** Canonical fwd ≥Aug24: T n=102/3d E−0.035 · C1 n=444 E−0.191 · M n=589 E−1.054 · Δ(T−C1)=+0.157 ≥0 · top-day 0831 194% >40% · M≤−0.30 whole-cell fold — all three frozen kill lines fired. No side-gate code existed to remove.
+- **Regime age gate (parent) — KILLED/parked:** toxic cell not reproduced OOS (in-sample −2.07 → fwd −0.035); gate stays disabled/inert (plumbing-only).
+- **Path-conditioned bull gate (V-flip veto) — KILLED:** age-matched Δ(neutral−bear-born bulls)=+0.0245 (n=1089/84) ≤ +0.2 bar at n≥15/class; subsumed by age-gate kill. No plumbing was built.
+- **OI-flush long rule — KILLED:** fresh Aug22–Sep5 flush-longs (oi<−1%) n=2262 E−0.0220 vs other-longs +0.0042 → Δ −0.0261 ≤ 0; vol-z tercile control shows no positive edge in any tercile. Aug-21 off-cycle +0.26 basis did not survive the fresh window. Nothing was wired.
+- **Asia/NY weekend tradability — KILLED:** weekend paired Δ −0.048 (asia, n=165) / −0.094 (ny, n=184) ≤ 0. Weekend exclusions stay (config already correct).
+- **Weekend NY h21 bear — KILLED:** paired Δ −0.195 (n=55, all-regime); bear-scoped +0.31 was 100% single-day (Aug-16). Aug-23 audit basis does not reproduce canonically — superseded.
+- ~~Late fade_6h_late~~ (already closed Aug 23) — unaffected.
+
+**NO KILL — status updates:**
+- **London h12 neutral:** n=181 Σ+14.1 E+0.078 PF1.52/31d, top-day 33.2% <40% — survives checkpoint, stays measure-only G0.
+- **Cluster breadth:** no kill; faint positive tail inside noise; filter stays unwired, cap-3 unchanged.
+- **NY decile-gate watch:** gate HELD — Fri Sep-4 all 26 live-window candidates dec-1, correctly WLA=0. Lesson recorded: variant-spec WLA=1 books (75–88% dec-1) are NOT live-like; do not use variant WLA books for live-arm reads.
+
+**G1 EVAL PASSED — promotion pending owner (deferred: wallet zero):**
+- **ny_flush_buy_1h → G1 PASSED:** ≥Aug23 n=631 Σ+34.4 E+0.055 WR63.9%/14d; paired vs 4h n=372 meanD **+0.115**, top-day 3%; no survivor-kill line fired. Engine supports via time_bars; wiring = config-only + restart. DEFERRED until owner redeploys capital (zero-balance book; wiring now trades nothing).
+
+**GATE CONFIRMED — rider on next arm enablement (no live wiring now):**
+- **arm_oi_p1 short-fade OI block:** blocked pool E−0.433 (n=1421/16d, floors met) per frozen criteria → CONFIRMED. Live burst_follow side already gated by PREREG-OIGATE (Sep 3). No live short-capable arms exist (asia dark, london LONG-pin, ny LONG-only) → wiring is a no-op today. PRE-APPROVED as mandatory rider: any future arm enablement (asia re-arm or otherwise) MUST carry this OI block alongside the PREREG-ASIA-DISTCAP knob.
+
+**ROLL FORWARD (underpowered, per row text):**
+- **Bear enablement (all variants):** Aug23–Sep5 bear cohorts n=0 across 4h/8h/24h/lon-6h; bear occupancy 0% (req ≥8%); last bear bar Aug-17. Gates stand: 4h family Sep 20 if cohort fills; 8h/24h + lon follow/fade-6h Sep 20.
+
+**Mon Sep-7 asia re-arm input:** Sat tape −3.63 ATR (10 legs) breaks the two-clean-tapes streak (Fri +0.36 ✓, Sat ✗); Sun tape +16.08 (19 legs, partial at read). Decisive block regardless: dist +8.7% > +5% dist-cap → a re-armed asia would trade zero legs. STAY DARK; re-arm decision becomes live only when dist < +5% AND two clean tapes coincide.
+
+**Live book week (poison excl):** n=21 Σ−4.42R PF0.27 WR23.8%, 0 open; equity 17.96 display stale (balance>0 guard) — wallet zero since Sep-6 withdrawal. Regime week: neutral ~136h / bull ~24h / bear 0h.
