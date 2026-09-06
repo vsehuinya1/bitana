@@ -299,8 +299,15 @@ burst_follow:
         3: [18, 20]
         4: [17]
       regime_stop_atr:
-        bull: 8.0
-        neutral: 6.0
+        # 2026-09-06 owner order: tightened for the 1h profile — 8/6 -> 5/5
+        # (bear stays 10). Basis: wired-cohort per-bar paths n=30 — worst in-hold
+        # MAE 4.2 ATR (p90 3.4, median 1.1); outcomes IDENTICAL at 5/6/8/10 ATR
+        # (0 stopouts at 5); SL4 -0.9R, SL3 -3.6R, SL2 -16.3R. 1R now = 5 ATR:
+        # notional per trade ~doubles at same risk (min-notional clears easier),
+        # cross-era comparisons in ATR units only. REVERT: back to 8/6/10 if the
+        # Sep-13/20 paired audit shows the tightened cohort E < wide baseline.
+        bull: 5.0
+        neutral: 5.0
         # PREREG-BEAR-NY: static 10-ATR stop in bear (per registration).
         bear: 10.0
       allowed_btc_regimes: ["neutral", "bull", "bear"]
