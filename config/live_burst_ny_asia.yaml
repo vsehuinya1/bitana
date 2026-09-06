@@ -245,7 +245,9 @@ burst_follow:
       #         h16 added (+1.18R avg n6, both days pos). h17 kept (Aug19-concentrated, kill criteria cover).
       #         h19 added (+13.4R/9, +1.49R avg, 4/5 days pos) — watchlist promoted same day,
       #         thin n=9; kill criteria apply at n>=10.
-      shadow_strategy: ny_flush_buy_4h
+      # 2026-09-06: exit profile swapped to the G1-passed 1h variant — the arm's
+      # shadow identity moves with it (WLA mirror binds live-real to THIS name).
+      shadow_strategy: ny_flush_buy_1h
       side_mode: follow
       pos_imb_only: true
       min_imb: 0.5

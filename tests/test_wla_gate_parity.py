@@ -28,7 +28,7 @@ LIVE_YAML = REPO / "config" / "live_burst_ny_asia.yaml"
 # shadow strategy -> live yaml session arm (must mirror _LIVE_ARM_FOR_STRATEGY)
 STRATEGY_FOR_ARM = {
     "london": "burst_follow",
-    "ny": "ny_flush_buy_4h",
+    "ny": "ny_flush_buy_1h",
     "asia": "asia_pump_short_4h",
 }
 REGIMES = ("bull", "neutral", "bear")
@@ -154,7 +154,7 @@ def test_tuesday_neutral_ny_dark():
     """
     from research.signal_shadow import _STRATEGY_BY_NAME
 
-    g = _STRATEGY_BY_NAME["ny_flush_buy_4h"].live_gates
+    g = _STRATEGY_BY_NAME["ny_flush_buy_1h"].live_gates
     for hour in HOURS:
         reason = g.rule.hour_gate_reason(hour, 1, "neutral")
         assert reason is not None, f"Tue neutral NY unexpectedly open at h{hour}"
@@ -203,7 +203,7 @@ def test_dist_cap_bindings():
 
     assert SessionBurstRule.model_fields["btc_dist_max_pct"].default is None
     # active arms bind None (no cap key in the live yaml session rules)
-    for strat in ("burst_follow", "ny_flush_buy_4h"):
+    for strat in ("burst_follow", "ny_flush_buy_1h"):
         g = _STRATEGY_BY_NAME[strat].live_gates
         assert g is not None and g.btc_dist_max_pct is None, strat
     # commented asia block documents the cap for the re-arm path
@@ -220,7 +220,7 @@ def test_disabled_arm_pins_wla_to_zero():
         session="ghost", rule=None, exclude_weekdays=frozenset(range(7)),
         allowed_regimes=frozenset({"__arm_disabled__"}), min_decile=0,
     )
-    spec = _STRATEGY_BY_NAME["ny_flush_buy_4h"]
+    spec = _STRATEGY_BY_NAME["ny_flush_buy_1h"]
     saved = spec.live_gates
     object.__setattr__(spec, "live_gates", disabled)
     try:

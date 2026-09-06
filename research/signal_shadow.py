@@ -497,7 +497,7 @@ _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/li
 # yaml MUST appear here as a value or _apply_live_gates raises (new-arm guard).
 _LIVE_ARM_FOR_STRATEGY = {
     "burst_follow": "london",
-    "ny_flush_buy_4h": "ny",
+    "ny_flush_buy_1h": "ny",
     "asia_pump_short_4h": "asia",
 }
 
