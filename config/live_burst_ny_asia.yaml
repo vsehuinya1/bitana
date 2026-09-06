@@ -300,7 +300,15 @@ burst_follow:
       allowed_btc_regimes: ["neutral", "bull", "bear"]
       stop_atr: 10.0
       tp_atr: 999.0
-      time_bars: 48
+      # 2026-09-06 owner order ("Wire"): exit horizon 4h -> 1h (time_bars 48 -> 12)
+      # after G1 eval PASSED (Sunday loop Sep-6): paired vs 4h n=372 meanD +0.115,
+      # top-day 3%, no survivor-kill line fired. Shadow variant ny_flush_buy_1h
+      # all-time E +0.0433 (n=766) vs 4h +0.0125 (n=934); stop/tp identical
+      # (10/999). Caveat: shadow variant runs stop 10 flat; live keeps
+      # regime_stop_atr (bull 8 / neutral 6) — same caveat the 4h arm carried.
+      # REVERT: time_bars back to 48 if the live 1h cohort E < 4h paired baseline
+      # at n>=30 (variant rows keep accruing, so the paired read continues).
+      time_bars: 12
       time_exit_only: true
       min_cascade_strength: 0.0
       min_vol_z: 0.0
