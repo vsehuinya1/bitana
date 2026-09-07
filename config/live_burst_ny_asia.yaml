@@ -21,7 +21,7 @@
 # At $3.45 equity (yesterday): 24% clears $5 even at max stop; 21% clears up to ~14.3% stop (~98% of book)
 # NOT covered: BTCUSDT ($50 min), ETHUSDT ($20 min) — ETH fires only on <~4% stop widths, BTC effectively dark until funded.
 
-config_version: "1.1.1"
+config_version: "1.1.2"
 mode: "live"
 
 engines:
@@ -361,7 +361,20 @@ burst_follow:
       # blocked by the allowed_side: LONG pin above. Kill: forward avgR <-0.02
       # at n>=30 or top-day >40% -> revert to [bull].
       allowed_btc_regimes: ["bull", "bear"]
-      stop_atr: 10.0
+      # 2026-09-07 owner order: SL10 -> SL6 (G0 wire). Basis: per-bar in-hold MAE
+      # on the live-real london book — worst excursion 5.1 ATR on the registered
+      # 213-leg set (0 stopouts at >=6; SL4 -4.8, SL3 -22.1 on the 30m arm; ladder
+      # flat 5-10). Full-book cross-check (292 legs): XRP Aug-28 h13 MAE -6.39
+      # then TP +3.0 (SL6 costs 9.0 ATR there) vs ETH Sep-2 -5.50 -> time -4.14
+      # (SL6 saves 1.9) — net -7.1 ATR (~5% of arm edge), disclosed, not blocking.
+      # SL6 also free under the 1h-exit G0 arm (0 core-book stopouts in bars 7-12;
+      # SL4 -16.5 there). 1R now = 6 ATR: notional x1.67 at same risk, min-notional
+      # clears easier; cross-era comparisons in ATR units only.
+      # NOTE: flat wire also governs PREREG-BEAR-LON legs (n=0 so far; Sep-4
+      # registration carried stop 10 — amendment logged in RESEARCH_PLAN.md).
+      # REVERT: back to 10.0 if the Sep-13/20 paired audit shows the SL6 cohort
+      # E < wide-stop baseline at n>=20 (shadow baseline stays SL10).
+      stop_atr: 6.0
       tp_atr: 3.0
       time_bars: 6
       time_exit_only: false
