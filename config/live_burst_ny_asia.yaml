@@ -21,7 +21,7 @@
 # At $3.45 equity (yesterday): 24% clears $5 even at max stop; 21% clears up to ~14.3% stop (~98% of book)
 # NOT covered: BTCUSDT ($50 min), ETHUSDT ($20 min) — ETH fires only on <~4% stop widths, BTC effectively dark until funded.
 
-config_version: "1.1.2"
+config_version: "1.1.3"
 mode: "live"
 
 engines:
@@ -263,7 +263,10 @@ burst_follow:
         # Kill criteria: Fri h18/h20 + Wed h20 cells review at n>=10, kill if avg<0.
         # 2026-08-28 same-day owner call: Wed h20 wired (+4.25R n6, 6/6 win, spread
         # Jul22 +0.52 / Aug26 +3.73 — two Wednesdays); h18 Wed stays locked (+0.08R n3).
-        bull: [14, 16, 17, 18, 19, 20]
+        bull: [14, 15, 16, 17, 18, 19, 20]
+        # 2026-09-13 read (run Sep-12): h15 RE-OPENED per the pre-registered bar
+        # (fresh E>+0.03, n>=30, >=3d, top<=40%) — since Aug-30: n=111 E+0.2663
+        # 13d top 31%. h15 is bull-lattice only (neutral stays h16-17).
         # PREREG-BEAR-NY (2026-09-04, owner order): bear flush-bounce hours.
         # Basis: bear n=21 +4.81R avg +0.229 WR71.4% — top-day Jul-29 55%,
         # concentration caveat frozen as kill criteria in RESEARCH_PLAN.md.
