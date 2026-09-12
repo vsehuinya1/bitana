@@ -1,43 +1,47 @@
 #!/root/bitana/venv/bin/python3
-"""BTC regime-flip Telegram watchdog.
+"""BTC regime-flip Telegram watchdog — RELAY mode (Sep-12).
 
-Runs every 15 min via Hermes cron (no_agent). Fetches BTC 4h klines, computes the
-regime EXACTLY like the live selector (engines/btc_regime.compute_regime_snapshot:
-4h EMA200 + ADX14>25, prices the live/incomplete bar), compares to the last
-notified state, and prints an alert to stdout ONLY on a confirmed flip (2
-consecutive readings agree = 30-min persistence debounce). Hermes delivers
-stdout to Telegram; silence = no flip.
+v2 change: the script no longer recomputes regime independently. Root cause of
+the Sep-11/12 "2/4 notifications + phantom flips": the old version applied its
+own ADXBAND deadband + 2-tick persistence on a 15m cadence, while the live bot
+applies its own hysteresis on a 3600s refresh — the two disagreed at the
+boundary (script fired neutral at 00:15Z Sep-12; bot held bull until 04:01Z)
+and produced flip counts that don't match the bot log (3 real transitions in
+5 days, not 4).
 
-State: /root/bitana/storage/regime_state.json
+Now: parse the bot's own "BTC regime updated" log line (single source of
+truth) and notify exactly on its state changes. When the ADXBAND bot-side
+patch (refresh 3600->300s, PREREG-ADXBAND row) ships, this relay needs no
+change. State: /root/bitana/storage/regime_state.json
 """
 import json
 import os
 import sys
-import urllib.request
-from datetime import datetime, timezone
 
 sys.path.insert(0, "/root/bitana")
-from core.models import Candle  # noqa: E402
-from engines.btc_regime import compute_regime_snapshot  # noqa: E402
 
 STATE = "/root/bitana/storage/regime_state.json"
-KLINES_URL = ("https://fapi.binance.com/fapi/v1/klines"
-              "?symbol=BTCUSDT&interval=4h&limit=260")
+LOG = "/root/bitana/logs/bitana-live-burst.log"
+
+
+def last_bot_state() -> str | None:
+    st = None
+    try:
+        with open(LOG, errors="replace") as f:
+            for line in f:
+                if '"event": "BTC regime updated"' in line and '"state"' in line:
+                    i = line.index("{")
+                    st = json.loads(line[i:])["state"]
+    except FileNotFoundError:
+        return None
+    return st
 
 
 def load_arms() -> dict[str, frozenset[str]]:
-    """Per-arm allowed regimes from the LIVE yaml (2026-09-01).
-
-    Replaces the hardcoded ARMS dict — it carried asia {neutral,bear} after
-    the live rule moved to ["neutral"] (session-level override), so a bear
-    flip would have printed asia ON while the live engine has it dark. Same
-    drift class as the WLA mirror constants fixed 08-31. Resolves through the
-    typed loader with the engine's fallback semantics (session override, else
-    global allowed_btc_regimes).
-    """
+    """Per-arm allowed regimes from the LIVE yaml (single parse, engine fallbacks)."""
     from config.loader import load_config
 
-    key = os.environ.pop("API_FOOTBALL_KEY", None)  # pydantic chokes on it
+    key = os.environ.pop("API_FOOTBALL_KEY", None)
     try:
         cfg = load_config("/root/bitana/config/live_burst_ny_asia.yaml")
     finally:
@@ -53,56 +57,34 @@ def load_arms() -> dict[str, frozenset[str]]:
     return out
 
 
-def fetch_candles() -> list[Candle]:
-    with urllib.request.urlopen(KLINES_URL, timeout=20) as resp:
-        raw = json.loads(resp.read())
-    out = []
-    for k in raw:
-        out.append(Candle(
-            symbol="BTCUSDT", timeframe="4h",
-            open_time=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
-            close_time=datetime.fromtimestamp(k[6] / 1000, tz=timezone.utc),
-            open=float(k[1]), high=float(k[2]), low=float(k[3]), close=float(k[4]),
-            volume=float(k[5]), is_closed=bool(k[6] < datetime.now(timezone.utc).timestamp() * 1000),
-        ))
-    return out
-
-
-def load_state() -> dict:
+def main() -> None:
+    st = last_bot_state()
+    if not st:
+        return  # no log / no regime line yet — silent
     try:
         with open(STATE) as f:
-            return json.load(f)
+            prev = json.load(f).get("notified")
     except Exception:
-        return {}
-
-
-def main() -> None:
-    snap = compute_regime_snapshot(fetch_candles())
-    if not snap.state:
-        return  # insufficient history — stay silent
-    st = load_state()
-    notified = st.get("notified")
-    last_raw = st.get("last_raw")
-    bar = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%MZ")
-
-    if snap.state != last_raw:
-        # first disagreement with previous reading — wait one tick (persistence)
-        with open(STATE, "w") as f:
-            json.dump({"notified": notified, "last_raw": snap.state,
-                       "since": st.get("since") if notified == snap.state else bar}, f)
-        return
-    if snap.state == notified:
-        return  # no confirmed change — silent
-
+        prev = None
+    if prev == st:
+        return  # no change — silent
+    try:
+        with open(LOG, errors="replace") as f:
+            for line in f:
+                if '"event": "BTC regime updated"' in line:
+                    o = json.loads(line[line.index("{"):])
+    except Exception:
+        o = {}
     arms = "\n".join(
-        f"{'✅ ON' if snap.state in regs else '⛔ off'}  {name} ({'/'.join(sorted(regs))})"
+        f"{'✅ ON' if st in regs else '⛔ off'}  {name} ({'/'.join(sorted(regs))})"
         for name, regs in load_arms().items()
     )
-    print(f"🔔 REGIME FLIP: {notified} → {snap.state}\n"
-          f"4h EMA200 dist {snap.distance_from_ema_pct:+.2f}% · ADX {snap.adx:.1f} · read {bar}\n"
-          f"Live arms in {snap.state}:\n{arms}")
+    bar = o.get("timestamp", "?")[:19]
+    print(f"🔔 REGIME FLIP: {prev} → {st}\n"
+          f"4h EMA200 dist {o.get('dist_pct', 0):+.2f}% · age {o.get('age_bars', '?')} bars · bot read {bar}Z\n"
+          f"Live arms in {st}:\n{arms}")
     with open(STATE, "w") as f:
-        json.dump({"notified": snap.state, "last_raw": snap.state, "since": bar}, f)
+        json.dump({"notified": st, "since": bar}, f)
 
 
 if __name__ == "__main__":
