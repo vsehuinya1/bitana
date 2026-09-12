@@ -21,7 +21,7 @@
 # At $3.45 equity (yesterday): 24% clears $5 even at max stop; 21% clears up to ~14.3% stop (~98% of book)
 # NOT covered: BTCUSDT ($50 min), ETHUSDT ($20 min) — ETH fires only on <~4% stop widths, BTC effectively dark until funded.
 
-config_version: "1.1.3"
+config_version: "1.1.4"
 mode: "live"
 
 engines:
@@ -329,7 +329,15 @@ burst_follow:
       min_cascade_strength: 0.0
       min_vol_z: 0.0
       min_n_confirms: 1
-      min_decile: 2
+      # 2026-09-12 owner order: min_decile 2 -> 1 (NY D1 unlock, G0). Basis:
+      # variant book 14d D1 n=216 E+0.0593 PF2.20/9d = D2+ E+0.0593/n79 (equal E,
+      # 2.7x volume); neutral D1 +0.0548/n185 ~ D2+ +0.0579/n81; bull D1 +0.0281/n366
+      # positive. Capacity measured under EXISTING caps: cap-3 replay D1-unlocked
+      # n=203 E+0.0566 top 26% vs D2+-only n=54 E+0.0489 top 69% — max_positions 8,
+      # cluster cap 3, per-symbol 1, 15% cluster risk budget ALL STAY. London's two
+      # live D1 legs (Sep-11) both TP'd. REVERT: min_decile back to 2 if the live
+      # D1 cohort E <= 0 at n>=20 (audit Sep-20).
+      min_decile: 1
 
       # RE-ENABLED 2026-08-26 ~07:30Z on owner instruction ("Wire London: TP3/SL10/30min,
       # drop h8 and h12"). Three deltas vs the Aug25-disabled state:
