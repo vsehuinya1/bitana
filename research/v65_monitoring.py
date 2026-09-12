@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 STRATEGY_VERSION = "v65_revert"
+# Sep-12 amendment: kill/warn evaluate a rolling window, not lifetime-cumulative
+# (lifetime mixing tripped the Sep-12 halt on a dormant, era-mixed cohort).
+ROLLING_WINDOW_DAYS = 14
 
 # OOS backtest anchors (Jan–May 2026, 28 symbols, NY 14–22 UTC)
 EXPECTED_TRADES_PER_SESSION = 2.63
@@ -185,19 +188,47 @@ def build_session_report(
 
 
 def evaluate_promotion_status(trades: list[dict]) -> dict[str, Any]:
-    """Promotion/kill rules on strategy-version trades (newest first by exit_time)."""
-    cohort = [
-        t for t in trades
-        if t.get("strategy_version") == STRATEGY_VERSION or not t.get("strategy_version")
-    ]
-    # Prefer version-stamped only once we have them
+    """Promotion/kill rules on strategy-version trades — ROLLING 14-DAY WINDOW
+    (Sep-12 amendment, owner-ordered after era-split verdict).
+
+    Original design evaluated the LIFETIME cumulative cohort (strategy_version
+    stamped): 54 trades spanning Jun-23..Aug-30 across heterogeneous stop_dist
+    eras (0.003..30.8) tripped the kill (avg -0.116R < -0.10R at n>=50) — but
+    the cohort had ZERO trades after Aug-30: the engine being "killed" was
+    dormant for 12 days, and the avg crossed the bar only via the Aug15-21
+    +9.94R storm week vs Aug22-28 -11.08R reversal week (era mixing, same
+    species as the W34 crisis-week trap). Kill bar (n>=50, avg<-0.10) is
+    UNCHANGED; only the cohort window is rolling. Halt re-fires on fresh
+    evidence, not on stale accumulation.
+    """
+    import datetime as _dt
+
     stamped = [t for t in trades if t.get("strategy_version") == STRATEGY_VERSION]
+    cohort = stamped
     if stamped:
-        cohort = stamped
+        # rolling window on exit time (fallback entry_time if exit missing)
+        cutoff = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=ROLLING_WINDOW_DAYS)
+        def _ts(t: dict) -> _dt.datetime:
+            for k in ("exit_time", "entry_time", "timestamp"):
+                v = t.get(k)
+                if not v:
+                    continue
+                try:
+                    d = _dt.datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+                    return d if d.tzinfo else d.replace(tzinfo=_dt.timezone.utc)
+                except Exception:
+                    continue
+            return None
+        windowed = [t for t in stamped if (_ts(t) is not None and _ts(t) >= cutoff)]
+        cohort = windowed
 
     n = len(cohort)
     if n == 0:
-        return {"status": "collecting", "n": 0, "avg_r": 0.0, "message": "No v65 trades yet"}
+        return {
+            "status": "collecting", "n": 0, "avg_r": 0.0, "total_r": 0.0,
+            "message": f"No {STRATEGY_VERSION} trades in rolling {ROLLING_WINDOW_DAYS}d window — collecting",
+            "halt_entries": False, "alert_tier": "info",
+        }
 
     rs = [float(t.get("pnl_r", 0)) for t in cohort]
     total_r = sum(rs)
