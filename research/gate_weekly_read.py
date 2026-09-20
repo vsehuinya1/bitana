@@ -17,7 +17,10 @@ ARMS = [
     ("arm_adx35",         "SHORT blocked when BTC ADX>=35"),
     ("arm_rvolq1",        "SHORT brake when rvol24<=q1(0.0648)"),
     ("arm_oi_p1",         "SHORT fade-block when OI d30m>=+1%"),
-    ("arm_fund1bp",       "asia_pump% SHORT block at funding>=1bp"),
+    # arm_fund1bp DROPPED from cluster Sep-20 per reader drop criterion:
+    # 2nd consecutive floors-met FALSIFIED read (blocked-set E>=+0.30) — funding>=1bp
+    # does NOT predict asia pump-short failure (funding kill Aug-21 stands as its own row);
+    # drop is read-only (cluster is measurement-only, no wiring footprint).
     ("arm_late_long",     "LONG block in late session"),
     ("arm_burst_s",       "burst_follow SHORT book removal"),
 ]
