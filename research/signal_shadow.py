@@ -635,7 +635,11 @@ class SignalShadow:
         portfolio: ShadowPortfolioConfig | None = None,
     ):
         self.portfolio = portfolio or DEFAULT_PORTFOLIO
-        self.conn = sqlite3.connect(str(db_path))
+        self.conn = sqlite3.connect(str(db_path), timeout=15.0)
+        # Sep-21 OPS fix: chronic "database is locked" (7.8k+ in v5 log, delete-mode
+        # journal) — busy_timeout on every writer/reader connection + WAL migration
+        # done out-of-band at the DB level. WAL ends reader<->writer blocking.
+        self.conn.execute("PRAGMA busy_timeout = 15000")
         self.conn.row_factory = sqlite3.Row
         self._init_db()
         self._last_snap_bar: dict[str, datetime] = {}
