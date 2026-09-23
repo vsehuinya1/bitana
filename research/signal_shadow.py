@@ -490,6 +490,13 @@ class LiveGateSnapshot:
     # PREREG-ASIA-DISTCAP (2026-09-03): per-arm EMA200-stretch ceiling bound
     # from the arm's SessionBurstRule (None = arm ungated, fail-open).
     btc_dist_max_pct: float | None = None
+    # DETECTOR-PARITY (2026-09-23): side gates the engine applies in _matches
+    # (pos/neg_imb_only + allowed_side). WLA never mirrored them, so SHORT
+    # burst_follow rows carried WLA=1 on the LONG-only london arm and held
+    # the book against the LONG twin (Sep-21 ETH 13:40, Sep-22 XRP 09:30).
+    pos_imb_only: bool = False
+    neg_imb_only: bool = False
+    allowed_side: str | None = None
 
 
 _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
@@ -528,6 +535,9 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
             oi_inflow_max_pct=bf.oi_inflow_max_pct,
             # PREREG-ASIA-DISTCAP: per-arm knob from the rule itself.
             btc_dist_max_pct=rule.btc_dist_max_pct,
+            pos_imb_only=bool(rule.pos_imb_only),
+            neg_imb_only=bool(rule.neg_imb_only),
+            allowed_side=rule.allowed_side,
         )
     return snaps
 
@@ -562,6 +572,13 @@ def _apply_live_gates() -> None:
 
 
 _apply_live_gates()
+
+# DETECTOR-PARITY (2026-09-23): live-arm mirrors are evaluated on every
+# floor-passing bar with engine-style dedup (see on_intraday_burst); research
+# strategies keep the snapshot-grid cadence so their populations are unchanged.
+_LIVE_MIRROR_NAMES = frozenset(_LIVE_ARM_FOR_STRATEGY)
+LIVE_MIRROR_BURST_STRATEGIES = tuple(s for s in BURST_STRATEGIES if s.name in _LIVE_MIRROR_NAMES)
+RESEARCH_BURST_STRATEGIES = tuple(s for s in BURST_STRATEGIES if s.name not in _LIVE_MIRROR_NAMES)
 
 
 def _session(hour: int) -> str:
@@ -645,6 +662,10 @@ class SignalShadow:
         self._last_snap_bar: dict[str, datetime] = {}
         self._last_burst_bar: dict[str, datetime] = {}
         self._last_setup_bar: dict[str, datetime] = {}
+        # Engine-parity dedup clock for live-arm mirrors: one per symbol across
+        # arms (BurstFollowState.last_burst_time), stamped only on a live-gated
+        # match — never on the raw burst floor.
+        self._last_live_signal_bar: dict[str, datetime] = {}
         self._market_ctx = MarketContext()
         self._writes = 0
         # Forward windows of snapshots still open at shutdown last run never get a
@@ -963,15 +984,22 @@ class SignalShadow:
         Parallel shadow variants must never consume one another's slots. Only
         previously accepted positions from the same strategy count here;
         rejected shadow rows remain observational and do not occupy capacity.
+
+        DETECTOR-PARITY (2026-09-23): live-arm mirrors share ONE book, as the
+        live portfolio does (max-per-symbol is cross-arm: Sep-17 16:10 UNI and
+        Sep-22 14:00 NEAR were live "Portfolio rejected" by the other arm's
+        open leg while their shadow rows went WLA=1 and held the slot).
         """
         cfg = self.portfolio
+        names = sorted(_LIVE_MIRROR_NAMES) if strategy in _LIVE_MIRROR_NAMES else [strategy]
         rows = self.conn.execute(
-            """
+            f"""
             SELECT symbol, side, session, cluster_bucket
             FROM shadow_trades
-            WHERE strategy=? AND status='open' AND would_live_accept=1
+            WHERE strategy IN ({",".join("?" * len(names))})
+              AND status='open' AND would_live_accept=1
             """,
-            (strategy,),
+            names,
         ).fetchall()
         if len(rows) >= cfg.live_max_concurrent:
             return 0
@@ -986,6 +1014,50 @@ class SignalShadow:
         if cluster_n >= cfg.live_max_cluster:
             return 0
         return 1
+
+    def _live_gate_block_reason(
+        self, spec: ShadowStrategy, f: dict, side: str, imb: float,
+    ) -> str | None:
+        """First live-arm gate that rejects this candidate, or None (engine would signal).
+
+        Book caps are NOT checked here (see _would_live_accept) — the engine
+        stamps its dedup clock on a gated match before the portfolio decides.
+        """
+        g = spec.live_gates
+        if g is None:
+            return None
+        mkt = self._market_ctx
+        wd = f["bar_time"].weekday()
+        regime = mkt.btc_trend_state or "NA"
+        if wd in g.exclude_weekdays:
+            return "weekday"
+        if regime not in g.allowed_regimes:
+            return "regime"
+        if g.rule is not None and g.rule.hour_gate_reason(f["bar_time"].hour, wd, regime) is not None:
+            return "hour"
+        if g.pos_imb_only and imb <= 0:
+            return "pos_imb_only"
+        if g.neg_imb_only and imb >= 0:
+            return "neg_imb_only"
+        if g.allowed_side and side != g.allowed_side:
+            return "allowed_side"
+        if g.min_decile > 0 and (f.get("decile", 0) or 0) < g.min_decile:
+            return "decile"
+        if (
+            g.oi_gate_enabled
+            and mkt.oi_delta_30m_pct is not None
+            and mkt.oi_delta_30m_pct > g.oi_inflow_max_pct
+        ):
+            # PREREG-OIGATE (2026-09-03): fail-open on None (engine parity).
+            return "oi_inflow"
+        if (
+            g.btc_dist_max_pct is not None
+            and mkt.btc_distance_from_ema_pct is not None
+            and mkt.btc_distance_from_ema_pct > g.btc_dist_max_pct
+        ):
+            # PREREG-ASIA-DISTCAP (2026-09-03): fail-open on None (engine parity).
+            return "btc_dist_cap"
+        return None
 
     def _signed_pnl_atr(self, side: str, entry: float, price: float, atr: float) -> float:
         if atr <= 0:
@@ -1304,13 +1376,25 @@ class SignalShadow:
             self._maybe_commit()
             return
 
+        imb_30m = float(burst.get("imbalance_30m", 0.0))
+
+        # DETECTOR-PARITY (2026-09-23): live-arm mirrors run on EVERY bar that
+        # passes the burst floor, with the engine's dedup semantics. The
+        # snapshot clock below is stamped on the raw floor, so in a sustained
+        # burst (ETH: floor met ~every bar) it phase-locks evaluation to a
+        # rigid 15-min grid and the engine's first gated bar is skipped —
+        # 14/18 live fills without a same-strategy twin Sep-12..23 fell on
+        # an off-grid bar.
+        self._eval_live_mirror(
+            symbol, f, imb=imb_30m, cascade_active=bool(st.cascade_active),
+            burst_vol=vol_30m, burst_events=events_30m, dedup_bars=dedup_bars,
+        )
+
         last = self._last_burst_bar.get(symbol)
         if last is not None and (f["bar_time"] - last).total_seconds() < dedup_bars * 300:
             self._maybe_commit()
             return
         self._last_burst_bar[symbol] = f["bar_time"]
-
-        imb_30m = float(burst.get("imbalance_30m", 0.0))
 
         self.conn.execute(
             """
@@ -1350,10 +1434,47 @@ class SignalShadow:
         self._maybe_commit(force=True)
 
         self._eval_shadow_strategies(
-            BURST_STRATEGIES, symbol, f, imb=imb_30m,
+            RESEARCH_BURST_STRATEGIES, symbol, f, imb=imb_30m,
             cascade_active=bool(st.cascade_active),
             burst_vol=vol_30m, burst_events=events_30m,
         )
+
+    def _eval_live_mirror(
+        self,
+        symbol: str,
+        f: dict,
+        *,
+        imb: float,
+        cascade_active: bool,
+        burst_vol: float,
+        burst_events: int,
+        dedup_bars: int,
+    ):
+        """Live-arm mirrors with LiqBurstFollowEngine.evaluate() dedup semantics.
+
+        Engine: one last_burst_time per symbol across arms, checked after the
+        free gates and stamped only on a gated match (before the portfolio
+        decides) — an OI-blocked or off-hour bar never advances the clock.
+        """
+        last = self._last_live_signal_bar.get(symbol)
+        if last is not None and (f["bar_time"] - last).total_seconds() < dedup_bars * 300:
+            return
+        for spec in LIVE_MIRROR_BURST_STRATEGIES:
+            if not _matches_strategy(
+                spec, f, imb=imb, burst_vol=burst_vol, burst_events=burst_events,
+                cascade_active=cascade_active,
+            ):
+                continue
+            side = _resolve_side(spec.side_mode, imb)
+            if side is None:
+                continue
+            if spec.live_gates is not None and spec.live_gates.rule is not None \
+                    and self._live_gate_block_reason(spec, f, side, imb) is None:
+                self._last_live_signal_bar[symbol] = f["bar_time"]
+            self._maybe_open_shadow_trade(
+                spec, symbol, f, side,
+                imb=imb, cascade_active=cascade_active, burst_vol=burst_vol,
+            )
 
     def _maybe_commit(self, force: bool = False):
         self._writes += 1
@@ -1636,9 +1757,13 @@ class SignalShadow:
                 ),
             )
 
-    def _shadow_trade_exists(self, symbol: str, strategy: str) -> bool:
+    def _shadow_trade_exists(self, symbol: str, strategy: str, *, live_book_only: bool = False) -> bool:
+        # live_book_only: a live-twin candidate is blocked only by legs live
+        # would also hold (WLA=1). A WLA=0 leg is a position live never took,
+        # so it must not suppress the twin (Sep-17 ETH 13:05 / UNI 15:20).
+        wla = " AND would_live_accept=1" if live_book_only else ""
         open_n = self.conn.execute(
-            "SELECT COUNT(*) FROM shadow_trades WHERE symbol=? AND strategy=? AND status='open'",
+            "SELECT COUNT(*) FROM shadow_trades WHERE symbol=? AND strategy=? AND status='open'" + wla,
             (symbol, strategy),
         ).fetchone()[0]
         if open_n > 0:
@@ -1687,38 +1812,11 @@ class SignalShadow:
         # 08-30 weekday mirror, 08-31 regime/hours/decile mirror after the
         # asia gap (66 bull rows −4.6R and all dec-1 rows wrongly WLA=1,
         # e.g. the 08-31 00:15Z cluster). live_gates=None = research-only
-        # strategy, no live analog — WLA untouched.
-        g = spec.live_gates
-        if would_live and g is not None:
-            wd = f["bar_time"].weekday()
-            regime = mkt.btc_trend_state or "NA"
-            if wd in g.exclude_weekdays:
-                would_live = 0
-            elif regime not in g.allowed_regimes:
-                would_live = 0
-            elif (
-                g.rule is not None
-                and g.rule.hour_gate_reason(f["bar_time"].hour, wd, regime) is not None
-            ):
-                would_live = 0
-            elif g.min_decile > 0 and (f.get("decile", 0) or 0) < g.min_decile:
-                would_live = 0
-            elif (
-                g.oi_gate_enabled
-                and mkt.oi_delta_30m_pct is not None
-                and mkt.oi_delta_30m_pct > g.oi_inflow_max_pct
-            ):
-                # PREREG-OIGATE (2026-09-03): mirror the live OI-inflow gate —
-                # fail-open on None (same semantics as the engine).
-                would_live = 0
-            elif (
-                g.btc_dist_max_pct is not None
-                and mkt.btc_distance_from_ema_pct is not None
-                and mkt.btc_distance_from_ema_pct > g.btc_dist_max_pct
-            ):
-                # PREREG-ASIA-DISTCAP (2026-09-03): mirror the per-arm
-                # EMA200-stretch ceiling — fail-open on None (engine parity).
-                would_live = 0
+        # strategy, no live analog — WLA untouched. 2026-09-23: chain moved to
+        # _live_gate_block_reason (shared with the parity dedup clock) and the
+        # arm side gates added.
+        if would_live and self._live_gate_block_reason(spec, f, side, imb) is not None:
+            would_live = 0
 
         self.conn.execute(
             """
@@ -1866,7 +1964,11 @@ class SignalShadow:
         burst_vol: float = 0.0,
     ):
         """Open a paper shadow trade, or queue a resting limit entry."""
-        if self._shadow_trade_exists(symbol, spec.name):
+        live_twin = (
+            spec.live_gates is not None
+            and self._live_gate_block_reason(spec, f, side, imb) is None
+        )
+        if self._shadow_trade_exists(symbol, spec.name, live_book_only=live_twin):
             return
 
         if not self._portfolio_allows_open(symbol, f["session"], side):

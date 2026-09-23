@@ -2,7 +2,7 @@
 """Daily live-vs-shadow discrepancy report for Bitana (UTC day)."""
 import json, sqlite3, datetime, math, collections, re, sys
 
-DAY = "2026-08-31"
+DAY = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 BASE = "/root/bitana"
 
 def r2(x, d=2):
