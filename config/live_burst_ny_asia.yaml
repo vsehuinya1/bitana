@@ -118,6 +118,7 @@ portfolio:
 
 execution:
   max_spread_bps: 15.0
+  # DEAD (audit 2026-09-23, phase-1): max_slippage_bps never fires — no consumer / vacuous at current value. Keep loader compat.
   max_slippage_bps: 10.0
   partial_fill_timeout_s: 30
   client_order_id_prefix: "BITANA"
@@ -326,8 +327,10 @@ burst_follow:
       # at n>=30 (variant rows keep accruing, so the paired read continues).
       time_bars: 12
       time_exit_only: true
+      # DEAD (audit 2026-09-23, phase-1): min_cascade_strength never fires — no consumer / vacuous at current value. Keep loader compat.
       min_cascade_strength: 0.0
       min_vol_z: 0.0
+      # AUDIT 2026-09-23 phase-1: min_n_confirms=1 near-vacuous (reject needs ALL 6 confirms false); reject rate unmeasured (shadow has no column) — do NOT raise without a count.
       min_n_confirms: 1
       # 2026-09-12 owner order: min_decile 2 -> 1 (NY D1 unlock, G0). Basis:
       # variant book 14d D1 n=216 E+0.0593 PF2.20/9d = D2+ E+0.0593/n79 (equal E,
@@ -337,6 +340,7 @@ burst_follow:
       # cluster cap 3, per-symbol 1, 15% cluster risk budget ALL STAY. London's two
       # live D1 legs (Sep-11) both TP'd. REVERT: min_decile back to 2 if the live
       # D1 cohort E <= 0 at n>=20 (audit Sep-20).
+      # DEAD (audit 2026-09-23, phase-1): min_decile never fires — no consumer / vacuous at current value. Keep loader compat.
       min_decile: 1
 
       # RE-ENABLED 2026-08-26 ~07:30Z on owner instruction ("Wire London: TP3/SL10/30min,
@@ -389,9 +393,12 @@ burst_follow:
       tp_atr: 3.0
       time_bars: 6
       time_exit_only: false
+      # DEAD (audit 2026-09-23, phase-1): min_cascade_strength never fires — no consumer / vacuous at current value. Keep loader compat.
       min_cascade_strength: 0.0
       min_vol_z: 0.0
+      # AUDIT 2026-09-23 phase-1: min_n_confirms=1 near-vacuous (reject needs ALL 6 confirms false); reject rate unmeasured (shadow has no column) — do NOT raise without a count.
       min_n_confirms: 1
+      # DEAD (audit 2026-09-23, phase-1): min_decile never fires — no consumer / vacuous at current value. Keep loader compat.
       min_decile: 1
 
 database:
