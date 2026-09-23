@@ -5,201 +5,275 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0b0f19">
+    <meta name="theme-color" content="#070a12">
     <title>Bitana Dashboard</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <!--
+      2026-09-23 restyle (v2):
+      - per-arm weekday-EFFECTIVE hours grid (hours_by_weekday from /metrics;
+        client-side derivation fallback + unknown-cut note when the payload
+        predates the 21:15Z bot restart)
+      - self-contained assets (Chart.js CDN removed -> inline SVG chart;
+        must render offline on the owner's phone)
+      - data contract unchanged: /api/dashboard keys + data.bot metrics proxy
+    -->
     <style>
         :root {
-            --bg: #0b0f19;
-            --bg-card: #111827;
-            --bg-hover: #1e293b;
-            --border: #1e293b;
-            --border-hi: #334155;
+            --bg: #070a12;
+            --bg-card: #0e1420;
+            --bg-hover: #151d2e;
+            --bg-inset: #0a0f1a;
+            --border: #1c2637;
+            --border-hi: #2f3e57;
             --text: #f1f5f9;
             --text-2: #94a3b8;
-            --text-3: #64748b;
-            --green: #22c55e;
-            --green-bg: rgba(34,197,94,0.1);
-            --red: #ef4444;
-            --red-bg: rgba(239,68,68,0.1);
-            --amber: #f59e0b;
-            --amber-bg: rgba(245,158,11,0.1);
-            --blue: #3b82f6;
-            --blue-bg: rgba(59,130,246,0.1);
-            --purple: #8b5cf6;
-            --radius: 12px;
-            --radius-sm: 8px;
+            --text-3: #5c6b82;
+            --green: #22d67b;
+            --green-bg: rgba(34,214,123,.12);
+            --red: #f4506a;
+            --red-bg: rgba(244,80,106,.12);
+            --amber: #f5b840;
+            --amber-bg: rgba(245,184,64,.12);
+            --blue: #4d9fff;
+            --blue-bg: rgba(77,159,255,.12);
+            --purple: #9d7bff;
+            --radius: 14px;
+            --radius-sm: 9px;
             --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
             --mono: 'SF Mono', SFMono-Regular, 'Cascadia Code', 'Fira Code', Consolas, monospace;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { -webkit-text-size-adjust: 100%; }
         body {
             font-family: var(--font);
-            background: var(--bg);
+            background:
+                radial-gradient(1000px 400px at 80% -10%, rgba(77,159,255,.06), transparent 60%),
+                radial-gradient(800px 400px at 0% 110%, rgba(157,123,255,.05), transparent 60%),
+                var(--bg);
+            background-attachment: fixed;
             color: var(--text);
-            line-height: 1.5;
+            line-height: 1.45;
             min-height: 100vh;
             min-height: 100dvh;
             -webkit-font-smoothing: antialiased;
         }
 
-        /* --- Header --- */
+        /* --- Sticky header: identity + live status + equity summary --- */
         .header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            background: rgba(11,15,25,0.82);
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            background: rgba(7,10,18,.86);
             border-bottom: 1px solid var(--border);
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
+            padding: 10px 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 10px;
         }
-        .header-l { display: flex; align-items: center; gap: 10px; }
+        .header-l { display: flex; align-items: center; gap: 9px; min-width: 0; }
         .header-l h1 {
-            font-size: 18px; font-weight: 700; letter-spacing: 2px;
+            font-size: 17px; font-weight: 800; letter-spacing: 2.5px;
             background: linear-gradient(135deg, var(--blue), var(--purple));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .header-r { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+        .header-r { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+        .hdr-eq {
+            font-family: var(--mono); font-weight: 700; font-size: 15px;
+            color: var(--text); background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: 8px;
+            padding: 3px 9px; white-space: nowrap;
+        }
 
         .badge {
-            font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
-            letter-spacing: 1px; text-transform: uppercase;
+            font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px;
+            letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
         }
         .b-live  { background: var(--green-bg); color: var(--green); }
         .b-paper { background: var(--blue-bg);  color: var(--blue); }
         .b-off   { background: var(--red-bg);   color: var(--red); }
 
-        .dot {
-            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-            flex-shrink: 0;
-        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
         .dot.on  { background: var(--green); box-shadow: 0 0 8px var(--green); }
         .dot.off { background: var(--red);   box-shadow: 0 0 8px var(--red); }
         .dot.psd { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
 
-        /* --- Connection banner --- */
         .conn { display: none; background: var(--red-bg); color: var(--red); text-align: center; padding: 8px; font-size: 13px; font-weight: 500; }
         .conn.show { display: block; }
 
-        /* --- Main --- */
-        .dash { padding: 16px; max-width: 1200px; margin: 0 auto; }
+        .dash { padding: 14px; max-width: 1180px; margin: 0 auto; padding-bottom: 40px; }
 
-        /* --- Cards --- */
-        .cards { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-bottom: 20px; }
-        @media (min-width:768px) { .cards { grid-template-columns: repeat(4,1fr); gap: 16px; } }
+        /* --- Metric cards --- */
+        .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+        @media (min-width:760px) { .cards { grid-template-columns: repeat(4,1fr); gap: 14px; } .dash { padding: 20px; } }
 
         .card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 16px;
-            transition: border-color .2s;
+            background: linear-gradient(180deg, var(--bg-card), #0b111c);
+            border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
         }
-        .card:hover { border-color: var(--border-hi); }
+        .card.lit { border-color: var(--border-hi); box-shadow: 0 0 0 1px rgba(77,159,255,.08), 0 6px 24px rgba(0,0,0,.35); }
         .card-lbl {
-            font-size: 11px; font-weight: 600; color: var(--text-3);
-            letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+            font-size: 10.5px; font-weight: 700; color: var(--text-3);
+            letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 6px;
         }
-        .card-val { font-size: 22px; font-weight: 700; font-family: var(--mono); line-height: 1.2; }
-        @media (min-width:768px) { .card-val { font-size: 26px; } }
-        .card-sub { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+        .card-val { font-size: 30px; font-weight: 800; font-family: var(--mono); line-height: 1.15; }
+        @media (min-width:760px) { .card-val { font-size: 32px; } }
+        .card-val.mid { font-size: 22px; }
+        .card-sub { font-size: 12px; color: var(--text-2); margin-top: 5px; }
 
-        .prog-track { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
-        .prog-fill  { height: 100%; border-radius: 2px; transition: width .5s ease; }
+        .prog-track { height: 5px; background: var(--border); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .prog-fill  { height: 100%; border-radius: 3px; transition: width .5s ease; }
 
         /* --- Sections --- */
-        .sec { margin-bottom: 24px; }
+        .sec { margin-bottom: 22px; }
         .sec h2 {
-            font-size: 14px; font-weight: 600; color: var(--text-2);
-            letter-spacing: .5px; margin-bottom: 12px;
+            font-size: 13px; font-weight: 700; color: var(--text-2);
+            letter-spacing: .8px; text-transform: uppercase; margin-bottom: 10px;
             display: flex; align-items: center; gap: 8px;
         }
         .cnt {
             font-size: 11px; background: var(--blue-bg); color: var(--blue);
-            padding: 1px 7px; border-radius: 10px; font-weight: 600;
+            padding: 1px 8px; border-radius: 10px; font-weight: 700;
         }
 
-        /* --- Positions --- */
-        .pos-grid { display: grid; gap: 10px; }
-        @media (min-width:768px) { .pos-grid { grid-template-columns: repeat(2,1fr); } }
-
-        .pos-card {
+        /* --- Regime strip --- */
+        .regime-strip {
+            display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 14px;
+            border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px;
         }
-        .pos-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .pos-sym { font-weight: 700; font-size: 15px; font-family: var(--mono); }
-        .pos-side {
-            font-size: 11px; font-weight: 700; padding: 2px 8px;
-            border-radius: 4px; letter-spacing: .5px;
-        }
-        .pos-side.long  { background: var(--green-bg); color: var(--green); }
-        .pos-side.short { background: var(--red-bg);   color: var(--red); }
-
-        .pos-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
-        .pos-r { display: flex; justify-content: space-between; font-size: 13px; }
-        .pos-rl { color: var(--text-3); }
-        .pos-rv { font-family: var(--mono); font-weight: 500; }
-
-        /* --- Empty state --- */
-        .empty {
-            text-align: center; padding: 32px 16px; color: var(--text-3);
-            font-size: 14px; background: var(--bg-card);
-            border: 1px dashed var(--border); border-radius: var(--radius);
-        }
-
-        /* --- Regime & Session --- */
-        .regime-panel {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 16px; margin-bottom: 24px;
-        }
-        .regime-top {
-            display: flex; gap: 16px; flex-wrap: wrap;
-            margin-bottom: 16px; align-items: center;
-        }
-        .regime-item { display: flex; flex-direction: column; gap: 2px; }
-        .regime-item .ri-lbl {
-            font-size: 11px; font-weight: 600; color: var(--text-3);
-            letter-spacing: 1px; text-transform: uppercase;
-        }
-        .regime-item .ri-val {
-            font-size: 18px; font-weight: 700; font-family: var(--mono);
-        }
+        .rg-item { display: flex; flex-direction: column; gap: 3px; justify-content: center; padding-right: 10px; border-right: 1px solid var(--border); min-width: 0; }
+        .rg-item:last-child { border-right: none; }
+        .ri-lbl { font-size: 9.5px; font-weight: 700; color: var(--text-3); letter-spacing: 1.2px; text-transform: uppercase; }
+        .ri-val { font-size: 16px; font-weight: 800; font-family: var(--mono); }
         .regime-bull { color: var(--green); }
         .regime-bear { color: var(--red); }
         .regime-neutral { color: var(--amber); }
 
-        .sess-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .sess-badges { display: flex; gap: 5px; flex-wrap: wrap; }
         .sess-badge {
-            font-size: 11px; font-weight: 600; padding: 3px 10px;
-            border-radius: 6px; letter-spacing: .5px;
+            font-size: 10px; font-weight: 700; padding: 3px 9px;
+            border-radius: 6px; letter-spacing: .6px;
             border: 1px solid var(--border); color: var(--text-3);
-            background: transparent;
         }
-        .sess-badge.active {
-            border-color: var(--blue); color: var(--blue);
-            background: var(--blue-bg);
-        }
+        .sess-badge.active { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
 
-        .setup-matrix { margin-top: 12px; }
-        .setup-matrix table { font-size: 12px; }
-        .setup-matrix th { font-size: 10px; padding: 6px 8px; }
-        .setup-matrix td { padding: 6px 8px; font-family: var(--font); font-size: 12px; }
-        .setup-matrix td.active-row { background: rgba(59,130,246,.06); }
-        .setup-lbl { font-family: var(--font); font-weight: 600; }
+        /* --- Arms (weekday-effective hours) --- */
+        .arm-stack { display: grid; gap: 10px; }
+        @media (min-width:760px) { .arm-stack { grid-template-columns: 1fr; } }
+        .arm {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 13px 14px;
+        }
+        .arm.current { border-color: var(--border-hi); box-shadow: 0 0 0 1px rgba(77,159,255,.15); }
+        .arm-hd { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 9px; }
+        .arm-name { font-size: 16px; font-weight: 800; letter-spacing: 1px; }
+        .arm-strat { font-size: 11.5px; color: var(--text-3); font-family: var(--mono); margin-left: 7px; }
+        .arm-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .pill {
+            font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+            padding: 3px 9px; border-radius: 6px;
+        }
+        .pill.rg-bull { background: var(--green-bg); color: var(--green); }
+        .pill.rg-bear { background: var(--red-bg); color: var(--red); }
+        .pill.rg-neutral { background: var(--amber-bg); color: var(--amber); }
+        .pill.rg-none { background: var(--bg-hover); color: var(--text-3); }
+        .pill.on  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,214,123,.4); }
+        .pill.off { background: var(--bg-hover); color: var(--text-2); border: 1px solid var(--border); }
+        .pill.rblk { background: var(--red-bg); color: var(--red); border: 1px solid rgba(244,80,106,.35); }
+
+        .arm-today {
+            display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px;
+            background: var(--bg-inset); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 10px 12px; margin: 9px 0;
+        }
+        .at-lbl { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: 1.2px; text-transform: uppercase; }
+        .at-hours { font-family: var(--mono); font-size: 19px; font-weight: 800; }
+        .at-hours.on { color: var(--green); }
+        .at-hours.off { color: var(--text-2); }
+        .at-cut { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+        .at-cut s { color: var(--red); opacity: .75; margin-right: 4px; text-decoration-thickness: 1.5px; }
+        .at-note { font-size: 11px; color: var(--amber); width: 100%; }
+
+        .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day-cell {
+            background: var(--bg-inset); border: 1px solid var(--border);
+            border-radius: 8px; padding: 7px 2px 6px; text-align: center; min-width: 0;
+            overflow: hidden;
+        }
+        .day-cell .d-nm { font-size: 9.5px; font-weight: 700; color: var(--text-3); letter-spacing: .6px; text-transform: uppercase; }
+        .day-cell .d-h { font-family: var(--mono); font-size: 11.5px; font-weight: 700; margin-top: 3px; color: var(--text); }
+        .day-cell .d-cut { font-family: var(--mono); font-size: 9px; margin-top: 2px; color: var(--text-3); white-space: nowrap; }
+        .day-cell .d-cut s { color: var(--red); opacity: .65; text-decoration-thickness: 1.5px; }
+        .day-cell.off .d-h { color: var(--text-3); font-weight: 500; }
+        .day-cell.rgblock .d-h { color: var(--amber); }
+        .day-cell.today { border-color: var(--blue); background: rgba(77,159,255,.07); }
+        .day-cell.today .d-nm { color: var(--blue); }
+        .day-cell.live { border-color: rgba(34,214,123,.55); background: var(--green-bg); }
+        .day-cell.live .d-h { color: var(--green); }
+
+        .arm-meta { margin-top: 9px; font-size: 11.5px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+        .arm-meta b { color: var(--text-2); font-weight: 600; }
+        .arm-foot { margin-top: 7px; font-size: 11px; color: var(--text-3); }
+        .arm-absent {
+            font-size: 12px; color: var(--text-3); background: var(--bg-card);
+            border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 8px 12px;
+        }
+        .setup-lbl {
+            font-size: 10px; font-weight: 700; color: var(--text-3);
+            letter-spacing: 1.2px; text-transform: uppercase; margin-right: 6px;
+        }
         .chk { color: var(--green); }
         .blk { color: var(--text-3); }
 
-        /* --- Chart --- */
+        /* --- OI gate --- */
+        .gate-panel {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 12px 14px; margin-top: 12px;
+            font-size: 12.5px; display: grid; gap: 4px;
+        }
+        .gate-panel .g-dim { color: var(--text-2); }
+        .gate-panel .g-dimmer { color: var(--text-3); }
+
+        /* --- Positions --- */
+        .pos-grid { display: grid; gap: 10px; }
+        @media (min-width:760px) { .pos-grid { grid-template-columns: repeat(2,1fr); } }
+        .pos-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 14px;
+        }
+        .pos-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+        .pos-sym { font-weight: 800; font-size: 17px; font-family: var(--mono); }
+        .pos-pnl { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+        .pos-side {
+            font-size: 11px; font-weight: 800; padding: 2px 9px;
+            border-radius: 5px; letter-spacing: .5px;
+        }
+        .pos-side.long  { background: var(--green-bg); color: var(--green); }
+        .pos-side.short { background: var(--red-bg);   color: var(--red); }
+        .pos-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 16px; }
+        .pos-r { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+        .pos-rl { color: var(--text-3); }
+        .pos-rv { font-family: var(--mono); font-weight: 600; }
+
+        .empty {
+            text-align: center; padding: 28px 16px; color: var(--text-3);
+            font-size: 13.5px; background: var(--bg-card);
+            border: 1px dashed var(--border); border-radius: var(--radius);
+        }
+
+        /* --- Chart (self-contained SVG) --- */
         .chart-wrap {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 16px; height: 260px;
-            position: relative;
+            border-radius: var(--radius); padding: 14px 10px 6px; height: 230px;
+            position: relative; overflow: hidden;
         }
+        @media (min-width:760px) { .chart-wrap { height: 280px; padding: 16px 14px 8px; } }
+        .chart-wrap svg { width: 100%; height: 100%; display: block; }
+        .chart-ovl {
+            position: absolute; top: 10px; left: 14px; right: 14px;
+            display: flex; justify-content: space-between; pointer-events: none;
+            font-family: var(--mono); font-size: 11px; color: var(--text-3);
+        }
+        .chart-ovl .c-last { font-size: 13px; font-weight: 700; }
 
         /* --- Tables --- */
         .tbl-wrap {
@@ -209,36 +283,32 @@
         }
         table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
         th {
-            text-align: left; font-size: 11px; font-weight: 600; color: var(--text-3);
-            letter-spacing: .5px; text-transform: uppercase;
+            text-align: left; font-size: 10.5px; font-weight: 700; color: var(--text-3);
+            letter-spacing: .8px; text-transform: uppercase;
             padding: 10px 12px; border-bottom: 1px solid var(--border);
-            position: sticky; top: 0; background: var(--bg-card);
         }
         td {
-            padding: 8px 12px; border-bottom: 1px solid rgba(30,41,59,.5);
-            font-family: var(--mono); font-size: 12px;
+            padding: 9px 12px; border-bottom: 1px solid rgba(28,38,55,.6);
+            font-family: var(--mono); font-size: 12.5px;
         }
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background: rgba(30,41,59,.3); }
+        tr:hover td { background: rgba(21,29,46,.5); }
 
         /* --- Stats grid --- */
         .st-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
-        @media (min-width:768px) { .st-grid { grid-template-columns: repeat(3,1fr); } }
-
+        @media (min-width:760px) { .st-grid { grid-template-columns: repeat(3,1fr); } }
         .st-item {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius-sm); padding: 14px; text-align: center;
+            border-radius: var(--radius-sm); padding: 13px; text-align: center;
         }
-        .st-lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
-        .st-val { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+        .st-lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .st-val { font-size: 21px; font-weight: 800; font-family: var(--mono); }
 
-        /* --- Utility --- */
         .green { color: var(--green); }
         .red   { color: var(--red); }
         .amber { color: var(--amber); }
         .blue  { color: var(--blue); }
 
-        /* --- Footer --- */
         .foot {
             padding: 12px 16px; text-align: center; font-size: 12px;
             color: var(--text-3); border-top: 1px solid var(--border);
@@ -253,9 +323,10 @@
     <div class="header-l">
         <h1>BITANA</h1>
         <span class="badge b-off" id="mode">—</span>
+        <span class="dot off" id="dot"></span>
     </div>
     <div class="header-r">
-        <span class="dot off" id="dot"></span>
+        <span class="hdr-eq" id="hdr-eq">—</span>
         <span id="uptime">—</span>
     </div>
 </header>
@@ -263,58 +334,60 @@
 <main class="dash">
     <!-- Metric Cards -->
     <section class="cards">
-        <div class="card">
+        <div class="card lit">
             <div class="card-lbl">Equity</div>
             <div class="card-val" id="equity">—</div>
             <div class="card-sub" id="peak">Peak: —</div>
         </div>
         <div class="card">
             <div class="card-lbl">Drawdown</div>
-            <div class="card-val" id="dd">—</div>
+            <div class="card-val mid" id="dd">—</div>
             <div class="prog-track"><div class="prog-fill" id="dd-bar" style="width:0"></div></div>
         </div>
         <div class="card">
             <div class="card-lbl">Risk</div>
-            <div class="card-val" id="rsk">—</div>
+            <div class="card-val mid" id="rsk">—</div>
             <div class="card-sub" id="rsk-d">—</div>
         </div>
         <div class="card">
             <div class="card-lbl">Brakes</div>
-            <div class="card-val" id="brk">—</div>
+            <div class="card-val mid" id="brk">—</div>
             <div class="card-sub" id="brk-d">—</div>
         </div>
     </section>
 
-    <!-- BTC Regime & Session -->
+    <!-- Regime & Session strip -->
     <section class="sec">
-        <h2>Regime &amp; Session</h2>
-        <div class="regime-panel">
-            <div class="regime-top">
-                <div class="regime-item">
-                    <span class="ri-lbl">BTC Regime</span>
-                    <span class="ri-val" id="regime">—</span>
-                </div>
-                <div class="regime-item">
-                    <span class="ri-lbl">EMA Distance</span>
-                    <span class="ri-val" id="ema-dist">—</span>
-                </div>
-                <div class="regime-item">
-                    <span class="ri-lbl">Session</span>
-                    <div class="sess-badges" id="sess-badges">
-                        <span class="sess-badge" data-s="asia">ASIA</span>
-                        <span class="sess-badge" data-s="london">LONDON</span>
-                        <span class="sess-badge" data-s="ny">NY</span>
-                        <span class="sess-badge" data-s="late">LATE</span>
-                    </div>
-                </div>
-                <div class="regime-item">
-                    <span class="ri-lbl">UTC</span>
-                    <span class="ri-val" id="utc-time" style="font-size:14px">—</span>
+        <div class="regime-strip">
+            <div class="rg-item">
+                <span class="ri-lbl">BTC Regime</span>
+                <span class="ri-val" id="regime">—</span>
+            </div>
+            <div class="rg-item">
+                <span class="ri-lbl">EMA Dist</span>
+                <span class="ri-val" id="ema-dist">—</span>
+            </div>
+            <div class="rg-item">
+                <span class="ri-lbl">Session</span>
+                <div class="sess-badges" id="sess-badges">
+                    <span class="sess-badge" data-s="asia">ASIA</span>
+                    <span class="sess-badge" data-s="london">LONDON</span>
+                    <span class="sess-badge" data-s="ny">NY</span>
+                    <span class="sess-badge" data-s="late">LATE</span>
                 </div>
             </div>
-            <div class="setup-matrix tbl-wrap" id="setup-matrix"></div>
-            <div class="tbl-wrap" id="gate-panel" style="margin-top:12px"></div>
+            <div class="rg-item">
+                <span class="ri-lbl">UTC</span>
+                <span class="ri-val" id="utc-time" style="font-size:14px">—</span>
+            </div>
         </div>
+        <div class="gate-panel" id="gate-panel"></div>
+    </section>
+
+    <!-- Armed hours per arm -->
+    <section class="sec">
+        <h2>Armed Hours <span style="font-weight:500; letter-spacing:0; text-transform:none; color:var(--text-3)">· weekday-effective · UTC</span></h2>
+        <div class="arm-stack" id="arms"></div>
     </section>
 
     <!-- Open Positions -->
@@ -325,12 +398,10 @@
         </div>
     </section>
 
-    <!-- Cumulative P&L Chart -->
+    <!-- Cumulative P&L Chart (inline SVG, no CDN) -->
     <section class="sec">
         <h2>Cumulative P&amp;L</h2>
-        <div class="chart-wrap">
-            <canvas id="chart"></canvas>
-        </div>
+        <div class="chart-wrap" id="chart-wrap"><div class="empty">No P&amp;L data yet</div></div>
     </section>
 
     <!-- Recent Trades -->
@@ -371,14 +442,14 @@
     <span id="lr">Connecting…</span> · Auto-refresh 15s
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 'use strict';
 
+/* Auth: unchanged flow — token comes from the URL (?token=...) and is
+ * appended to every API call. */
 const TK = new URLSearchParams(location.search).get('token') || '';
 const API = '/api/dashboard?token=' + encodeURIComponent(TK);
 const INT = 15000;
-let _chart = null;
 let _fails = 0;
 
 /* ---- helpers ---- */
@@ -448,11 +519,88 @@ function uStatus(d) {
     $('uptime').textContent = b.uptime_s ? fmtUp(b.uptime_s) : '—';
 }
 
-/* Session arms are served by the bot's /metrics endpoint (arms + oi_gate)
- * from the RUNNING config — no client-side hardcode. Stale SESSION_RULES
- * removed 2026-09-04 (it showed asia bull-allowed and NY h14-15, both wrong). */
+/* ============================================================
+ * ARMS HELPERS (pure functions — weekday-effective hours grid)
+ * Server contract (post 21:15Z restart): rule.hours_by_weekday =
+ * { Mon..Sun: [hours] } with exclude_weekdays/excluded_weekday_hours/
+ * excluded_weekday_regime_hours already applied for the CURRENT regime;
+ * rule.excluded_weekday_hours / excluded_weekday_regime_hours are the raw
+ * exclusion maps for cut-cell labels. Pre-restart payloads lack all three:
+ * we derive the grid client-side (hours/regime_hours + skip_days only —
+ * weekday-cut maps are then UNKNOWN and cut annotations are hidden).
+ * ============================================================ */
 
-const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const ARMS_ORDER = ['ny', 'london', 'asia', 'late'];
+const H2 = h => String(h).padStart(2, '0');
+const range24 = () => Array.from({ length: 24 }, (_, i) => i);
+
+function resolveWindow(rule, regime) {
+    /* loader semantics: regime_hours[regime] overrides hours; an empty
+     * resolution means "no hour gate" (fail-open) -> 24h */
+    let h = rule.hours_base || [];
+    if (regime && rule.regime_hours && Object.prototype.hasOwnProperty.call(rule.regime_hours, regime)) {
+        h = rule.regime_hours[regime];
+    }
+    return (h && h.length) ? h.slice() : range24();
+}
+
+function serverDays(rule) {
+    const hb = rule.hours_by_weekday;
+    if (!hb) return null;
+    return DAY_NAMES.map(d => (hb[d] || []).slice());
+}
+
+function deriveDays(rule, regime) {
+    const win = resolveWindow(rule, regime);
+    return DAY_NAMES.map((_, d) =>
+        (rule.skip_days || []).includes(d) ? [] : win.slice());
+}
+
+function cutHours(rule, wd, regime, windowHours) {
+    /* hours the weekday-scoped exclusions remove from the resolved window
+       (display-only label; requires the post-restart exclusion maps) */
+    const flat = rule.excluded_weekday_hours || {};
+    const scoped = rule.excluded_weekday_regime_hours || {};
+    const cut = new Set(flat[wd] || []);
+    (((scoped[wd] || {}) || {})[regime] || []).forEach(h => cut.add(h));
+    return [...cut].filter(h => windowHours.includes(h)).sort((a, b) => a - b);
+}
+
+function compressHours(hours) {
+    /* [14,15,16,19] -> "14–17, 19" (inclusive UTC hour-start tokens) */
+    if (!hours || !hours.length) return '';
+    const s = hours.slice().sort((a, b) => a - b);
+    const parts = [];
+    let a = s[0], prev = s[0];
+    for (let i = 1; i <= s.length; i++) {
+        if (i < s.length && s[i] === prev + 1) { prev = s[i]; continue; }
+        parts.push(a === prev ? H2(a) : H2(a) + '–' + H2(prev));
+        if (i < s.length) { a = s[i]; prev = s[i]; }
+    }
+    return parts.join(', ');
+}
+
+function armGrid(rule, regime) {
+    /* returns { days: [7][hours], cuts: [7][hours] or null, hasGrid } */
+    const hasGrid = !!rule.hours_by_weekday;
+    const days = hasGrid ? serverDays(rule) : deriveDays(rule, regime);
+    const win = resolveWindow(rule, regime);
+    const cuts = hasGrid
+        ? days.map((eff, d) => cutHours(rule, d, regime, win))
+        : null;
+    return { days, cuts, hasGrid, win };
+}
+
+function armedState(rule, regime, hour, wd, days) {
+    const okRegime = regime != null && (rule.regimes || []).includes(regime);
+    if (!okRegime) return { ok: false, why: 'regime blocked' };
+    if (!(days[wd] || []).includes(hour)) {
+        return { ok: false, why: (rule.skip_days || []).includes(wd) ? 'day off' : 'hour off' };
+    }
+    return { ok: true, why: '' };
+}
+/* ARMS-HELPERS-END */
 
 function uRegime(d) {
     const m = (d.bot && d.bot.metrics) || {};
@@ -462,7 +610,6 @@ function uRegime(d) {
     const hour = m.utc_hour;
     const weekday = m.utc_weekday;
 
-    /* Regime display */
     const re = $('regime');
     if (regime) {
         re.textContent = regime.toUpperCase();
@@ -472,122 +619,153 @@ function uRegime(d) {
         re.className = 'ri-val';
     }
 
-    /* EMA distance */
     $('ema-dist').textContent = dist != null ? (dist >= 0 ? '+' : '') + dist.toFixed(2) + '%' : '—';
 
-    /* Session badges */
     document.querySelectorAll('.sess-badge').forEach(b => {
         b.classList.toggle('active', b.dataset.s === session);
     });
 
-    /* UTC time */
-    $('utc-time').textContent = hour != null ? String(hour).padStart(2,'0') + ':xx UTC · ' + (weekday != null ? DAY_NAMES[weekday] : '') : '—';
+    $('utc-time').textContent = hour != null ? H2(hour) + ':xx UTC · ' + (weekday != null ? DAY_NAMES[weekday] : '') : '—';
 
-    /* Setup matrix table — data-driven from /metrics arms (running config) */
-    const regimes = ['bull', 'neutral', 'bear'];
-    let html = '<table><thead><tr><th>Session</th><th>Strategy</th><th>Side</th><th>Hours</th><th>Skip Days</th><th>Exit</th>';
-    regimes.forEach(r => { html += `<th>${r.charAt(0).toUpperCase() + r.slice(1)}</th>`; });
-    html += '</tr></thead><tbody>';
+    uArms(m, regime, hour, weekday);
+    uGate(m);
+}
 
-    const armsData = (m.arms && m.arms.arms) || {};
-    const fmtH = hs => (hs || []).map(h => String(h).padStart(2, '0')).join(', ');
-    ['asia', 'london', 'ny', 'late'].forEach(s => {
-        const isActive = session === s;
-        const rowCls = isActive ? ' class="active-row"' : '';
+function uArms(m, regime, hour, weekday) {
+    const box = $('arms');
+    const snap = m.arms || {};
+    const armsData = snap.arms || {};
+    const curSession = snap.current || m.session;
+    const skip = ['asia', 'late'].filter(s => !armsData[s])
+        .map(s => `<div class="arm-absent">${s.toUpperCase()} — no active session rule${s === 'asia' ? ' (arm disabled 2026-09-03)' : ''}</div>`)
+        .join('');
+
+const cards = ARMS_ORDER.filter(s => armsData[s]).map(s => {
         const rule = armsData[s];
-        if (!rule) {
-            html += `<tr>`;
-            html += `<td${rowCls}><span class="setup-lbl${isActive ? ' blue' : ''}">${s.toUpperCase()}${isActive ? ' ◀' : ''}</span></td>`;
-            html += `<td${rowCls} colspan="5" style="color:var(--text-3)">No active strategy</td>`;
-            regimes.forEach(() => { html += `<td${rowCls}><span class="blk">—</span></td>`; });
-            html += '</tr>';
-            return;
-        }
-        const skipLbl = (rule.skip_days || []).length
-            ? rule.skip_days.map(d => DAY_NAMES[d]).join(', ') : '—';
-        let hoursLbl = fmtH(rule.hours_base) || '—';
-        if (rule.regime_hours && Object.keys(rule.regime_hours).length) {
-            const parts = Object.entries(rule.regime_hours).map(([rg, hs]) => `${rg}: ${fmtH(hs)}`);
-            hoursLbl = `${fmtH(rule.hours_base)}<br><span style="color:var(--text-2)">${parts.join(' · ')}</span>`;
-        }
-        const decLbl = `dec≥${rule.min_decile} · imb≥${rule.min_imb}` +
-            (rule.dist_cap != null ? ` · dist≤${rule.dist_cap}%` : '');
-        const exitLbl = `${rule.time_bars} bars · ${rule.time_exit_only ? 'time-exit' : 'SL' + rule.stop_atr + '/TP' + rule.tp_atr}`;
-        const armedBadge = rule.armed_now ? ' <span class="chk">● ARMED</span>' : '';
+        const isCur = s === curSession;
+        const grid = armGrid(rule, regime);
+        const today = grid.days[weekday] || [];
+        const okRegime = regime != null && (rule.regimes || []).includes(regime);
+        const st = armedState(rule, regime, hour, weekday, grid.days);
+        /* pre-restart payloads carry a raw-window armed_now — recompute
+           client-side when the weekday grid is missing */
+        const armed = grid.hasGrid ? !!rule.armed_now : st.ok;
 
-        html += `<tr>`;
-        html += `<td${rowCls}><span class="setup-lbl${isActive ? ' blue' : ''}">${s.toUpperCase()}${isActive ? ' ◀' : ''}</span>${isActive ? armedBadge : ''}</td>`;
-        html += `<td${rowCls}>${rule.strategy}<br><span style="color:var(--text-2)">${decLbl}</span></td>`;
-        html += `<td${rowCls}>${rule.side}</td>`;
-        html += `<td${rowCls}>${hoursLbl}</td>`;
-        html += `<td${rowCls}>${skipLbl}${isActive && weekday != null && (rule.skip_days || []).includes(weekday) ? ' 🚫' : ''}</td>`;
-        html += `<td${rowCls}>${exitLbl}</td>`;
+        const effLbl = today.length
+            ? compressHours(today) + ' UTC'
+            : (rule.skip_days || []).includes(weekday) ? 'day off (' + DAY_NAMES[weekday] + ')'
+            : 'no hours today';
 
-        regimes.forEach(r => {
-            const allowed = rule.regimes.includes(r);
-            const isCurrent = r === regime;
-            let cell = allowed ? '<span class="chk">✓</span>' : '<span class="blk">✗</span>';
-            if (isCurrent && isActive) {
-                cell = allowed
-                    ? '<span class="chk" style="font-weight:700">✓ NOW</span>'
-                    : '<span class="red" style="font-weight:700">✗ BLOCKED</span>';
-            }
-            html += `<td${rowCls}>${cell}</td>`;
-        });
-        html += '</tr>';
-    });
+        const cutsToday = grid.cuts ? grid.cuts[weekday] : [];
+        const cutLbl = cutsToday.length
+            ? 'cut: ' + cutsToday.map(h => `<s>${H2(h)}</s>`).join(' ')
+            : '';
 
-    html += '</tbody></table>';
-    $('setup-matrix').innerHTML = html;
+        const armedPill = armedPillHtml(armed, okRegime);
 
-    /* OI gate panel */
+        const cells = DAY_NAMES.map((nm, i) => {
+            const hs = grid.days[i] || [];
+            const isToday = i === weekday;
+            const liveNow = isToday && okRegime && hs.includes(hour);
+            const cut = grid.cuts ? grid.cuts[i] : [];
+            const cls = 'day-cell' + (!hs.length ? ' off' : '') +
+                (isToday ? ' today' : '') + (liveNow ? ' live' : '') +
+                (!okRegime && hs.length ? ' rgblock' : '');
+            const lbl = hs.length ? compressHours(hs) : 'off';
+            const cutLine = (grid.cuts && cut.length) ? `<div class="d-cut"><s>${cut.map(h => `<s>${H2(h)}</s>`).join('')}</s></div>` : '';
+            return `<div class="${cls}">
+                <div class="d-nm">${nm}</div>
+                <div class="d-h">${lbl}</div>
+                ${cutLine}
+            </div>`;
+        }).join('');
+
+        const exitLbl = rule.time_exit_only
+            ? `time-exit ${rule.time_bars} bars`
+            : `SL ${rule.stop_atr} / TP ${rule.tp_atr} · ${rule.time_bars} bars`;
+        const meta = [
+            `<b>${rule.strategy}</b>`,
+            `side ${rule.side}`,
+            `dec≥${rule.min_decile}`,
+            `imb≥${rule.min_imb}`,
+            rule.dist_cap != null ? `dist≤${rule.dist_cap}%` : '',
+            exitLbl,
+        ].filter(Boolean).join(' · ');
+
+        return `<div class="arm${isCur ? ' current' : ''}">
+            <div class="arm-hd">
+                <div><span class="arm-name">${s.toUpperCase()}${isCur ? ' ◀ NOW' : ''}</span><span class="arm-strat">${rule.strategy}</span></div>
+                <div class="arm-badges">${regimeBadgeHtml(regime, okRegime)}${armedPill}</div>
+            </div>
+            <div class="arm-today">
+                <span class="at-lbl">Today ${DAY_NAMES[weekday] || ''}</span>
+                <span class="at-hours ${armed ? 'on' : 'off'}">${effLbl}</span>
+                ${cutLbl ? `<span class="at-cut">${cutLbl}</span>` : ''}
+                ${grid.hasGrid ? '' : `<span class="at-note">weekday-cut details unavailable until bot restart — grid derived from base/regime hours + skip days only</span>`}
+            </div>
+            <div class="day-grid">${cells}</div>
+            <div class="arm-meta">${meta}</div>
+        </div>`;
+    }).join('');
+
+    box.innerHTML = cards + skip;
+}
+
+function regimeBadgeHtml(regime, okRegime) {
+    if (!regime) return '<span class="pill rg-neutral">—</span>';
+    return `<span class="pill rg-${regime}">${regime.toUpperCase()}</span>` +
+           (okRegime ? '' : '<span class="pill rblk">✗ blocked</span>');
+}
+
+function armedPillHtml(armed, okRegime) {
+    if (armed) return '<span class="pill on">● ARMED</span>';
+    if (!okRegime) return '<span class="pill rblk">○ REGIME BLOCKED</span>';
+    return '<span class="pill off">○ DISARMED</span>';
+}
+
+function uGate(m) {
     const gp = $('gate-panel');
-    if (gp) {
-        const g = m.oi_gate || {};
-        const st = g.stats || {};
-        const last = st.last_block;
-        gp.innerHTML =
-            `<div><span class="setup-lbl">OI GATE</span> ${g.enabled
-                ? `<span class="chk">ARMED</span> — blocks entry when ΔOI(30m) > +${g.max_pct}%`
-                : '<span class="blk">OFF</span>'}</div>` +
-            `<div style="color:var(--text-2)">blocked since restart: OI ${st.oi_inflow_gate || 0} · dist-cap ${st.btc_dist_cap || 0}</div>` +
-            `<div style="color:var(--text-2)">${last
-                ? `last block: ${last.reason} · ${last.symbol} · ${last.session} · ${last.detail} · ${String(last.ts).slice(11, 16)}Z`
-                : 'no blocks since restart'}</div>` +
-            `<div style="color:var(--text-3)">asia dist-cap 5.0% arms on asia re-arm (asia currently disabled)</div>`;
-    }
+    if (!gp) return;
+    const g = m.oi_gate || {};
+    const st = g.stats || {};
+    const last = st.last_block;
+    gp.innerHTML =
+        `<div><span class="setup-lbl">OI GATE</span> ${g.enabled
+            ? `<span class="chk">ARMED</span> — blocks entry when ΔOI(30m) > +${g.max_pct}%`
+            : '<span class="blk">OFF</span>'}</div>` +
+        `<div class="g-dim">blocked since restart: OI ${st.oi_inflow_gate || 0} · dist-cap ${st.btc_dist_cap || 0}</div>` +
+        `<div class="g-dim">${last
+            ? `last block: ${last.reason} · ${last.symbol} · ${last.session} · ${last.detail} · ${String(last.ts).slice(11, 16)}Z`
+            : 'no blocks since restart'}</div>`;
 }
 
 function uCards(d) {
     const r = d.risk || {}, br = d.brakes || {};
 
-    /* equity */
     $('equity').textContent = fmt$(r.current_equity);
     $('peak').textContent = 'Peak: ' + fmt$(r.peak_equity);
+    $('hdr-eq').textContent = fmt$(r.current_equity);
 
-    /* drawdown */
     const dd = r.current_drawdown_pct || 0;
     const ddP = (dd * 100).toFixed(2);
     $('dd').textContent = '-' + ddP + '%';
-    $('dd').className = 'card-val ' + (dd > .15 ? 'red' : dd > .05 ? 'amber' : 'green');
+    $('dd').className = 'card-val mid ' + (dd > .15 ? 'red' : dd > .05 ? 'amber' : 'green');
     const bar = $('dd-bar');
     bar.style.width = Math.min(dd / .5 * 100, 100) + '%';
     bar.style.background = dd > .15 ? 'var(--red)' : dd > .05 ? 'var(--amber)' : 'var(--green)';
 
-    /* risk */
     $('rsk').textContent = (r.risk_pct_active || 0).toFixed(1) + '%';
     const bits = [];
     if (r.consecutive_losses > 0) bits.push(r.consecutive_losses + ' losses');
     if (r.reduced_risk_trades_remaining > 0) bits.push(r.reduced_risk_trades_remaining + ' reduced left');
     $('rsk-d').textContent = bits.length ? bits.join(' · ') : 'Normal';
 
-    /* brakes */
     if (br.is_shutdown) {
-        $('brk').textContent = '🔴 SHUTDOWN'; $('brk').className = 'card-val red';
+        $('brk').textContent = '🔴 SHUTDOWN'; $('brk').className = 'card-val mid red';
     } else if (br.is_paused) {
-        $('brk').textContent = '🟡 PAUSED'; $('brk').className = 'card-val amber';
+        $('brk').textContent = '🟡 PAUSED'; $('brk').className = 'card-val mid amber';
     } else {
-        $('brk').textContent = '🟢 Clear'; $('brk').className = 'card-val green';
+        $('brk').textContent = '🟢 Clear'; $('brk').className = 'card-val mid green';
     }
     let bi = 'Daily loss: ' + fmtS$(br.daily_realized_loss || 0);
     if (br.pause_reason) bi += ' · ' + br.pause_reason;
@@ -599,24 +777,27 @@ function uPos(pos) {
     $('pc').textContent = pos.length;
     if (!pos.length) { g.innerHTML = '<div class="empty">No open positions</div>'; return; }
 
-    g.innerHTML = pos.map(p => `
+    g.innerHTML = pos.map(p => {
+        const uR = (p.unrealized_pnl != null && p.risk_r) ? (p.unrealized_pnl / p.risk_r) : null;
+        return `
         <div class="pos-card">
             <div class="pos-hd">
                 <span class="pos-sym">${p.symbol}</span>
+                <span class="pos-pnl ${clr(p.unrealized_pnl)}">${p.unrealized_pnl != null ? fmtS$(p.unrealized_pnl) : '—'}</span>
                 <span class="pos-side ${p.side.toLowerCase()}">${p.side}</span>
             </div>
             <div class="pos-rows">
                 <div class="pos-r"><span class="pos-rl">Entry</span><span class="pos-rv">${fmtP(p.entry_price)}</span></div>
+                <div class="pos-r"><span class="pos-rl">uR</span><span class="pos-rv ${uR != null ? clr(uR) : ''}">${uR != null ? fmtR(uR) : '—'}</span></div>
                 <div class="pos-r"><span class="pos-rl">Stop</span><span class="pos-rv red">${fmtP(p.stop_price)}</span></div>
-                <div class="pos-r"><span class="pos-rl">R</span><span class="pos-rv ${clr(p.risk_r)}">${fmtR(p.risk_r)}</span></div>
+                <div class="pos-r"><span class="pos-rl">Risk R</span><span class="pos-rv">${fmtR(p.risk_r)}</span></div>
                 <div class="pos-r"><span class="pos-rl">Leverage</span><span class="pos-rv">${p.leverage}x</span></div>
                 <div class="pos-r"><span class="pos-rl">Engine</span><span class="pos-rv">${p.engine}</span></div>
                 <div class="pos-r"><span class="pos-rl">Held</span><span class="pos-rv">${p.candles_held} bars</span></div>
-                <div class="pos-r"><span class="pos-rl">State</span><span class="pos-rv">${p.state}</span></div>
                 <div class="pos-r"><span class="pos-rl">Qty</span><span class="pos-rv">${p.quantity}</span></div>
             </div>
         </div>
-    `).join('');
+    `; }).join('');
 }
 
 function uTrades(trades) {
@@ -666,54 +847,42 @@ function uStats(s) {
     ).join('');
 }
 
+/* Self-contained SVG P&L chart (Chart.js CDN removed 2026-09-23 — must
+ * render offline on the owner's phone). Non-uniform viewBox scale with
+ * non-scaling-stroke keeps lines crisp at any width. */
 function uChart(curve) {
-    const canvas = $('chart');
+    const el = $('chart-wrap');
     if (!curve || curve.length < 2) {
-        if (_chart) { _chart.destroy(); _chart = null; }
+        el.innerHTML = '<div class="empty">No P&L data yet</div>';
         return;
     }
-
-    const labels = curve.map(p => p.t ? fmtT(p.t) : 'Start');
     const vals = curve.map(p => p.v);
-    const last = vals[vals.length - 1] || 0;
-    const lnC = last >= 0 ? '#22c55e' : '#ef4444';
-    const bgC = last >= 0 ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)';
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = (max - min) || 1;
+    const W = 700, H = 220, P = 6;
+    const X = i => P + (i * (W - 2 * P)) / (vals.length - 1);
+    const Y = v => P + (1 - (v - min) / span) * (H - 2 * P);
+    const pts = vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ');
+    const last = vals[vals.length - 1];
+    const col = last >= 0 ? '#22d67b' : '#f4506a';
+    const fill = last >= 0 ? 'rgba(34,214,123,.12)' : 'rgba(244,80,106,.12)';
+    const zeroY = (min <= 0 && max >= 0) ? `<line x1="0" y1="${Y(0).toFixed(1)}" x2="${W}" y2="${Y(0).toFixed(1)}" stroke="rgba(148,163,184,.35)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : '';
+    const grid = [0.25, 0.5, 0.75].map(f => {
+        const y = (P + f * (H - 2 * P)).toFixed(1);
+        return `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="rgba(28,38,55,.8)" vector-effect="non-scaling-stroke"/>`;
+    }).join('');
 
-    if (_chart) {
-        _chart.data.labels = labels;
-        _chart.data.datasets[0].data = vals;
-        _chart.data.datasets[0].borderColor = lnC;
-        _chart.data.datasets[0].backgroundColor = bgC;
-        _chart.update('none');
-        return;
-    }
-
-    _chart = new Chart(canvas, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                data: vals,
-                borderColor: lnC,
-                backgroundColor: bgC,
-                borderWidth: 2,
-                fill: true,
-                pointRadius: 0,
-                pointHitRadius: 8,
-                tension: .3,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtS$(c.parsed.y) } } },
-            scales: {
-                x: { ticks: { color: '#64748b', maxRotation: 0, maxTicksLimit: 6, font: { size: 10 } }, grid: { color: 'rgba(30,41,59,.5)' } },
-                y: { ticks: { color: '#64748b', callback: v => '$' + v.toLocaleString(), font: { size: 10 } }, grid: { color: 'rgba(30,41,59,.5)' } },
-            },
-            interaction: { intersect: false, mode: 'index' },
-        }
-    });
+    const el_svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        ${grid}${zeroY}
+        <polygon points="0,${H} ${pts} ${W},${H}" fill="${fill}" stroke="none"/>
+        <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"
+            stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        <circle cx="${X(vals.length - 1).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="3.5" fill="${col}" vector-effect="non-scaling-stroke"/>
+    </svg>`;
+    el.innerHTML =
+        `<div class="chart-ovl"><span class="c-last ${last >= 0 ? 'green' : 'red'}">${fmtS$(last)}</span>` +
+        `<span>min ${fmt$(min)} · max ${fmt$(max)}</span>` +
+        `<span>${fmtT(curve[curve.length - 1].t) || ''}</span></div>` + el_svg;
 }
 
 /* ---- main loop ---- */
@@ -722,7 +891,7 @@ async function refresh() {
     try {
         const r = await fetch(API);
         if (r.status === 403) {
-            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#ef4444;font-size:18px;font-family:sans-serif">🔒 Invalid token</div>';
+            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#f4506a;font-size:18px;font-family:sans-serif">🔒 Invalid token</div>';
             return;
         }
         if (!r.ok) throw new Error('HTTP ' + r.status);

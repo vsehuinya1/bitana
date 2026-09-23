@@ -990,31 +990,77 @@ class Bitana:
 
     def _arms_snapshot(self) -> dict:
         """Running-config arm data for the dashboard (source of truth = the
-        loaded config, not the yaml text). armed_now is indicative: regime +
-        resolved-hours + weekday checks; excluded_weekday_regime_hours
-        micro-exclusions are applied inside the engine's hour_gate_reason."""
+        loaded config, not the yaml text).
+
+        2026-09-23 dashboard-hours fix: the panel previously showed the raw
+        resolved window (hours / regime_hours) with NO weekday scoping, so
+        e.g. NY-bull displayed [14..20] on every weekday even though the
+        engine actually cuts Tue [16..20], Wed [18..20], Thu [18,20],
+        Fri [17] and zeroes Mon/Sat/Sun via exclude_weekdays (plus the
+        Tue-neutral regime-scoped wipe). hours_now / armed_now are now
+        WEEKDAY-EFFECTIVE and hours_by_weekday exposes the full Mon..Sun
+        grid, mirroring SessionBurstRule.hour_gate_reason + the engine's
+        exclude_weekdays gate (hour_gate / weekday_*_excluded reasons) for
+        the CURRENT regime.
+
+        Boundary note: the engine gates on the completed 5m bar's CLOSE hour
+        (f["hour"] = bar.close_time.hour, weekday = close-time weekday), so
+        close-hour cells coincide with wall-clock UTC hours. armed_now
+        compares the current wall-clock UTC hour/weekday against that same
+        grid; the still-open bar closes in the next hour at exact hour
+        boundaries, so armed_now can lead the engine's next decision by up
+        to one cell. Fine for a status display; rule.hour_gate_reason stays
+        the trading truth."""
         from engines.liq_burst_follow_engine import _session
+
+        def _effective_hours(rule, weekday: int, regime: str | None) -> list[int]:
+            """Weekday-effective armed hours for one arm.
+
+            hours := rule.hours, overridden by rule.regime_hours[regime] when
+            that regime key exists; an empty/None resolution means "no hour
+            gate" in hour_gate_reason (fail-open) and is shown as 24h. Then
+            subtract excluded_weekday_hours[weekday] and
+            excluded_weekday_regime_hours[weekday][regime]; an
+            exclude_weekdays hit zeroes the whole day (engine's
+            weekday_excluded gate runs after the hour gate, so the day-off
+            result dominates regardless of hour order)."""
+            if rule.exclude_weekdays and weekday in rule.exclude_weekdays:
+                return []
+            hours = rule.hours or []
+            if regime and rule.regime_hours and regime in rule.regime_hours:
+                hours = rule.regime_hours[regime]
+            if not hours:  # fail-open, same as hour_gate_reason
+                hours = list(range(24))
+            cut = set((rule.excluded_weekday_hours or {}).get(weekday) or [])
+            if regime:
+                cut |= set(
+                    ((rule.excluded_weekday_regime_hours or {}).get(weekday) or {}).get(regime) or []
+                )
+            return sorted(h for h in hours if h not in cut)
+
         bf = self.cfg.burst_follow
         now_utc = datetime.now(timezone.utc)
         cur_regime = self._btc_regime
+        cur_wd = now_utc.weekday()
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         arms = {}
         for name, rule in bf.session_rules.items():
-            hours = rule.hours or []
-            regime_hours = rule.regime_hours or {}
-            if cur_regime and cur_regime in regime_hours:
-                hours = regime_hours[cur_regime]
             regimes = rule.allowed_btc_regimes or bf.allowed_btc_regimes
+            hours_by_weekday = {
+                day_names[d]: _effective_hours(rule, d, cur_regime) for d in range(7)
+            }
+            hours_today = hours_by_weekday[day_names[cur_wd]]
             armed_now = (
-                cur_regime in regimes
-                and now_utc.hour in hours
-                and not (rule.exclude_weekdays and now_utc.weekday() in rule.exclude_weekdays)
+                cur_regime is not None
+                and cur_regime in regimes
+                and now_utc.hour in hours_today
             )
             arms[name] = {
                 "strategy": rule.shadow_strategy,
                 "side": rule.allowed_side or rule.side_mode,
                 "hours_base": rule.hours,
-                "hours_now": hours,
-                "regime_hours": regime_hours,
+                "hours_now": hours_today,
+                "regime_hours": rule.regime_hours or {},
                 "regimes": regimes,
                 "min_decile": rule.min_decile,
                 "min_imb": rule.min_imb,
@@ -1025,6 +1071,14 @@ class Bitana:
                 "regime_stop_atr": rule.regime_stop_atr,
                 "tp_atr": rule.tp_atr,
                 "dist_cap": rule.btc_dist_max_pct,
+                # Raw exclusion maps so the UI can label cut cells:
+                # weekday -> [hours] / weekday -> {regime: [hours]} ({} = none wired).
+                "excluded_weekday_hours": rule.excluded_weekday_hours or {},
+                "excluded_weekday_regime_hours": rule.excluded_weekday_regime_hours or {},
+                # Mon..Sun -> effective armed hours for the CURRENT regime
+                # ([] = fully disarmed that day: excluded weekday or every
+                # hour cut). Keyed by day name for direct UI consumption.
+                "hours_by_weekday": hours_by_weekday,
                 "armed_now": armed_now,
             }
         return {"current": _session(now_utc.hour), "regime": cur_regime, "arms": arms}
