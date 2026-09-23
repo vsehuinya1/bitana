@@ -193,7 +193,7 @@ burst_follow:
   # aggressive OI inflow (oi_delta_30m > +0.5%), both sides, fail-open on
   # missing data. Basis: WLA blocked set -13.2R/584 legs. Kill criteria in
   # RESEARCH_PLAN.md; first blocked-set R-read Sep 6.
-  oi_inflow_gate_enabled: true
+  oi_inflow_gate_enabled: false  # PREREG-OIGATE AMENDMENT 2026-09-23: unwind to dark (audit G9) — see RESEARCH_PLAN.md; re-arm bar 1.0%/n≥100/5d; backup .pre_oilight_20260923
   oi_inflow_max_pct: 0.5
   # 2026-08-30: moved with symbols.defaults (owner 24% -> 10%).
   risk_pct: 10.0
