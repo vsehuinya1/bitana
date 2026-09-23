@@ -474,7 +474,8 @@ function fmtR(n) {
 
 function fmtP(n) {
     if (n == null || isNaN(n)) return '—';
-    return Math.abs(n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : n >= 1 ? n.toFixed(4) : n.toFixed(6));
+    const a = Math.abs(n);  /* abs the NUMBER first — Math.abs("1,510.35") is NaN (locale string) */
+    return a >= 1000 ? a.toLocaleString('en-US', { maximumFractionDigits: 2 }) : a >= 1 ? a.toFixed(4) : a.toFixed(6);
 }
 
 function fmtT(iso) {
