@@ -497,6 +497,11 @@ class LiveGateSnapshot:
     pos_imb_only: bool = False
     neg_imb_only: bool = False
     allowed_side: str | None = None
+    # NY-VOLZ mirror-semantics fix (2026-09-23): the engine rejects vol_z <
+    # min_vol_z in _matches (engine L260) for BOTH arms (both carry 0.0), but
+    # the WLA mirror never applied it — ~40% of ny WLA=1 rows were legs live
+    # would reject (ny vol_z<0 slice). Mirror now matches the engine.
+    min_vol_z: float | None = None
 
 
 _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
@@ -538,6 +543,7 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
             pos_imb_only=bool(rule.pos_imb_only),
             neg_imb_only=bool(rule.neg_imb_only),
             allowed_side=rule.allowed_side,
+            min_vol_z=rule.min_vol_z,
         )
     return snaps
 
@@ -1039,6 +1045,10 @@ class SignalShadow:
             return "pos_imb_only"
         if g.neg_imb_only and imb >= 0:
             return "neg_imb_only"
+        if g.min_vol_z is not None and f.get("vol_z", 0.0) < g.min_vol_z:
+            # NY-VOLZ (2026-09-23): engine parity — _matches rejects vol_z <
+            # min_vol_z; the mirror ignored it, overstating the WLA book.
+            return "vol_z"
         if g.allowed_side and side != g.allowed_side:
             return "allowed_side"
         if g.min_decile > 0 and (f.get("decile", 0) or 0) < g.min_decile:
