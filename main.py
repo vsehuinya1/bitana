@@ -57,6 +57,30 @@ from storage.database import Database
 from tg_bot.alerts import TelegramAlerts
 from tg_bot.bot import TelegramBotHandler
 
+
+# ENTRY-AUDIT (#5, 2026-09-23): portfolio/sizing skip counters for burst-arm
+# signals, keyed (session, reason) into LiqBurstFollowEngine.gate_stats.
+# Observability only — every call sits beside an existing `continue`.
+_PORTFOLIO_REASON_PREFIXES = (
+    ("Max positions reached", "max_positions"),
+    ("Max positions for", "per_symbol"),
+    ("Duplicate", "duplicate_side"),
+    ("Cluster cap", "cluster_cap"),
+)
+
+
+def _record_entry_skip(sig: Signal, reason: str) -> None:
+    if sig.engine == EngineType.LIQ_BURST_FOLLOW:
+        LiqBurstFollowEngine.record_gate((sig.signal_data or {}).get("session"), reason)
+
+
+def _portfolio_reason_key(reason: str) -> str:
+    for prefix, key in _PORTFOLIO_REASON_PREFIXES:
+        if reason.startswith(prefix):
+            return key
+    return "portfolio_other"
+
+
 logger = None  # initialized after logging setup
 
 
@@ -693,6 +717,7 @@ class Bitana:
         for sig in signals:
             can_open, reason = self.portfolio_mgr.can_open(sig, open_positions)
             if not can_open:
+                _record_entry_skip(sig, _portfolio_reason_key(reason))
                 logger.info("Portfolio rejected", symbol=sig.symbol, reason=reason)
                 continue
 
@@ -701,6 +726,7 @@ class Bitana:
                 sig.symbol, self.rest_client if self.cfg.mode == "live" else None,
             )
             if not spread_ok:
+                _record_entry_skip(sig, "spread")
                 await self.alerts.warning(
                     f"Trade skipped: spread {spread_bps:.1f}bps > max {self.cfg.execution.max_spread_bps}bps"
                 )
@@ -743,6 +769,9 @@ class Bitana:
             quantity *= sizing_mult
 
             if quantity <= 0 or leverage <= 0:
+                _record_entry_skip(
+                    sig, "cluster_risk_budget" if cluster_mult <= 0 else "zero_size",
+                )
                 logger.warning("Zero position size", symbol=sig.symbol)
                 continue
 
@@ -753,6 +782,9 @@ class Bitana:
                 if self.order_mgr.last_soft_reject:
                     # Insufficient margin for another concurrent position:
                     # skip this signal, keep trading the rest of the session.
+                    _record_entry_skip(
+                        sig, self.order_mgr.last_soft_reject_reason or "soft_reject",
+                    )
                     continue
                 if self.cfg.mode == "live":
                     reason = f"Entry execution failed for {sig.symbol}; manual review required"
@@ -1022,6 +1054,11 @@ class Bitana:
                 "enabled": bf.oi_inflow_gate_enabled,
                 "max_pct": bf.oi_inflow_max_pct,
                 "stats": dict(LiqBurstFollowEngine.gate_stats),
+            },
+            # ENTRY-AUDIT (#5): same counters, top-level for the dashboard:
+            # {session: {reason: count}} since process start.
+            "gate_reasons": {
+                s: dict(r) for s, r in LiqBurstFollowEngine.gate_stats["by_reason"].items()
             },
         }
 

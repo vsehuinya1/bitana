@@ -65,6 +65,14 @@ def _session(hour: int) -> str:
     return "late"
 
 
+def _bar_session(candles_5m: list[Candle]) -> str:
+    """Session of the closing bar for pre-feature counters ("na" if unknown)."""
+    if not candles_5m:
+        return "na"
+    bt = getattr(candles_5m[-1], "close_time", None)
+    return _session(bt.hour) if bt is not None else "na"
+
+
 def _resolve_side(mode: SideMode, imb: float) -> Side | None:
     if mode == "fade":
         return Side.SHORT if imb > 0 else Side.LONG
@@ -78,6 +86,43 @@ class LiqBurstFollowEngine:
     # process metrics endpoint can expose cross-symbol counters to the
     # dashboard. Counters reset on process restart.
     gate_stats: dict = {"oi_inflow_gate": 0, "btc_dist_cap": 0, "last_block": None}
+    # ENTRY-AUDIT (#5, 2026-09-23): per-(session, reason) skip counters over
+    # every evaluate/_matches branch plus the main.py portfolio/sizing skips.
+    # Served nested as gate_stats["by_reason"][session][reason] (JSON-safe);
+    # _hour_counts holds the since-last-summary deltas for the hourly INFO line.
+    gate_stats["by_reason"] = {}
+    gate_stats["oi_inflow_dark"] = 0  # gate OFF: bars the gate WOULD have blocked
+    _hour_counts: dict[tuple[str, str], int] = defaultdict(int)
+    _summary_hour: str | None = None
+
+    @classmethod
+    def record_gate(cls, session: str | None, reason: str) -> None:
+        """Count one gate outcome. Observability only — never alters a decision."""
+        session = session or "na"
+        by_session = cls.gate_stats["by_reason"].setdefault(session, {})
+        by_session[reason] = by_session.get(reason, 0) + 1
+        cls._hour_counts[(session, reason)] += 1
+
+    @classmethod
+    def maybe_log_hourly_summary(cls, now: datetime | None = None) -> None:
+        """One INFO line per UTC wall-clock hour with the prior hour's deltas."""
+        now = now or datetime.now(timezone.utc)
+        hour_key = now.strftime("%Y-%m-%dT%H")
+        if cls._summary_hour is None:
+            cls._summary_hour = hour_key
+            return
+        if hour_key == cls._summary_hour:
+            return
+        counts = {
+            f"{s}:{r}": n
+            for (s, r), n in sorted(cls._hour_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        }
+        logger.info(
+            "Burst gate hourly summary",
+            hour=cls._summary_hour, total=sum(cls._hour_counts.values()), counts=counts,
+        )
+        cls._hour_counts.clear()
+        cls._summary_hour = hour_key
 
     def __init__(
         self,
@@ -228,69 +273,49 @@ class LiqBurstFollowEngine:
             "liq_imbalance_30m": st.liq_imbalance_30m,
         }
 
-    def _matches(self, f: dict, rule: SessionBurstRule, symbol: str = "") -> tuple[bool, Side | None]:
+    def _matches(
+        self, f: dict, rule: SessionBurstRule, symbol: str = "", *, record: bool = True,
+    ) -> tuple[bool, Side | None]:
+        """Arm-rule match. record=False = read-only probe (would_have_matched on
+        OI-blocked bars): identical decision, no skip counters bumped."""
         imb = float(f.get("liq_imbalance_30m", f.get("liq_direction_imb", 0.0)))
         session = f.get("session", "")
 
+        def skip(reason: str, **kw) -> tuple[bool, None]:
+            if record:
+                type(self).record_gate(session, reason)
+            logger.debug("Burst session skip", symbol=symbol, session=session, reason=reason, **kw)
+            return False, None
+
         if rule.min_imb > 0 and abs(imb) < rule.min_imb:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="imb",
-                imb=round(imb, 4), min_imb=rule.min_imb,
-            )
-            return False, None
+            return skip("imb", imb=round(imb, 4), min_imb=rule.min_imb)
         if rule.pos_imb_only and imb <= 0:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="pos_imb_only",
-                imb=round(imb, 4),
-            )
-            return False, None
+            return skip("pos_imb_only", imb=round(imb, 4))
         if rule.neg_imb_only and imb >= 0:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="neg_imb_only",
-                imb=round(imb, 4),
-            )
-            return False, None
+            return skip("neg_imb_only", imb=round(imb, 4))
 
         if f["cascade_strength"] < rule.min_cascade_strength:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="cascade",
-                cascade=f["cascade_strength"], min_cascade=rule.min_cascade_strength,
+            return skip(
+                "cascade", cascade=f["cascade_strength"], min_cascade=rule.min_cascade_strength,
             )
-            return False, None
         if f["vol_z"] < rule.min_vol_z:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="vol_z",
-                vol_z=round(f["vol_z"], 4), min_vol_z=rule.min_vol_z,
-            )
-            return False, None
+            return skip("vol_z", vol_z=round(f["vol_z"], 4), min_vol_z=rule.min_vol_z)
         if f["n_confirms"] < rule.min_n_confirms:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="n_confirms",
-                n_confirms=f["n_confirms"], min_n_confirms=rule.min_n_confirms,
+            return skip(
+                "n_confirms", n_confirms=f["n_confirms"], min_n_confirms=rule.min_n_confirms,
             )
-            return False, None
         if f["decile"] < rule.min_decile:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="decile",
-                decile=f["decile"], min_decile=rule.min_decile,
-            )
-            return False, None
+            return skip("decile", decile=f["decile"], min_decile=rule.min_decile)
 
-        burst_vol = float(f.get("burst_volume_30m", 0.0))
-        burst_events = int(f.get("burst_events_30m", 0))
-        if burst_vol < self.cfg.min_burst_volume_30m or burst_events < self.cfg.min_burst_events_30m:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="burst_threshold",
-                volume_30m=burst_vol, events_30m=burst_events,
-            )
-            return False, None
+        # ENTRY-AUDIT (#3, 2026-09-23): burst_volume/events re-check removed —
+        # unreachable. evaluate() already returns on the burst dict below the
+        # same cfg floor, and main.py syncs exactly that dict into state (same
+        # cfg object, same >= test) before calling evaluate(), so the state
+        # copy read here could never fail.
 
         side = _resolve_side(rule.side_mode, imb)
         if rule.allowed_side and side is not None and side.value != rule.allowed_side:
-            logger.debug(
-                "Burst session skip", symbol=symbol, session=session, reason="side_pin",
-            )
-            return False, None
+            return skip("side_pin")
         return side is not None, side
 
     async def evaluate(
@@ -306,30 +331,49 @@ class LiqBurstFollowEngine:
         btc_regime_age_bars: int | None = None,
         btc_regime_dist: float | None = None,
     ) -> Signal | None:
+        cls = type(self)
+        cls.maybe_log_hourly_summary()
+        # ENTRY-AUDIT (#1 i, 2026-09-23): OI DARK. Gate OFF -> sample OI on
+        # EVERY bar, before any gate — the shadow's cadence (v5_forward_test
+        # _refresh_oi_delta runs per symbol per bar), so the dark delta is the
+        # same metric the shadow logs. Gate ON keeps the original lazy
+        # sample-at-gate-reach below, so blocking behavior is unchanged.
+        dark_oi_delta: float | None = None
+        if not self.cfg.oi_inflow_gate_enabled:
+            dark_oi_delta = await self._oi_delta_30m(symbol)
+
         if burst is None:
+            cls.record_gate(_bar_session(candles_5m), "no_burst_stats")
             return None
         if float(burst.get("volume_30m", 0.0)) < self.cfg.min_burst_volume_30m:
+            cls.record_gate(_bar_session(candles_5m), "burst_floor")
             return None
         if int(burst.get("events_30m", 0)) < self.cfg.min_burst_events_30m:
+            cls.record_gate(_bar_session(candles_5m), "burst_floor")
             return None
 
         f = self._features(candles_5m, state)
         if f is None:
+            cls.record_gate(_bar_session(candles_5m), "features_none")
             return None
+        session = f["session"]
 
         rule = self._rule_for_session(f["session"])
         if rule is None:
+            cls.record_gate(session, "no_rule")
             return None
 
         if self.cfg.btc_regime_gate_enabled:
             allowed = rule.allowed_btc_regimes or self.cfg.allowed_btc_regimes
             if btc_regime is None:
+                cls.record_gate(session, "regime_unknown")
                 logger.debug(
                     "Burst session skip", symbol=symbol, session=f["session"],
                     reason="btc_regime_unknown",
                 )
                 return None
             if btc_regime not in allowed:
+                cls.record_gate(session, "regime")
                 logger.debug(
                     "Burst session skip", symbol=symbol, session=f["session"],
                     reason="btc_regime_gate", btc_regime=btc_regime, allowed=allowed,
@@ -339,12 +383,14 @@ class LiqBurstFollowEngine:
         max_age = rule.max_regime_age_bars or self.cfg.max_regime_age_bars
         if max_age is not None:
             if btc_regime_age_bars is None:
+                cls.record_gate(session, "regime_age_unknown")
                 logger.debug(
                     "Burst session skip", symbol=symbol, session=f["session"],
                     reason="btc_regime_age_unknown",
                 )
                 return None
             if btc_regime_age_bars > max_age:
+                cls.record_gate(session, "regime_age")
                 logger.debug(
                     "Burst session skip", symbol=symbol, session=f["session"],
                     reason="btc_regime_age_gate",
@@ -361,6 +407,7 @@ class LiqBurstFollowEngine:
         # wire; replaced by excluded_weekday_regime_hours).
         hour_reason = rule.hour_gate_reason(f["hour"], bar_time.weekday(), btc_regime)
         if hour_reason:
+            cls.record_gate(session, hour_reason)  # hour_gate / weekday_*_excluded
             logger.debug(
                 "Burst session skip", symbol=symbol, session=f["session"],
                 reason=hour_reason, weekday=bar_time.weekday(), hour=f["hour"],
@@ -375,6 +422,7 @@ class LiqBurstFollowEngine:
             and btc_regime_dist is not None
             and btc_regime_dist > rule.btc_dist_max_pct
         ):
+            cls.record_gate(session, "btc_dist_cap")
             type(self).gate_stats["btc_dist_cap"] += 1
             type(self).gate_stats["last_block"] = {
                 "reason": "btc_dist_cap", "symbol": symbol,
@@ -389,6 +437,7 @@ class LiqBurstFollowEngine:
             return None
 
         if rule.exclude_weekdays and bar_time.weekday() in rule.exclude_weekdays:
+            cls.record_gate(session, "weekday")
             logger.debug(
                 "Burst session skip", symbol=symbol, session=f["session"],
                 reason="weekday_excluded", weekday=bar_time.weekday(),
@@ -398,6 +447,7 @@ class LiqBurstFollowEngine:
         if state.last_burst_time is not None:
             elapsed = (bar_time - state.last_burst_time).total_seconds()
             if elapsed < self.cfg.dedup_bars * 300:
+                cls.record_gate(session, "dedup")
                 return None
 
         # PREREG-OIGATE (2026-09-03): block entries into aggressive OI inflow
@@ -408,24 +458,45 @@ class LiqBurstFollowEngine:
         if self.cfg.oi_inflow_gate_enabled:
             oi_delta = await self._oi_delta_30m(symbol)
             if oi_delta is not None and oi_delta > self.cfg.oi_inflow_max_pct:
+                # ENTRY-AUDIT (#1 ii): read-only probe — would the arm rule have
+                # matched had the gate not fired? record=False: no counters.
+                would_match, _ = self._matches(f, rule, symbol, record=False)
+                cls.record_gate(session, "oi_inflow_gate")
+                if would_match:
+                    cls.record_gate(session, "oi_inflow_gate_would_match")
                 type(self).gate_stats["oi_inflow_gate"] += 1
                 type(self).gate_stats["last_block"] = {
                     "reason": "oi_inflow_gate", "symbol": symbol,
                     "session": f["session"], "ts": bar_time.isoformat(),
-                    "detail": f"oi_delta_30m={oi_delta}%",
+                    "detail": f"oi_delta_30m={oi_delta}% would_have_matched={would_match}",
                 }
                 logger.info(
                     "Burst entry blocked", symbol=symbol, session=f["session"],
                     reason="oi_inflow_gate", oi_delta_30m_pct=oi_delta,
                     max_pct=self.cfg.oi_inflow_max_pct,
+                    would_have_matched=would_match,
                 )
                 return None
+        elif dark_oi_delta is not None and dark_oi_delta > self.cfg.oi_inflow_max_pct:
+            # ENTRY-AUDIT (#1 i): gate OFF — log/count the would-block at the
+            # gate's position in the chain; never blocks.
+            would_match, _ = self._matches(f, rule, symbol, record=False)
+            cls.record_gate(session, "oi_inflow_dark")
+            if would_match:
+                cls.record_gate(session, "oi_inflow_dark_would_match")
+            type(self).gate_stats["oi_inflow_dark"] += 1
+            logger.info(
+                "oi_inflow_dark", symbol=symbol, session=f["session"],
+                oi_delta_30m_pct=dark_oi_delta, max_pct=self.cfg.oi_inflow_max_pct,
+                would_have_matched=would_match, ts=bar_time.isoformat(),
+            )
 
         matched, side = self._matches(f, rule, symbol)
         if not matched or side is None:
             return None
 
         state.last_burst_time = bar_time
+        cls.record_gate(session, "signal")
 
         entry = f["close"]
         atr = f["atr"]

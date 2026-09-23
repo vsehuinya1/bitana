@@ -51,6 +51,7 @@ class OrderManager:
         # Set when the most recent entry was rejected for insufficient
         # margin/balance. Lets the caller skip the signal instead of pausing.
         self.last_soft_reject = False
+        self.last_soft_reject_reason: str | None = None
 
     async def _critical_order_failure(
         self,
@@ -125,6 +126,7 @@ class OrderManager:
         symbol = signal.symbol
         client_id = self._gen_client_id()
         self.last_soft_reject = False
+        self.last_soft_reject_reason: str | None = None  # ENTRY-AUDIT #5 (observability)
 
         # Round quantity
         quantity = self._sym_info.round_quantity(symbol, quantity)
@@ -132,6 +134,7 @@ class OrderManager:
             # Too small for LOT_SIZE/minQty after sizing (tiny equity / high
             # price / margin slot). Soft-skip — do not pause the whole book.
             self.last_soft_reject = True
+            self.last_soft_reject_reason = "qty_rounded_zero"
             logger.warning("Quantity rounded to zero — entry skipped", symbol=symbol)
             if self._cfg.mode == "live" and self._alerts is not None:
                 await self._alerts.warning(
@@ -148,6 +151,7 @@ class OrderManager:
             est_notional = quantity * signal.entry_price
             if est_notional < sf.min_notional * 1.02:  # buffer vs fill drift
                 self.last_soft_reject = True
+                self.last_soft_reject_reason = "min_notional"
                 logger.warning(
                     "Entry skipped — notional below exchange minimum",
                     symbol=symbol,
@@ -187,6 +191,7 @@ class OrderManager:
         if result.status == OrderStatus.REJECTED:
             if self._is_soft_reject(result):
                 self.last_soft_reject = True
+                self.last_soft_reject_reason = "insufficient_margin"
                 raw = result.raw if isinstance(result.raw, dict) else {}
                 logger.warning(
                     "Entry skipped — insufficient margin",
