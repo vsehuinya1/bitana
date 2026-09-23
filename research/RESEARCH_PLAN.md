@@ -1275,3 +1275,18 @@ Basis: phase-1 audit G9 (live OI delta ≠ shadow field; blocked set positive in
 
 ### LON-TAIL watch row (2026-09-23, frozen now — no cut)
 Population: london live + WLA=1 legs, entry 11:30–13:59Z, bull|bear, **parity era only (≥12:36:54Z)**; reader: live-vs-shadow paired by symbol+bucket; read at Sunday loop when n≥30 legs over ≥5 distinct days. Also watch london h9:00-29 (only negative shadow cell, −0.021 n29/7d). Kill bars: drop h13 (or narrow) only if parity-era live tail E<−0.05 at n≥30 AND paired shadow same-cell E<0 AND top-day ≤40%; if live negative but shadow positive → parity/execution investigation, not an hour cut. Drop h9:00-29 if parity-era shadow E<−0.02 at n≥30/≥5d.
+
+## 2026-09-23 17:2xZ — Neutral-regime plan (owner order) → report + 4 rows
+Report: `reports/neutral_session_trading.md` (OWL = GLM 5.3 flash; Claude subagent pass timed out, analysis completed inline, read-only + this file). Question: how to trade sessions during BTC neutral. Context: bull 29+ 4h-bars, dist +10.5%, selector flip risk live; 21:15Z restart tonight arms OI-dark + per-reason counters. **Zero parity-era neutral rows exist — all book numbers pre-parity, era-aware live-stop conversion (/6 ny pre-Sep-6, /5 after; /6 london).** Headlines: NY neutral WLA=1 E+0.133 (n=156/11d, PF 2.47, top 35%, ex-top +0.091) — current h16–17 config ENDORSED, stronger than bull pass-set; widen h14–15 fails the bar (proxy E+0.034/n77, top-day 112%); h18–20 neutral never-wire (PF 0.38–0.53); london neutral RAW flat (E+0.004/PF1.04 n4,348) — exclusion holds, h13 proxy +0.065/n192 top 66% = concentration-blocked, merges with the Sep-13 h12-neutral measure-only row; asia pump_short_4h is regime-flipped (neutral +0.414 ATR/leg n261/18d vs bull −0.206) but double-blocked (DISTCAP dist>+5%, OI-block rider). Today's live day (29 legs −3.18R −$86.21, −20.5%) produced the FIRST 5-ATR stopout evidence: 4 stops −2.72R (trio 14:16 in 1 candle each + NEAR 16:06) vs shadow SL10 rode out positive; live 1h arm all-legs since Sep-6 n=37 E+0.052 vs shadow variant E+0.102 — gap ≈ −0.05R/leg, almost all today.
+
+### Row 1 — NY-NEUT-KEEP (status row, no wiring)
+Keep NY neutral = h16–17, 5-ATR stop. Basis above. Alter/kill bar: parity-era neutral cohort E<0 at n≥30/≥5d, or top-day >40%.
+
+### Row 2 — LON-NEUT-H13 watch (measure-only; merges with h12-neutral G0)
+Population: london neutral h12–13, Mon–Fri, vol_z≥0, **parity era only**. Promote bar: E>+0.05 at n≥100/≥5d with top-day ≤40%. Kill: E<0 at n≥100. Post-21:15Z the `regime` per-reason counters price the exclusion at live counts.
+
+### Row 3 — ASIA-PUMP-NEUTRAL conditional G0 (no re-enable now)
+Trigger: (BTC dist <+5%) AND (regime=neutral for ≥3 consecutive 4h bars) AND two clean weekend tapes per the Sep-7 protocol. Arm: asia_pump_short_4h, variant stop pinned before any read (variants 4/6/8 ATR ⇒ book +0.41 ATR/leg ≈ +0.05..+0.10R). Mandatory riders: arm_oi_p1 OI block + PREREG-ASIA-DISTCAP (pre-approved rider rule Sep-7). Promotion: variant-pinned E>+0.03R at n≥50/≥5d, top-day ≤40%. asia_burst_fade stays dead (negative in all regimes).
+
+### Row 4 — NEUT-STOP revert watch (ARMED today, n≥30 already met)
+Population: live 1h-arm legs (ALL incl. stopped) from the Sep-6 5/5 tighten, any regime; baseline = shadow SL10 variant paired; read Sunday Sep-27. Today: 4 live stopouts at 5 ATR (−2.72R; trio 1-candle each) — counterexample to the Sep-6 "0 stopouts at 5" basis. Revert bar: live-real E < book baseline by >0.05R/leg at n≥50, OR a second >3-stopout day; on revert, neutral stop 5→6 first (bull 5 pending its own read). survor-cohort caveat: hold=12 filtering hides stops — always count all legs.
