@@ -370,6 +370,31 @@ burst_follow:
       exclude_weekdays: [5, 6]
       # h9/h10/h11/h13 only — h8+h12 dropped (owner, Aug26), h14+ is NY territory.
       hours: [9, 10, 11, 13]
+      # PREREG-LON-H9 (2026-09-24, owner order "You have my order" on the Opus
+      # early-London-block proposal): bull h9 BLOCKED. Mechanism: regime_hours
+      # bull REPLACES base hours for bull only; bear falls back to base
+      # [9,10,11,13] (PREREG-BEAR-LON unaffected — bear legs n=0 to date).
+      # Basis — live-real bull book Aug-21..Sep-24, n=102 -1.14R PF0.89:
+      #   h9  n=22 -1.50R PF0.36 WR27% 3/9 posdays, top-day 45% of net (spread,
+      #       not one-day artifact — the book's clearest kill cell)
+      #   h10 n=20 +0.13R PF1.09 KEPT (ex-worst-day +1.35R)
+      #   h11 n=15 -0.62R PF0.57 kept for now (thin; h9-adjacent watch)
+      #   h13 n=36 +1.69R PF1.54 kept — carries the arm
+      # Counterfactual: block-h9 lifts bull book -1.14 -> +0.35R (+1.50R, cost
+      # ~1 leg/day). Trigger: Thu Sep-24 h9 6-leg cluster (2 closed -0.67R).
+      # POST-HOC SLICE SELECTION — OOS-watch class, same as Aug-26 h8/h12 drop.
+      # Relation to watch Row 8 (BULL-1 LON-BULL-NARROW, registered c51a6ec):
+      # its registered cut was h9+h10 with bars n>=50/5d, top-day<=40%, kept-side
+      # (h11-13) E>=+0.085 — today's live-real cut-lane n=42, top-day 75%,
+      # kept-side +0.021 → registered bars NOT met. This is an OWNER-ORDERED
+      # EARLY wire of the sharper h9-only cut; Row 8's formal read proceeds Sun
+      # Sep-27 on shadow accrual (raw shadow rows ungated; WLA mirror re-binds
+      # this gate on paper restart) — the h10 question stays open there.
+      # RE-OPEN BAR: fresh bull-h9 E>+0.03 at n>=30 / >=3d / top<=40% on raw
+      # shadow burst_follow rows, weekly-loop audit; re-open = regime_hours
+      # edit + dual restart.
+      regime_hours:
+        bull: [10, 11, 13]
       # PREREG-BEAR-LON (2026-09-04, owner order): bear dip-buy extension.
       # Basis: bear LONG n=77 +5.21R avg +0.068 WR66.2% (top-day 53% — kill
       # criteria frozen in RESEARCH_PLAN.md); bear SHORT n=130 -7.31R stays

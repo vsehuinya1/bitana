@@ -1314,3 +1314,22 @@ ny bull ZEC: n=13, E_book −0.076, PF 0.50, 6d, top −33% (spread, not single-
 
 ### Row 10 — BULL-3 LON-DECILE watch (dark; sizing-weighted variant only after read)
 london bull D1 n=673 E_book +0.017 (top 28%) vs D2+ n=178 E_book +0.053 (top 46%) — 3x per-leg delta, but D1 is 79% of legs; a bull-scoped min_decile 2 would remove ~500 legs for +0.036R/leg — fails the capture bar as a ban. Dark read: parity-era london bull D1 vs D2+ (E, WR, PF, leg share). If D1 stays ≤ half of D2+ at n(D2+)≥100: evaluate a SIZING-WEIGHTED variant (D1 at reduced risk_pct, not a ban) as a NEW G0 row — never wire the ban. Kill: D1/D2+ delta collapses below 0.02R/leg.
+
+## Amendment 2026-09-24T10:05Z — PREREG-LON-H9 wired EARLY (owner order): london bull h9 blocked
+
+Owner order "You have my order" on the Opus early-London-block proposal, live-real read presented same-morning. Trigger: Thu Sep-24 h9 6-leg cluster — WLD −0.26 / XRP −0.41 closed (−0.67R) + SOL/ETH/NEAR/UNI still managing at wire time.
+
+**Live-real read (trades DB, london bull legs by ENTRY hour, Aug-21→Sep-24, n=102 −1.14R PF0.89 WR46% 4/12 posdays):**
+- h9 n=22 −1.50R PF0.36 WR27% 3/9 posdays, top-day 45% of net (spread, not one-day) — the book's clearest kill cell
+- h10 n=20 +0.13R PF1.09 (ex-worst-day +1.35R) — KEPT
+- h11 n=15 −0.62R PF0.57 — kept (thin)
+- h13 n=36 +1.69R PF1.54 — carries the arm
+- Bear legs n=0 (PREREG-BEAR-LON untouched). Weekday note: h9-10 bleed is Thursday-concentrated (Thu n=13 −1.39R; Mon+Wed +0.48R). Counterfactual: block-h9 lifts bull book −1.14 → +0.35R (+1.50R, ~1 leg/day cost).
+
+**Wire:** `london.regime_hours: bull: [10, 11, 13]` — regime_hours REPLACES base hours for bull only (loader.py:53-57); bear falls back to base [9,10,11,13]. Backup `config/live_burst_ny_asia.yaml.pre_lon_h9_20260924`; dry-load verified; dual restart (live + v5-paper, mirror re-binds on paper restart).
+
+**Row 8 interaction (BULL-1 LON-BULL-NARROW, registered 2026-09-24 04:2xZ):** Row 8's registered candidate is the BROAD h9+h10 cut with bars (cut-lanes E_book<0 at n≥50/≥5d, top≤40% AND kept h11-13 E≥+0.085, top≤40%). Today's live-real cut-lane (h9+h10): n=42 (<50), E−0.033, top-day 75% (>40%); kept-side h11-13 E+0.021 (<+0.085) → **registered bars NOT met**. This wire is an OWNER-ORDERED EARLY cut of the sharper h9-only lane — owner discretion, NOT a Row-8 promotion. Row 8's formal read proceeds Sun Sep-27 on parity-era shadow accrual (raw shadow rows accrue ungated; WLA mirror re-binds this gate on paper restart); the h10 question stays open there. Basis divergence noted: shadow h9 E+0.018 top-day 89% (n=65) vs live-real h9 −0.068/tr PF0.36 (n=22) — live-real is the binding book for this wire (live/shadow divergence playbook).
+
+**Post-hoc flag:** slice selected on a fresh same-day loss cluster — OOS-watch class, same as Aug-26 h8/h12 drop. Exit-era mix (SL10→SL6 Sep-7) inside the sample window.
+
+**Kill/re-open bars:** re-open bull h9 if fresh raw-shadow bull-h9 E>+0.03 at n≥30 / ≥3d / top≤40% (weekly-loop audit; re-open = regime_hours edit + dual restart). Escalation watch: h11 is the next-weakest live-real cell (−0.62R PF0.57, n=15) — if it reads ≤−0.03E at n≥25 with top-day ≤40% it becomes the next cut candidate, decided at a Sunday loop (no same-day wire without owner order).
