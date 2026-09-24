@@ -1333,3 +1333,17 @@ Owner order "You have my order" on the Opus early-London-block proposal, live-re
 **Post-hoc flag:** slice selected on a fresh same-day loss cluster — OOS-watch class, same as Aug-26 h8/h12 drop. Exit-era mix (SL10→SL6 Sep-7) inside the sample window.
 
 **Kill/re-open bars:** re-open bull h9 if fresh raw-shadow bull-h9 E>+0.03 at n≥30 / ≥3d / top≤40% (weekly-loop audit; re-open = regime_hours edit + dual restart). Escalation watch: h11 is the next-weakest live-real cell (−0.62R PF0.57, n=15) — if it reads ≤−0.03E at n≥25 with top-day ≤40% it becomes the next cut candidate, decided at a Sunday loop (no same-day wire without owner order).
+
+## READ-PROC-GATECOMPLETE (2026-09-24T14:12Z) — MIRROR CUT-OVER 3 (gate-complete)
+
+WLA mirror patch `reports/wla_gate_complete.patch` applied (owner delegated "Confirm and restart if satisfied"; reviewed by OWL: diffstat mirror+tests only, 11/11 new tests, 91/3 full suite = same 3 pre-existing preflight failures as HEAD, negative control 10/11 fail on the unpatched mirror). Restart **bitana-v5-paper 2026-09-24T14:12:21Z (epoch 1790259141)**, outside bar-boundary windows; live bot untouched. Migration verified live: `n_confirms` column present in `shadow_trades` + `shadow_pending_entries`. Post-deploy SQL checks (restart-epoch-scoped): zero NULL-n_confirms rows, zero WLA=1-with-nc0 mirror rows — re-run as rows accrue (checks trivially clean at T+1min). Lineage: cut-over 1 = parity 2026-09-23T12:36:54Z, cut-over 2 = vol_z 13:21:26Z, cut-over 3 = 14:12:21Z Sep-24.
+
+Every live-arm read that uses `would_live_accept=1`, or bars derived from the WLA book, must be gate-complete at read time until MIRROR CUT-OVER 3 has covered the whole read window:
+- **Pre-parity mirror rows (< 2026-09-23T12:36:54Z):** apply `n_confirms ≥ 1` via the exact `burst_snapshots` join (symbol + bar_time). Coverage 100% for `burst_follow` and `ny_flush_buy_1h` (verified 0/485 + 0/646 missing).
+- **Parity-era, pre-cut-over-3 mirror rows:** rows with no snapshot row are the **unknown group** (~21–27 WLA=1 rows). Report as its own line (n / E / top-day); it **never passes a bar**; bars computed on the known group only. NULL ≠ 0 (NULL = unknown/era-boundary, 0 = measured zero).
+- **Post-cut-over-3 rows:** use the `n_confirms` column directly; WLA is already gate-complete.
+- **Sensitivity (disclose at every read):** the filter moves NY materially (E +0.030 → +0.043) and London barely (+0.010 → +0.012). NY-VOLZ-OFF's verdict is the exposed read.
+- **Bar-trigger rows** (setup_*/v65_*): out of scope — join `setup_snapshots` 100% with n_confirms ≥ 3 (verified 0/8172 missing, min=3); no live arm mirrors them.
+- **Structural guarantee going forward:** `tests/test_wla_gate_complete.py` parses the live engine source; a new engine gate fails the suite until mirrored — loader's "config edits can never desync them" is now enforced, not claimed.
+
+Caveats (disclosed, not blocking): historical WLA=1 rows stay as stamped (read-time filter mandatory pre-cut-over-3); `min_cascade_strength` binds the threshold but shadow computes cascade from a different source (corr 0.75 on same-bar twins — inert at 0.0, needs its own parity item if ever raised); mirror binds the global `burst_follow` block (no per-symbol overrides exist today); expect ~20–30% fewer WLA=1 mirror rows after cut-over. Stale yaml comment ("min_n_confirms near-vacuous") — OWNER cosmetic rider, pending order, no restart needed.

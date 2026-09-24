@@ -83,6 +83,10 @@ ENTRY_QUALITY_COLUMNS: tuple[tuple[str, str], ...] = (
     ("pnl_2h", "REAL"),
     ("would_live_accept", "INTEGER"),
     ("cluster_bucket", "TEXT"),
+    # GATE-COMPLETE (2026-09-24): the engine's n_confirms, stored at insert so
+    # reads never depend on a snapshot join (off-grid parity-era mirror rows
+    # have no burst snapshot). NULL = pre-patch row (unknown), never 0.
+    ("n_confirms", "INTEGER"),
 )
 
 
@@ -502,6 +506,17 @@ class LiveGateSnapshot:
     # the WLA mirror never applied it — ~40% of ny WLA=1 rows were legs live
     # would reject (ny vol_z<0 slice). Mirror now matches the engine.
     min_vol_z: float | None = None
+    # GATE-COMPLETE (2026-09-24): remaining engine gates, bound so a yaml edit
+    # can no longer desync the mirror (loader.hour_gate_reason's contract).
+    # min_n_confirms was ACTIVE, not latent: live yaml 1 vs strategy spec 0 ->
+    # 19.5% (london) / 29% (ny) of WLA=1 rows since Aug-21 had n_confirms=0,
+    # which live rejects (live: 0 of 186 legs). The rest are equal today.
+    min_imb: float = 0.0
+    min_cascade_strength: float = 0.0
+    min_n_confirms: int = 0
+    max_regime_age_bars: int | None = None   # engine: rule value or cfg fallback; unknown age fails CLOSED
+    min_burst_volume_30m: float = 0.0        # cfg-level burst floor (engine evaluate() entry)
+    min_burst_events_30m: int = 0
 
 
 _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
@@ -525,27 +540,36 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
         if key is not None:
             os.environ["API_FOOTBALL_KEY"] = key
     bf = cfg.burst_follow
-    snaps: dict[str, LiveGateSnapshot] = {}
-    for arm, rule in bf.session_rules.items():
-        snaps[arm] = LiveGateSnapshot(
-            session=arm,
-            rule=rule,
-            exclude_weekdays=frozenset(rule.exclude_weekdays or ()),
-            # engine-exact: session override falls back to the global list
-            allowed_regimes=frozenset(rule.allowed_btc_regimes or bf.allowed_btc_regimes),
-            min_decile=rule.min_decile,
-            # PREREG-OIGATE: global (non-session) gate keys read from the same
-            # LiqBurstFollowConfig block the live engine's engine gets.
-            oi_gate_enabled=bf.oi_inflow_gate_enabled,
-            oi_inflow_max_pct=bf.oi_inflow_max_pct,
-            # PREREG-ASIA-DISTCAP: per-arm knob from the rule itself.
-            btc_dist_max_pct=rule.btc_dist_max_pct,
-            pos_imb_only=bool(rule.pos_imb_only),
-            neg_imb_only=bool(rule.neg_imb_only),
-            allowed_side=rule.allowed_side,
-            min_vol_z=rule.min_vol_z,
-        )
-    return snaps
+    return {arm: _snapshot_for(arm, rule, bf) for arm, rule in bf.session_rules.items()}
+
+
+def _snapshot_for(arm: str, rule, bf) -> LiveGateSnapshot:
+    """One arm's mirror gates from its SessionBurstRule + the burst_follow block
+    (split out 2026-09-24 so the gate-complete parity test can bind modified rules)."""
+    return LiveGateSnapshot(
+        session=arm,
+        rule=rule,
+        exclude_weekdays=frozenset(rule.exclude_weekdays or ()),
+        # engine-exact: session override falls back to the global list
+        allowed_regimes=frozenset(rule.allowed_btc_regimes or bf.allowed_btc_regimes),
+        min_decile=rule.min_decile,
+        # PREREG-OIGATE: global (non-session) gate keys read from the same
+        # LiqBurstFollowConfig block the live engine's engine gets.
+        oi_gate_enabled=bf.oi_inflow_gate_enabled,
+        oi_inflow_max_pct=bf.oi_inflow_max_pct,
+        # PREREG-ASIA-DISTCAP: per-arm knob from the rule itself.
+        btc_dist_max_pct=rule.btc_dist_max_pct,
+        pos_imb_only=bool(rule.pos_imb_only),
+        neg_imb_only=bool(rule.neg_imb_only),
+        allowed_side=rule.allowed_side,
+        min_vol_z=rule.min_vol_z,
+        min_imb=float(rule.min_imb or 0.0),
+        min_cascade_strength=float(rule.min_cascade_strength or 0.0),
+        min_n_confirms=int(rule.min_n_confirms or 0),
+        max_regime_age_bars=rule.max_regime_age_bars or bf.max_regime_age_bars,
+        min_burst_volume_30m=float(bf.min_burst_volume_30m),
+        min_burst_events_30m=int(bf.min_burst_events_30m),
+    )
 
 
 def _apply_live_gates() -> None:
@@ -967,6 +991,11 @@ class SignalShadow:
         for col, typ in ENTRY_QUALITY_COLUMNS:
             if col not in existing:
                 self.conn.execute(f"ALTER TABLE shadow_trades ADD COLUMN {col} {typ}")
+        # GATE-COMPLETE: limit fills rebuild f from the pending row, so the
+        # pending table carries n_confirms too (pre-patch pending rows: NULL).
+        pending_cols = {r[1] for r in self.conn.execute("PRAGMA table_info(shadow_pending_entries)")}
+        if pending_cols and "n_confirms" not in pending_cols:
+            self.conn.execute("ALTER TABLE shadow_pending_entries ADD COLUMN n_confirms INTEGER")
         if "post_bars" not in existing:
             # One-time stamp: closed trades that predate post-exit tracking have
             # no forward window left to observe; mark their window as elapsed so
@@ -1035,20 +1064,44 @@ class SignalShadow:
         mkt = self._market_ctx
         wd = f["bar_time"].weekday()
         regime = mkt.btc_trend_state or "NA"
+        # GATE-COMPLETE: engine evaluate() entry floor (live cfg, not the paper
+        # harness's intraday_burst_shadow floor). Stats ride in f from
+        # on_intraday_burst; absent = cannot be verified -> fail CLOSED.
+        bv, be = f.get("burst_volume_30m"), f.get("burst_events_30m")
+        if bv is None or be is None:
+            return "burst_unknown"
+        if bv < g.min_burst_volume_30m or be < g.min_burst_events_30m:
+            return "burst_floor"
         if wd in g.exclude_weekdays:
             return "weekday"
         if regime not in g.allowed_regimes:
             return "regime"
+        if g.max_regime_age_bars is not None:
+            # engine: max_age set + unknown age -> skip (fail closed)
+            if mkt.btc_regime_age_bars is None:
+                return "regime_age_unknown"
+            if mkt.btc_regime_age_bars > g.max_regime_age_bars:
+                return "regime_age"
         if g.rule is not None and g.rule.hour_gate_reason(f["bar_time"].hour, wd, regime) is not None:
             return "hour"
+        if g.min_imb > 0 and abs(imb) < g.min_imb:
+            return "imb"
         if g.pos_imb_only and imb <= 0:
             return "pos_imb_only"
         if g.neg_imb_only and imb >= 0:
             return "neg_imb_only"
+        if (f.get("cascade_strength") or 0.0) < g.min_cascade_strength:
+            return "cascade"
         if g.min_vol_z is not None and f.get("vol_z", 0.0) < g.min_vol_z:
             # NY-VOLZ (2026-09-23): engine parity — _matches rejects vol_z <
             # min_vol_z; the mirror ignored it, overstating the WLA book.
             return "vol_z"
+        if g.min_n_confirms > 0:
+            nc = f.get("n_confirms")
+            if nc is None:
+                return "n_confirms_unknown"   # fail closed: never silently re-open the gap
+            if nc < g.min_n_confirms:
+                return "n_confirms"
         if g.allowed_side and side != g.allowed_side:
             return "allowed_side"
         if g.min_decile > 0 and (f.get("decile", 0) or 0) < g.min_decile:
@@ -1387,6 +1440,10 @@ class SignalShadow:
             return
 
         imb_30m = float(burst.get("imbalance_30m", 0.0))
+        # GATE-COMPLETE: the engine's features dict carries these; the WLA
+        # mirror's burst-floor gate reads them from f.
+        f["burst_volume_30m"] = vol_30m
+        f["burst_events_30m"] = events_30m
 
         # DETECTOR-PARITY (2026-09-23): live-arm mirrors run on EVERY bar that
         # passes the burst floor, with the engine's dedup semantics. The
@@ -1845,9 +1902,9 @@ class SignalShadow:
                 btc_adx, btc_regime_age_bars, btc_realized_vol_24h,
                 symbol_trend_state, cluster_breadth, market_liq_flow_usd,
                 burst_vol_zscore, entry_lag_bars, oi_delta_30m_pct,
-                would_live_accept, cluster_bucket
+                would_live_accept, cluster_bucket, n_confirms
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 spec.name, symbol, side, entry_time_str, entry_price, stop_price, tp_price, atr,
@@ -1866,7 +1923,7 @@ class SignalShadow:
                 mkt.btc_adx, mkt.btc_regime_age_bars, mkt.btc_realized_vol_24h,
                 mkt.symbol_trend_state, mkt.cluster_breadth, mkt.market_liq_flow_usd,
                 mkt.burst_vol_zscore, mkt.entry_lag_bars, mkt.oi_delta_30m_pct,
-                would_live, cluster_bucket,
+                would_live, cluster_bucket, f.get("n_confirms"),
             ),
         )
         self.conn.commit()
@@ -1898,7 +1955,7 @@ class SignalShadow:
                    max_bars, bars_waited, session, hour, decile, stop_atr, tp_atr, time_bars,
                    liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
                    entry_cascade_strength, entry_impulse_pct, entry_vol_z, entry_atr_pct,
-                   time_exit_only, is_weekend
+                   time_exit_only, is_weekend, n_confirms
             FROM shadow_pending_entries
             WHERE symbol=? AND status='pending'
             """,
@@ -1934,6 +1991,7 @@ class SignalShadow:
                     "impulse_pct": r["entry_impulse_pct"],
                     "vol_z": r["entry_vol_z"],
                     "atr_pct": r["entry_atr_pct"],
+                    "n_confirms": r["n_confirms"],
                 }
                 self._insert_shadow_trade(
                     spec, symbol, f, side, limit_price, close_time_str,
@@ -2010,8 +2068,8 @@ class SignalShadow:
                     limit_offset_atr, max_bars, session, hour, decile, stop_atr, tp_atr, time_bars,
                     liq_imb, burst_vol_30m, v_confirms3, v_strict, cascade_active, trigger,
                     entry_cascade_strength, entry_impulse_pct, entry_vol_z, entry_atr_pct,
-                    time_exit_only, is_weekend, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    time_exit_only, is_weekend, created_at, n_confirms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     spec.name, symbol, side, bar_time_str, signal_price, limit_price, atr,
@@ -2022,7 +2080,7 @@ class SignalShadow:
                     f.get("v_confirms3"), f.get("v_strict"), int(cascade_active), spec.trigger,
                     f.get("cascade_strength"), f.get("impulse_pct"), f.get("vol_z"), f.get("atr_pct"),
                     int(spec.time_exit_only), is_weekend,
-                    datetime.now(timezone.utc).timestamp(),
+                    datetime.now(timezone.utc).timestamp(), f.get("n_confirms"),
                 ),
             )
             self.conn.commit()
