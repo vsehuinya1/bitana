@@ -30,6 +30,10 @@ from pathlib import Path
 import aiohttp
 from aiohttp import web
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import extras  # noqa: E402  (v3 panels, 2026-09-25: read-only, failure-isolated per block)
+
 # Load dashboard-specific env BEFORE anything reads os.getenv.
 # Intentionally NOT loading .env — that belongs to the bot.
 from dotenv import load_dotenv
@@ -192,7 +196,9 @@ def _auth_middleware(token: str):
 
 
 async def _handle_index(request: web.Request) -> web.Response:
-    html_path = TEMPLATE_DIR / "index.html"
+    html_path = TEMPLATE_DIR / "index_v3.html"   # v3 (2026-09-25); falls back to v2 if absent
+    if not html_path.exists():
+        html_path = TEMPLATE_DIR / "index.html"
     if not html_path.exists():
         return web.Response(text="Dashboard template not found", status=500)
     return web.FileResponse(html_path, headers={"Content-Type": "text/html"})
@@ -216,6 +222,11 @@ async def _handle_dashboard(request: web.Request) -> web.Response:
     })
 
     data["bot"] = await _proxy_bot_health(bot_url)
+    # v3 panels: extra keys only; the v2 contract above is unchanged
+    metrics = (data["bot"] or {}).get("metrics")
+    data["v3"] = await loop.run_in_executor(
+        None, lambda: extras.collect(db._conn, metrics, data["positions"]),
+    )
     data["dashboard_uptime_s"] = round(time.time() - start, 1)
     data["timestamp"] = datetime.now(timezone.utc).isoformat()
 
