@@ -1,0 +1,20 @@
+# /etc/systemd/system/bitana-risk-watch.service
+# Read-only risk alerts to Telegram (ops/risk_watch.py, 2026-09-25). Not a trading unit: it never touches the bots,
+# config, DBs or the exchange. No EnvironmentFile on purpose: the script parses only DASHBOARD_TOKEN (.env.dashboard)
+# and TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID (.env), so the bot's exchange keys never enter this process.
+# Stop:  systemctl disable --now bitana-risk-watch
+[Unit]
+Description=Bitana risk watch (read-only alerts to Telegram)
+After=network-online.target bitana-dashboard.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+ExecStart=/root/bitana/venv/bin/python3 -u ops/risk_watch.py
+Restart=always
+RestartSec=30
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
