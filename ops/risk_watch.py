@@ -381,8 +381,14 @@ def tick(mode='loop'):
                  f"{state} becomes {nxt} ({mins_left} min left)")
     # ops
     O = v.get('ops') or {}
+    bad = ST.setdefault('unit_bad', {})
     for u, s in (O.get('units') or {}).items():
-        if s != 'active':
+        if s == 'active':
+            bad.pop(u, None)
+            continue
+        bad[u] = bad.get(u, 0) + 1
+        # a restart passes through deactivating/activating for a few seconds: alert only if it persists 2 ticks
+        if s not in ('activating', 'deactivating', 'reloading') or bad[u] >= 2:
             emit(f'OPS:unit:{u}:{H}', 'OPS', f'{u} is {s}')
     for u, s in (O.get('pm2') or {}).items():
         if s != 'online':
