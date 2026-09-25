@@ -404,6 +404,12 @@ class PositionManager:
         await self._db.save_position(pos)
         await self._db.save_trade(trade)
 
+        # exchange-resident catastrophe stop: cancel it once the position is closed (never breaks accounting)
+        try:
+            await self._orders.cancel_catastrophe_stop(pos)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Catastrophe stop cancel hook failed", symbol=pos.symbol, error=str(e))
+
         logger.info(
             "Position closed",
             trade_uuid=pos.trade_uuid,

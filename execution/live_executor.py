@@ -303,3 +303,23 @@ class LiveExecutor(BaseExecutor):
     async def set_leverage(self, symbol: str, leverage: int) -> bool:
         resp = await self._rest.set_leverage(symbol, leverage)
         return resp is not None and "code" not in resp
+
+    async def place_algo_stop(
+        self, symbol: str, close_side: str, trigger_price: float,
+        client_algo_id: str, working_type: str,
+    ) -> dict | None:
+        return await self._rest.place_algo_order(
+            symbol=symbol, side=close_side, order_type="STOP_MARKET",
+            trigger_price=trigger_price, close_position=True,
+            working_type=working_type, price_protect=True,
+            client_algo_id=client_algo_id,
+        )
+
+    async def get_algo_order(self, client_algo_id: str) -> dict | None:
+        return await self._rest.get_algo_order(client_algo_id)
+
+    async def cancel_algo_order(self, client_algo_id: str) -> dict | None:
+        return await self._rest.cancel_algo_order(client_algo_id)
+
+    async def cancel_all_algo_orders(self, symbol: str) -> dict | None:
+        return await self._rest.cancel_all_algo_orders(symbol)

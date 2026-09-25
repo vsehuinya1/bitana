@@ -245,6 +245,12 @@ class ExecutionConfig(BaseModel):
     max_slippage_bps: float = 10.0
     partial_fill_timeout_s: int = 30
     client_order_id_prefix: str = "BITANA"
+    # Exchange-resident catastrophe stop (2026-09-25). 0 = OFF. When > 0, every bot-managed position gets a
+    # STOP_MARKET closePosition order on Binance's Algo service at entry -/+ mult x the signal stop distance,
+    # triggered on catastrophe_working_type. It sits beyond the bot's close-checked stop, so it only fires when
+    # the bot is down or a bar wicks through mult x the stop (paper: London 0/217 legs, NY 2.5% at 1.5).
+    catastrophe_stop_mult: float = 0.0
+    catastrophe_working_type: str = "MARK_PRICE"
 
 
 class ReconciliationConfig(BaseModel):

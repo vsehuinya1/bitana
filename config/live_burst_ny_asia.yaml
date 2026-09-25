@@ -122,6 +122,12 @@ execution:
   max_slippage_bps: 10.0
   partial_fill_timeout_s: 30
   client_order_id_prefix: "BITANA"
+  # Exchange-resident catastrophe stop (2026-09-25, owner order "Apply and enable"; reports/catastrophe_stop.patch).
+  # STOP_MARKET closePosition on Binance's Algo service at entry -/+ 1.5 x the signal stop distance, MARK_PRICE
+  # trigger. Backstop for a dead/unresponsive bot, beyond the close-checked bot stop. Paper cost at 1.5: London
+  # 0/217 legs, NY fires on 2.5% of legs (-0.008 R/leg). 0.0 = OFF (code inert).
+  catastrophe_stop_mult: 1.5
+  catastrophe_working_type: "MARK_PRICE"
 
 reconciliation:
   interval_s: 30

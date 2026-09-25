@@ -50,3 +50,19 @@ class BaseExecutor(ABC):
     @abstractmethod
     async def set_leverage(self, symbol: str, leverage: int) -> bool:
         """Set leverage for a symbol."""
+
+    # Exchange-resident catastrophe stops (Algo service). Default: unsupported -> no-op.
+    async def place_algo_stop(
+        self, symbol: str, close_side: str, trigger_price: float,
+        client_algo_id: str, working_type: str,
+    ) -> dict | None:
+        return None
+
+    async def get_algo_order(self, client_algo_id: str) -> dict | None:
+        return None
+
+    async def cancel_algo_order(self, client_algo_id: str) -> dict | None:
+        return None
+
+    async def cancel_all_algo_orders(self, symbol: str) -> dict | None:
+        return None

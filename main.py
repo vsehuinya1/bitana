@@ -364,12 +364,23 @@ class Bitana:
                 self.watchdog.heartbeat("websocket")
 
         async def recon_task():
+            cs_every = max(1, 120 // max(1, self.cfg.reconciliation.interval_s))
+            cycle = 0
             while self._running:
                 await asyncio.sleep(self.cfg.reconciliation.interval_s)
                 self.watchdog.heartbeat("reconciliation")
                 closed = await self.recon_mgr.reconcile()
                 if closed:
                     await self._process_closed_trades(closed)
+                # catastrophe stops: re-place any missing backstop (no-op unless enabled in live mode)
+                if cycle % cs_every == 0:
+                    try:
+                        await self.order_mgr.sync_catastrophe_stops(
+                            self.position_mgr.get_open_positions(),
+                        )
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning("Catastrophe stop sync failed", error=str(e))
+                cycle += 1
 
         async def candle_verify_task():
             while self._running:
@@ -844,6 +855,13 @@ class Bitana:
 
             await self.position_mgr.add_position(pos)
             open_positions.append(pos)
+
+            # Exchange-resident catastrophe stop (OFF unless execution.catastrophe_stop_mult > 0).
+            # Failures alert; the bot-side close-checked stop still manages the position.
+            try:
+                await self.order_mgr.place_catastrophe_stop(pos)
+            except Exception as e:  # noqa: BLE001
+                logger.error("Catastrophe stop placement crashed", symbol=pos.symbol, error=str(e))
 
             await self.alerts.entry_alert(
                 sig.symbol, sig.side.value, result.avg_fill_price,

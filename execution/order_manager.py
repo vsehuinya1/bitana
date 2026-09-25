@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
 from config.loader import AppConfig
@@ -52,6 +53,8 @@ class OrderManager:
         # margin/balance. Lets the caller skip the signal instead of pausing.
         self.last_soft_reject = False
         self.last_soft_reject_reason: str | None = None
+        # catastrophe-stop placement attempts per trade (sync retries at most once per _CS_RETRY_S)
+        self._cs_attempts: dict[str, float] = {}
 
     async def _critical_order_failure(
         self,
@@ -314,6 +317,122 @@ class OrderManager:
             logger.error("Stop order rejected", symbol=symbol)
             await self._critical_order_failure("STOP", symbol, result)
         return result
+
+    # ------------------------------------------------------------------
+    # Exchange-resident catastrophe stop (2026-09-25, owner permission "hard stop fix")
+    # ------------------------------------------------------------------
+    # Backstop for a dead or unresponsive bot, not a replacement for the close-checked stop in PositionManager.
+    # STOP_MARKET closePosition on the Algo service at entry -/+ mult x stop distance, MARK_PRICE trigger.
+    # closePosition can only flatten, never open or flip. Assumes a one-way-mode account dedicated to the bot:
+    # the symbol's algo orders are cleared right before placing.
+    _CS_PREFIX = "BITANA_CS_"
+    _CS_ALIVE = ("NEW", "TRIGGERING")
+    _CS_RETRY_S = 600
+    _CS_MIN_AGE_S = 60
+
+    @staticmethod
+    def _algo_ok(resp: object) -> bool:
+        """Algo endpoints answer success with the order object (place/query) or code "200" (cancel)."""
+        if not isinstance(resp, dict) or not resp:
+            return False
+        code = resp.get("code")
+        return code is None or str(code) == "200"
+
+    def _cs_mult(self) -> float:
+        return float(getattr(self._cfg.execution, "catastrophe_stop_mult", 0.0) or 0.0)
+
+    def _cs_enabled(self) -> bool:
+        return self._cfg.mode == "live" and self._cs_mult() > 0
+
+    def catastrophe_trigger(self, position: Position) -> float | None:
+        dist = abs(position.entry_price - position.initial_stop)
+        mult = self._cs_mult()
+        if mult <= 0 or dist <= 0 or position.entry_price <= 0:
+            return None
+        if position.side == Side.LONG:
+            raw = position.entry_price - mult * dist
+        else:
+            raw = position.entry_price + mult * dist
+        if raw <= 0:
+            return None
+        return self._sym_info.round_price(position.symbol, raw)
+
+    async def place_catastrophe_stop(self, position: Position) -> bool:
+        """Place the backstop for a bot-managed position. Never raises; failures alert and return False."""
+        if not self._cs_enabled() or position.externally_managed:
+            return False
+        trigger = self.catastrophe_trigger(position)
+        if trigger is None:
+            return False
+        self._cs_attempts[position.trade_uuid] = time.time()
+        cid = f"{self._CS_PREFIX}{position.trade_uuid.replace('-', '')[:12]}_{int(time.time())}"
+        try:
+            # a stale closePosition stop from an earlier position on this symbol must never apply to this one
+            await self._executor.cancel_all_algo_orders(position.symbol)
+            close_side = "SELL" if position.side == Side.LONG else "BUY"
+            resp = await self._executor.place_algo_stop(
+                position.symbol, close_side, trigger, cid,
+                self._cfg.execution.catastrophe_working_type,
+            )
+        except Exception as e:  # noqa: BLE001
+            resp = {"code": "exception", "msg": f"{type(e).__name__}: {e}"}
+        if not self._algo_ok(resp):
+            msg = resp.get("msg", "no response") if isinstance(resp, dict) else "no response"
+            logger.error("Catastrophe stop rejected", symbol=position.symbol, trigger=trigger, response=resp)
+            await self._critical_order_failure(
+                "CATASTROPHE_STOP", position.symbol,
+                detail=f"{msg} (position keeps its bot-side stop)",
+            )
+            return False
+        position.signal_data = {
+            **(position.signal_data or {}),
+            "catastrophe_stop": {"client_algo_id": cid, "trigger": trigger, "algo_id": resp.get("algoId")},
+        }
+        await self._db.save_position(position)
+        logger.info("Catastrophe stop placed", symbol=position.symbol, trigger=trigger, client_algo_id=cid)
+        return True
+
+    async def cancel_catastrophe_stop(self, position: Position) -> None:
+        """Cancel the backstop after the bot closed the position. Never raises."""
+        cs = (position.signal_data or {}).get("catastrophe_stop") or {}
+        cid = cs.get("client_algo_id")
+        if not cid or self._cfg.mode != "live":
+            return
+        try:
+            resp = await self._executor.cancel_algo_order(cid)
+            if not self._algo_ok(resp):
+                # already triggered / finished / unknown: leave nothing of ours on a now-flat symbol
+                await self._executor.cancel_all_algo_orders(position.symbol)
+                logger.info("Catastrophe stop cancel fell back to symbol sweep", symbol=position.symbol, response=resp)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Catastrophe stop cancel failed", symbol=position.symbol, error=str(e))
+        finally:
+            self._cs_attempts.pop(position.trade_uuid, None)
+
+    async def sync_catastrophe_stops(self, open_positions: list[Position]) -> int:
+        """Make sure every bot-managed open position has a live backstop (startup + periodic). Returns placements."""
+        if not self._cs_enabled():
+            return 0
+        placed = 0
+        now = datetime.now(timezone.utc)
+        for pos in open_positions:
+            if pos.externally_managed or pos.state in (PositionState.CLOSED, PositionState.CANCELLED):
+                continue
+            if pos.entry_time and (now - pos.entry_time).total_seconds() < self._CS_MIN_AGE_S:
+                continue  # the entry flow places its own stop
+            cid = ((pos.signal_data or {}).get("catastrophe_stop") or {}).get("client_algo_id")
+            if cid:
+                try:
+                    resp = await self._executor.get_algo_order(cid)
+                except Exception:  # noqa: BLE001
+                    resp = None
+                if isinstance(resp, dict) and str(resp.get("algoStatus", "")) in self._CS_ALIVE:
+                    continue
+            if time.time() - self._cs_attempts.get(pos.trade_uuid, 0.0) < self._CS_RETRY_S:
+                continue
+            if await self.place_catastrophe_stop(pos):
+                placed += 1
+        return placed
 
     async def _handle_partial_fill(self, result: OrderResult) -> OrderResult:
         """Handle partially filled order: wait then cancel remainder."""

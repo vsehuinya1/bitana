@@ -342,6 +342,56 @@ class BinanceRestClient:
             params=params, signed=True, weight=1, is_order=True,
         )
 
+    async def place_algo_order(
+        self,
+        symbol: str,
+        side: str,
+        order_type: str,
+        trigger_price: float,
+        close_position: bool = True,
+        working_type: str = "MARK_PRICE",
+        price_protect: bool = True,
+        client_algo_id: str | None = None,
+    ) -> dict:
+        """Conditional order via the Algo service. STOP_MARKET & co. on /fapi/v1/order fail with -4120
+        (STOP_ORDER_SWITCH_ALGO) since the 2025-12-09 migration."""
+        params: dict[str, Any] = {
+            "algoType": "CONDITIONAL",
+            "symbol": symbol,
+            "side": side,
+            "type": order_type,
+            "triggerPrice": str(trigger_price),
+            "workingType": working_type,
+            "priceProtect": "true" if price_protect else "false",
+        }
+        if close_position:
+            params["closePosition"] = "true"
+        if client_algo_id:
+            params["clientAlgoId"] = client_algo_id
+        return await self._request(
+            "POST", "/fapi/v1/algoOrder",
+            params=params, signed=True, weight=1, is_order=True,
+        )
+
+    async def get_algo_order(self, client_algo_id: str) -> dict:
+        return await self._request(
+            "GET", "/fapi/v1/algoOrder",
+            params={"clientAlgoId": client_algo_id}, signed=True, weight=1,
+        )
+
+    async def cancel_algo_order(self, client_algo_id: str) -> dict:
+        """Success answers carry code "200" (not an error)."""
+        return await self._request(
+            "DELETE", "/fapi/v1/algoOrder",
+            params={"clientAlgoId": client_algo_id}, signed=True, weight=1,
+        )
+
+    async def cancel_all_algo_orders(self, symbol: str) -> dict:
+        return await self._request(
+            "DELETE", "/fapi/v1/algoOpenOrders",
+            params={"symbol": symbol}, signed=True, weight=1,
+        )
+
     async def get_order(
         self,
         symbol: str,
