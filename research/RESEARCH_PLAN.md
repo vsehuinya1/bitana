@@ -1391,3 +1391,30 @@ Source: Claude Code weekend/late-session setup search (owner Q "Weekends and lat
   - `tests/test_wla_gate_complete.py` must pass
   - re-check applicability of the Sep-6 mandatory-rider rule (arm_oi_p1 OI block + DISTCAP knob) at promotion
 - **Reader of record:** to be committed under `research/` before the first R-read (logic = the 2026-09-25 study: live-gate filter → `trade_r_path` re-sim → 20 bps net), with a backdated validation gate reproducing the n=31 basis.
+
+## 2026-09-25 14:3xZ — PREREG-LON-BULL-FADE / Row 11 (dark watch; owner order "Register.")
+Source: Claude Code same-day loss review (owner Q "why has London been so bad today — another Sep 23?"). Sep-25 London live: 8 legs −1.47R (one TP +0.50R, then 5 time-exit losers whose best excursion was ≤ +0.18R; no stop hit) while BTC slid 2.5% from the h11 high to the h14 low and the 4h ADX had fallen 51.7 → 25.0 since Sep-23. **Post-hoc flag:** surfaced after a live loss day (OOS-watch class, same as LON-H9). Cells looked at: 2 arms (London, NY) × 3 ADX-slope buckets (falling ≤ −4 / flat / rising ≥ +4) = 6; the NY fade cell showed nothing (n=17 / 1 day, E −0.010). The "−4 over 3 bars" cut is `research/build_regime_survival.py`'s SLOPE, written ~11:29Z Sep-25 for the dashboard's survival odds, before the day's first losing entry (11:50Z); not tuned on London outcomes. **Only the forward window counts.**
+
+- **Claim:** London `burst_follow` LONG legs taken while BTC is bull but its 4h ADX is falling fast (≥ 4 points over the last 3 closed 4h bars) have negative net expectancy, so the arm should stand down in a fading bull.
+- **Mechanism:** a decaying trend stops paying squeeze-follow longs. The burst fires, nothing follows through, and the 30-minute time exit books a partial loss. Trend exhaustion, not a stop-out tail.
+- **Distinct from:** Row 8 LON-BULL-NARROW (hour cut), LON-H9 (wired h9 block), Row 10 LON-DECILE (signal strength), PREREG-ADXBAND (the regime exit itself, unchanged). This row is about the regime's trajectory inside bull; the ADXBAND exit at 24.5 already ends the tail, and the row asks whether to stand down earlier.
+- **Population (frozen; London live gates at registration):**
+  - shadow `burst_follow`, session london, side LONG, `liq_imb ≥ 0.5`, status ≠ open
+  - hour ∈ {10, 11, 13} (bull lattice after LON-H9), entry weekday Mon–Fri
+  - `entry_vol_z ≥ 0`, `decile ≥ 1`, `n_confirms ≥ 1` (READ-PROC-GATECOMPLETE applies; unknown rows are their own line and never pass a bar)
+  - dedup (symbol, entry_time, side)
+- **Regime and fade flag:** the live classifier replayed on BTCUSDT 4h closes (`compute_regime_snapshot` over 249 closed bars + ADXBAND deadband). Each row takes the last 4h bar closed at or before its entry. FADE = bull AND ADX − ADX(3 closes earlier) ≤ −4.0. CONTROL = bull AND that change > −4.0.
+- **Exit (re-simulated from `trade_r_path`):** London live exit SL 6 ATR / TP 3 ATR / 6 bars (30m), stop-first. R = net ATR / 6. **Bars at 20 bps**; 12 bps reported.
+- **Basis (in-sample, shadow copy 2026-09-24T12:23Z; does NOT count toward promotion; `--validate` reproduces it: PASS):**
+  - fade n=39 / 3 days: E −0.0719 R @20bps (ΣR −2.80), PF 0.29, WR 31%, 1/3 days positive; @12bps E −0.0447
+  - by day: Aug-26 −1.16R (n18), Aug-27 −2.13R (n16), Sep-24 +0.49R (n5)
+  - **top-day Aug-27 = 76% of the net loss → the basis itself FAILS §6.** Watch row, not a cut.
+  - control n=158 / 11 days: E +0.0738, PF 2.15, top-day 30%, 10/11 days positive
+  - live-real cross-check (trades DB, all eras incl. SL10 and pre-LON-H9 h9 legs; report only): fade n=43 / 4 days ΣR −2.39 (E −0.056; Aug-26 +0.47, Aug-27 −1.03, Sep-24 −0.37, Sep-25 −1.47) vs control n=75 / 10 days ΣR +0.08 (E +0.001)
+- **Forward window:** entries ≥ 2026-09-25T14:40Z. First eligible London session Mon Sep-28. The flag is episodic (it exists only while a bull decays: 3 days in ~5 weeks of bull so far), so accrual is slow.
+- **Promote bar (ALL, forward rows only):** fade n ≥ 50 over ≥ 5 distinct days; fade E ≤ −0.02 R @20bps; control E − fade E ≥ +0.05 R (same window); fade top-day ≤ 40% of net; both day-halves of the fade legs E < 0.
+- **Kill (any ONE):** fade E ≥ +0.02 @20bps at n ≥ 30; at the formal read, fade E ≥ control E, or top-day > 40%.
+- **Read cadence:** counts only at Sunday loops until fade n ≥ 30, then R-reads. Formal read at fade n ≥ 50 and ≥ 5 fade days, or 2026-12-31, whichever comes first. ONE extension (→ 2027-03-31), then park. Every read also reports the h11+h13-only subset (Row 8 interaction).
+- **Wiring footprint:** ZERO now. Promotion is NOT config-only: the engine has no ADX-slope gate. It needs a knob preregistered on owner order before wiring (e.g. `session_rules.london.max_adx_drop_3bars: 4.0`), the engine gate, its WLA mirror in `research/signal_shadow.py`, and `tests/test_wla_gate_complete.py` passing (the structural test fails until the gate is mirrored).
+- **Manual stand-downs:** owner-discretion pauses on fade days (Telegram /pause) do not touch the population; the paper harness keeps logging.
+- **Reader of record:** `research/lon_bull_fade_reader.py` (`--validate` reproduces the basis; `--live` adds the live-real line; `--peek` counts only).

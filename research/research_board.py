@@ -2,7 +2,7 @@
 """Write dashboard/research_board.json: the research rows the owner tracks, with live accrual counts where a
 reader of record exists (2026-09-25).
 
-Counts come from the readers' own code (never re-implemented here), against ONE /tmp copy of the shadow DB
+Counts (LATE-BULL-FLUSH, LON-BULL-FADE) come from the readers' own code (never re-implemented here), against ONE /tmp copy of the shadow DB
 per run (CLAUDE.md). Rows without a reader carry status text and their next read date only. Edit ROWS when
 a row is registered, read, or killed. Run: python research/research_board.py  (about 25s, mostly the DB copy).
 """
@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, '/root/bitana')
 sys.path.insert(0, '/root/bitana/research')
 import late_bull_flush_reader as lbf  # noqa: E402
+import lon_bull_fade_reader as lfade  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
 
@@ -48,6 +49,12 @@ def main():
                         'status': lbf.decide(res, now.strftime('%Y-%m-%d')),
                         'n': n, 'days': days, 'n_target': 50, 'days_target': 10,
                         'unknown': res['unknown_line'].get('n', 0)})
+        fr = lfade.read(db, lfade.FORWARD_FROM, '9999')
+        f = fr['fade']
+        rows.insert(1, {'name': 'PREREG-LON-BULL-FADE (Row 11)', 'kind': 'dark', 'next': 'n>=30 R-read / n>=50 & 5d formal',
+                        'status': lfade.decide(fr, now.strftime('%Y-%m-%d')),
+                        'n': f.get('n', 0), 'days': f.get('days', 0), 'n_target': 50, 'days_target': 5,
+                        'unknown': fr['unknown_line'].get('n', 0)})
     finally:
         for f in (db, db + '-wal', db + '-shm', db + '-journal'):
             if os.path.exists(f):

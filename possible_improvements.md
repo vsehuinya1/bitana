@@ -136,7 +136,7 @@ Resume point after any interruption: the first unchecked box below.
     tail risk if the bot is down, not an E item.
 - **2026-09-25 ~04:5xZ weekend + late-session setup search (owner Q):** ~91 tests. The scan found 0 passing of 77 cells
   (53 weekend, 24 late). Then the existing arms were cloned into each window (7 setups × 2 exits).
-  - **REGISTERED 2026-09-25 04:4xZ (owner order) as PREREG-LATE-BULL-FLUSH in RESEARCH_PLAN.md (uncommitted).** burst_follow LONG, Mon–Fri 22–24Z, bull, live gates, SL5 / 60m /
+  - **REGISTERED 2026-09-25 04:4xZ (owner order) as PREREG-LATE-BULL-FLUSH in RESEARCH_PLAN.md (committed 9d6d2ef).** burst_follow LONG, Mon–Fri 22–24Z, bull, live gates, SL5 / 60m /
     no TP. n=31/11d, E +0.123 net, halves +0.095/+0.161, 9/11 days positive, both hours positive, +0.081 at 20 bps.
     **FAILS concentration** (Aug-24 = 59%; ex-top-day +0.054/29).
   - **Weekend London-hours flush-buy (60m): fragile, no row.** n=120/9d E +0.052 but h13 = 106% of net, top-3 symbols 114%,
@@ -158,3 +158,10 @@ Resume point after any interruption: the first unchecked box below.
   - **Scan:** 0 of 120 cells pass. The 24h near-miss is mostly beta (corr +0.63, β-adjusted ≈ +0.15 R/leg).
   - **Yaml:** no neutral change recommended. The next neutral arm = Asia pump-short (Row 3 pending; live-real +1.14R/37).
   - N4 portfolio check was not needed (no candidate).
+
+## 2026-09-25 — London loss review → PREREG-LON-BULL-FADE (Row 11) registered (owner order "Register.")
+- **Sep-25 London live:** 8 legs −1.47R (1 TP, then 5 time-exit losers, no stop hit). Account drawdown 9.6% → 24.4% (1R ≈ 10% of equity).
+- **Fade condition** (bull, 4h ADX down ≥ 4 over 3 closes): shadow basis n=39/3d E −0.072 @20bps vs control +0.074 (n=158/11d).
+  Top-day 76% → watch row only, no cut. Live-real: fade −0.056/leg (n=43/4d) vs control +0.001 (n=75/10d).
+- **Reader:** `research/lon_bull_fade_reader.py` (`--validate` PASS); research-board row added. Forward from 2026-09-25T14:40Z.
+- **Live ops:** Claude Code live risk watch (session-scoped) sends pre-London/pre-NY briefs at 08:40/13:40 UTC with the fade flag, plus intra-session alerts.
