@@ -1477,3 +1477,7 @@ Source: Claude Code cross-arm market-state scan (owner ask for "more such gems")
 - **Measurement continues:** Row 11 (fade) and its age split read paper rows through re-derived gates, not WLA, so they keep measuring day-4+ legs.
 - **Re-open bar (owner decides):** paper London bull day-4+ E ≥ +0.05 at n ≥ 50 over ≥ 5 days with top-day ≤ 40%.
 - **Revert bar:** live kept-side (day 1–3) E < 0 at n ≥ 30.
+- **Deploy log (2026-09-25):**
+  - `bitana-live-burst-follow` restarted **17:51:04Z**, on the owner's permission "I also give you permission to restart trading units", together with the catastrophe stop ("Apply and enable": `execution.catastrophe_stop_mult: 1.5`, commit 865d4b4). Window: BTC neutral, 0 positions, no arm armed. The London age cap and the backstop are live from then.
+  - `bitana-v5-paper` restarted **17:54:05Z**. The WLA mirror re-binds `max_regime_age_bars`, so **London WLA=1 rows before 17:54:05Z were stamped without the cap**. Any WLA-based London read spanning this boundary needs a read-time age filter (Row 11 and its age split use re-derived gates and are unaffected).
+  - Post-deploy checks: 0 error/critical lines in both logs; all units active; shadow writer fresh; bot not paused; websocket connected; regime neutral (age 0).
