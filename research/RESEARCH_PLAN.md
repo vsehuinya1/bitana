@@ -1466,3 +1466,14 @@ Source: Claude Code cross-arm market-state scan (owner ask for "more such gems")
 - **Live at current hours (10/11/13):** day 1–3 +0.130 (28 legs); day 4+ −0.04 either way. SL6 era: day 1–3 +0.204 vs day 4+ −0.10 / −0.12.
 - **Row 11's population, bars and verdict are unchanged;** `--validate` still PASSES.
 - **Future LON-YOUNG-BULL row:** registrable only if, at Row 11's formal read, day 4+ no-fade E ≤ 0 at n ≥ 50 over 5 days while day 1–3 E ≥ +0.05.
+
+## Amendment 2026-09-25 17:xxZ — PREREG-LON-AGE-CAP wired (owner order "Apply the cap"): London `max_regime_age_bars: 17`
+- **Change:** `session_rules.london.max_regime_age_bars: 17`. Engine age is 0-based on the raw classifier state, so 17 = the first 18 closed 4h bars (about 3 days) of a regime. Backup `config/live_burst_ny_asia.yaml.pre_lon_agecap_20260925`; dry-load verified. It takes effect at the owner's restart of `bitana-live-burst-follow`; the WLA mirror re-binds on a `bitana-v5-paper` restart.
+- **Basis:** engine-exact age; all 321 bull London legs classify identically to the analysis split.
+  - live-real: kept n=34 +3.60R (E +0.106) vs cut n=84 −5.90R (E −0.070; 7 of 8 day-4+ days negative)
+  - paper: kept n=44 E +0.113 vs cut n=159 E +0.012. **The books disagree on the cut side** (paper day-4+ no fade +0.065, fade −0.072).
+- **Post-hoc flag:** the age split was found on 2026-09-25 in the cross-arm scan (~50 comparisons). This is an owner-discretion early wire, OOS-watch class like LON-H9.
+- **Scope:** it also caps London in bear (no bear data since Aug-17). Fail-closed: an unknown age blocks London entries.
+- **Measurement continues:** Row 11 (fade) and its age split read paper rows through re-derived gates, not WLA, so they keep measuring day-4+ legs.
+- **Re-open bar (owner decides):** paper London bull day-4+ E ≥ +0.05 at n ≥ 50 over ≥ 5 days with top-day ≤ 40%.
+- **Revert bar:** live kept-side (day 1–3) E < 0 at n ≥ 30.

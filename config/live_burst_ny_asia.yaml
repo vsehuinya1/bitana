@@ -395,6 +395,15 @@ burst_follow:
       # edit + dual restart.
       regime_hours:
         bull: [10, 11, 13]
+      # PREREG-LON-AGE-CAP (2026-09-25, owner order "Apply the cap"): London trades only in the first 3 days of a
+      # regime. Engine age is 0-based on the raw classifier state (0 = flip bar), so 17 = first 18 closed 4h bars;
+      # checked: engine-exact age <= 17 matches the analysis split on all 321 bull London legs.
+      # Basis, bull London legs: live-real kept n=34 +3.60R (E +0.106) vs cut n=84 -5.90R (E -0.070; 7 of 8
+      # day-4+ days negative). Paper disagrees on the cut side: kept n=44 E +0.113 vs cut n=159 E +0.012
+      # (day-4+ no-fade +0.065, fade -0.072). POST-HOC (age split found 2026-09-25): OOS-watch class like LON-H9.
+      # Also caps London in bear (no bear data since Aug-17). Fail-closed: unknown age blocks London entries.
+      # Row 11 + its age split keep measuring on paper (re-derived gates, not WLA). Undo: delete this key + restart.
+      max_regime_age_bars: 17
       # PREREG-BEAR-LON (2026-09-04, owner order): bear dip-buy extension.
       # Basis: bear LONG n=77 +5.21R avg +0.068 WR66.2% (top-day 53% — kill
       # criteria frozen in RESEARCH_PLAN.md); bear SHORT n=130 -7.31R stays
