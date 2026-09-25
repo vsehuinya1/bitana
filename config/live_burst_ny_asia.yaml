@@ -230,6 +230,9 @@ burst_follow:
       # caught on verification, corrected: [1,5,6] = Tue+Sat+Sun.
       exclude_weekdays: [1, 5, 6]
       allowed_btc_regimes: ["neutral"]
+      # 2026-09-25: explicit hours = the engine's asia session (00:00-07:59Z). No behavior change (only asia-session
+      # bars reach this rule); makes metrics/dashboard/watch show the true armed hours instead of "all day".
+      hours: [0, 1, 2, 3, 4, 5, 6, 7]
       # PREREG-ASIA-DISTCAP (2026-09-03): EMA200-stretch ceiling — block asia
       # shorts when BTC >+5% above 4h EMA200 (basis: dist>+5% n=242 -4.41R;
       # +2..5% n=54 +1.25R; neutral-with-stretch resolves bull 7/7 by dist
