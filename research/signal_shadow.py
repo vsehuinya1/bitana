@@ -494,6 +494,8 @@ class LiveGateSnapshot:
     # PREREG-ASIA-DISTCAP (2026-09-03): per-arm EMA200-stretch ceiling bound
     # from the arm's SessionBurstRule (None = arm ungated, fail-open).
     btc_dist_max_pct: float | None = None
+    min_entry_atr_pct: float | None = None   # ASIA-MIDVOL band (engine: fail closed on missing atr_pct)
+    max_entry_atr_pct: float | None = None
     # DETECTOR-PARITY (2026-09-23): side gates the engine applies in _matches
     # (pos/neg_imb_only + allowed_side). WLA never mirrored them, so SHORT
     # burst_follow rows carried WLA=1 on the LONG-only london arm and held
@@ -559,6 +561,8 @@ def _snapshot_for(arm: str, rule, bf) -> LiveGateSnapshot:
         oi_inflow_max_pct=bf.oi_inflow_max_pct,
         # PREREG-ASIA-DISTCAP: per-arm knob from the rule itself.
         btc_dist_max_pct=rule.btc_dist_max_pct,
+        min_entry_atr_pct=rule.min_entry_atr_pct,
+        max_entry_atr_pct=rule.max_entry_atr_pct,
         pos_imb_only=bool(rule.pos_imb_only),
         neg_imb_only=bool(rule.neg_imb_only),
         allowed_side=rule.allowed_side,
@@ -1084,6 +1088,11 @@ class SignalShadow:
                 return "regime_age"
         if g.rule is not None and g.rule.hour_gate_reason(f["bar_time"].hour, wd, regime) is not None:
             return "hour"
+        if g.min_entry_atr_pct is not None or g.max_entry_atr_pct is not None:
+            ap = f.get("atr_pct")
+            if (not ap or (g.min_entry_atr_pct is not None and ap < g.min_entry_atr_pct)
+                    or (g.max_entry_atr_pct is not None and ap >= g.max_entry_atr_pct)):
+                return "atr_band"
         if g.min_imb > 0 and abs(imb) < g.min_imb:
             return "imb"
         if g.pos_imb_only and imb <= 0:

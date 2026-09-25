@@ -53,6 +53,8 @@ BOUND = {
     "min_cascade_strength": "min_cascade_strength",
     "min_n_confirms": "min_n_confirms",
     "max_regime_age_bars": "max_regime_age_bars",
+    "min_entry_atr_pct": "min_entry_atr_pct",
+    "max_entry_atr_pct": "max_entry_atr_pct",
     "min_burst_volume_30m": "min_burst_volume_30m",
     "min_burst_events_30m": "min_burst_events_30m",
     "oi_inflow_gate_enabled": "oi_gate_enabled",

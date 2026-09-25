@@ -77,6 +77,12 @@ class SessionBurstRule(BaseModel):
     # None. Basis: asia shorts at dist>+5% n=242 -4.41R (dist +2..5%: +1.25R).
     # Only the asia rule carries a value; NY/London default None = inert.
     btc_dist_max_pct: float | None = None
+    # ASIA-MIDVOL candidate (2026-09-25, patch): per-arm band on the symbol's 5m ATR% at entry
+    # (engine f["atr_pct"] = atr/close*100). Entry needs min <= atr_pct < max. None = no bound.
+    # Basis: Asia's median ATR is ~half London/NY's, so fixed costs weigh double below ~0.3%; above
+    # ~0.5% pumps keep running. Missing atr_pct fails CLOSED when a bound is set.
+    min_entry_atr_pct: float | None = None
+    max_entry_atr_pct: float | None = None
     min_imb: float = 0.0
     min_cascade_strength: float = 0.0
     min_vol_z: float = 0.0

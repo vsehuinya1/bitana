@@ -1,0 +1,191 @@
+diff --git a/config/loader.py b/config/loader.py
+index 515d52c..e78261b 100644
+--- a/config/loader.py
++++ b/config/loader.py
+@@ -77,6 +77,12 @@ class SessionBurstRule(BaseModel):
+     # None. Basis: asia shorts at dist>+5% n=242 -4.41R (dist +2..5%: +1.25R).
+     # Only the asia rule carries a value; NY/London default None = inert.
+     btc_dist_max_pct: float | None = None
++    # ASIA-MIDVOL candidate (2026-09-25, patch): per-arm band on the symbol's 5m ATR% at entry
++    # (engine f["atr_pct"] = atr/close*100). Entry needs min <= atr_pct < max. None = no bound.
++    # Basis: Asia's median ATR is ~half London/NY's, so fixed costs weigh double below ~0.3%; above
++    # ~0.5% pumps keep running. Missing atr_pct fails CLOSED when a bound is set.
++    min_entry_atr_pct: float | None = None
++    max_entry_atr_pct: float | None = None
+     min_imb: float = 0.0
+     min_cascade_strength: float = 0.0
+     min_vol_z: float = 0.0
+diff --git a/engines/liq_burst_follow_engine.py b/engines/liq_burst_follow_engine.py
+index 0337ebc..b242224 100644
+--- a/engines/liq_burst_follow_engine.py
++++ b/engines/liq_burst_follow_engine.py
+@@ -436,6 +436,21 @@ class LiqBurstFollowEngine:
+             )
+             return None
+ 
++        # ASIA-MIDVOL (2026-09-25, patch): per-arm entry-ATR% band; fail CLOSED on missing atr_pct.
++        if rule.min_entry_atr_pct is not None or rule.max_entry_atr_pct is not None:
++            atr_pct = f.get("atr_pct")
++            if (
++                not atr_pct
++                or (rule.min_entry_atr_pct is not None and atr_pct < rule.min_entry_atr_pct)
++                or (rule.max_entry_atr_pct is not None and atr_pct >= rule.max_entry_atr_pct)
++            ):
++                cls.record_gate(session, "atr_band")
++                logger.debug(
++                    "Burst session skip", symbol=symbol, session=f["session"], reason="atr_band",
++                    atr_pct=atr_pct, lo=rule.min_entry_atr_pct, hi=rule.max_entry_atr_pct,
++                )
++                return None
++
+         if rule.exclude_weekdays and bar_time.weekday() in rule.exclude_weekdays:
+             cls.record_gate(session, "weekday")
+             logger.debug(
+diff --git a/research/signal_shadow.py b/research/signal_shadow.py
+index 9599b24..4d69e9f 100644
+--- a/research/signal_shadow.py
++++ b/research/signal_shadow.py
+@@ -494,6 +494,8 @@ class LiveGateSnapshot:
+     # PREREG-ASIA-DISTCAP (2026-09-03): per-arm EMA200-stretch ceiling bound
+     # from the arm's SessionBurstRule (None = arm ungated, fail-open).
+     btc_dist_max_pct: float | None = None
++    min_entry_atr_pct: float | None = None   # ASIA-MIDVOL band (engine: fail closed on missing atr_pct)
++    max_entry_atr_pct: float | None = None
+     # DETECTOR-PARITY (2026-09-23): side gates the engine applies in _matches
+     # (pos/neg_imb_only + allowed_side). WLA never mirrored them, so SHORT
+     # burst_follow rows carried WLA=1 on the LONG-only london arm and held
+@@ -559,6 +561,8 @@ def _snapshot_for(arm: str, rule, bf) -> LiveGateSnapshot:
+         oi_inflow_max_pct=bf.oi_inflow_max_pct,
+         # PREREG-ASIA-DISTCAP: per-arm knob from the rule itself.
+         btc_dist_max_pct=rule.btc_dist_max_pct,
++        min_entry_atr_pct=rule.min_entry_atr_pct,
++        max_entry_atr_pct=rule.max_entry_atr_pct,
+         pos_imb_only=bool(rule.pos_imb_only),
+         neg_imb_only=bool(rule.neg_imb_only),
+         allowed_side=rule.allowed_side,
+@@ -1084,6 +1088,11 @@ class SignalShadow:
+                 return "regime_age"
+         if g.rule is not None and g.rule.hour_gate_reason(f["bar_time"].hour, wd, regime) is not None:
+             return "hour"
++        if g.min_entry_atr_pct is not None or g.max_entry_atr_pct is not None:
++            ap = f.get("atr_pct")
++            if (not ap or (g.min_entry_atr_pct is not None and ap < g.min_entry_atr_pct)
++                    or (g.max_entry_atr_pct is not None and ap >= g.max_entry_atr_pct)):
++                return "atr_band"
+         if g.min_imb > 0 and abs(imb) < g.min_imb:
+             return "imb"
+         if g.pos_imb_only and imb <= 0:
+diff --git a/tests/test_asia_midvol_gate.py b/tests/test_asia_midvol_gate.py
+new file mode 100644
+index 0000000..03a96ad
+--- /dev/null
++++ b/tests/test_asia_midvol_gate.py
+@@ -0,0 +1,95 @@
++"""ASIA-MIDVOL entry-ATR% band (2026-09-25, patch): engine gate == WLA mirror gate.
++
++A rule with min/max_entry_atr_pct accepts min <= atr_pct < max and rejects everything else, including a missing
++atr_pct (fail closed). With no bounds set, the gate is inert. The engine and the mirror must agree on every point.
++"""
++from __future__ import annotations
++
++import asyncio
++import dataclasses
++import os
++from datetime import datetime, timedelta, timezone
++from types import SimpleNamespace
++
++import pytest
++
++BAND = {"min_entry_atr_pct": 0.3, "max_entry_atr_pct": 0.5}
++POINTS = [None, 0.0, 0.2, 0.3, 0.45, 0.4999, 0.5, 0.7]
++
++
++def _run(coro):
++    loop = asyncio.new_event_loop()   # private loop: asyncio.run() would clear the default loop for later tests
++    try:
++        return loop.run_until_complete(coro)
++    finally:
++        loop.close()
++
++
++def _live():
++    os.environ.pop("API_FOOTBALL_KEY", None)
++    import research.signal_shadow as ss
++    from config.loader import load_config
++    return ss, load_config(ss._LIVE_CONFIG_PATH).burst_follow
++
++
++def _open_cell(rule, bf):
++    for regime in list(rule.allowed_btc_regimes or bf.allowed_btc_regimes):
++        for wd in range(5):
++            if wd in (rule.exclude_weekdays or []):
++                continue
++            for hour in range(24):
++                if rule.hour_gate_reason(hour, wd, regime) is None:
++                    return wd, hour, regime
++    raise AssertionError("arm has no open cell")
++
++
++def _decide(ss, bf, arm, rule_updates, atr_pct):
++    from engines.liq_burst_follow_engine import BurstFollowState, LiqBurstFollowEngine
++    rule = bf.session_rules[arm].model_copy(update=rule_updates)
++    bf2 = bf.model_copy(update={"session_rules": {**bf.session_rules, arm: rule}})
++    snap = ss._snapshot_for(arm, rule, bf2)
++    strategy = {v: k for k, v in ss._LIVE_ARM_FOR_STRATEGY.items()}[arm]
++    spec = dataclasses.replace(ss._STRATEGY_BY_NAME[strategy], live_gates=snap)
++    wd, hour, regime = _open_cell(rule, bf2)
++    bar_time = datetime(2026, 9, 21, tzinfo=timezone.utc) + timedelta(days=wd, hours=hour, minutes=4, seconds=59)
++    imb = 0.95 if arm != "asia" else -0.95
++    f = {"bar_time": bar_time, "hour": hour, "session": arm, "close": 100.0, "atr": 1.0,
++         "cascade_strength": 0.6, "vol_z": 0.5, "n_confirms": 3, "decile": 3, "liq_imbalance_30m": imb,
++         "burst_volume_30m": 1e9, "burst_events_30m": 1000}
++    if atr_pct is not None:
++        f["atr_pct"] = atr_pct
++    engine = LiqBurstFollowEngine(bf2)
++    engine._features = lambda candles, st, f=f: dict(f)
++    burst = {"volume_30m": 1e9, "events_30m": 1000, "imbalance_30m": imb}
++    sig = _run(engine.evaluate("TESTUSDT", [], [], [], BurstFollowState(), burst=burst,
++                               btc_regime=regime, btc_regime_age_bars=1, btc_regime_dist=None))
++    shadow = SimpleNamespace(_market_ctx=ss.MarketContext(btc_trend_state=regime, btc_regime_age_bars=1))
++    reason = ss.SignalShadow._live_gate_block_reason(shadow, spec, f, "LONG" if imb > 0 else "SHORT", imb)
++    return sig is not None, reason
++
++
++@pytest.mark.parametrize("arm", ["london", "ny"])
++def test_band_engine_equals_mirror(arm):
++    ss, bf = _live()
++    for ap in POINTS:
++        engine_ok, reason = _decide(ss, bf, arm, BAND, ap)
++        assert engine_ok == (reason is None), (arm, ap, engine_ok, reason)
++        inside = ap is not None and 0.3 <= ap < 0.5
++        assert engine_ok == inside, (arm, ap, engine_ok)
++        if not inside:
++            assert reason == "atr_band", (arm, ap, reason)
++
++
++@pytest.mark.parametrize("arm", ["london", "ny"])
++def test_no_band_is_inert(arm):
++    ss, bf = _live()
++    for ap in POINTS:
++        engine_ok, reason = _decide(ss, bf, arm, {}, ap)
++        assert engine_ok and reason is None, (arm, ap, engine_ok, reason)
++
++
++def test_loader_accepts_band_fields():
++    _, bf = _live()
++    rule = bf.session_rules["ny"].model_copy(update=BAND)
++    assert (rule.min_entry_atr_pct, rule.max_entry_atr_pct) == (0.3, 0.5)
++    assert bf.session_rules["ny"].min_entry_atr_pct is None      # live yaml: no band anywhere
+diff --git a/tests/test_wla_gate_complete.py b/tests/test_wla_gate_complete.py
+index 0e7f34e..63d8fa1 100644
+--- a/tests/test_wla_gate_complete.py
++++ b/tests/test_wla_gate_complete.py
+@@ -53,6 +53,8 @@ BOUND = {
+     "min_cascade_strength": "min_cascade_strength",
+     "min_n_confirms": "min_n_confirms",
+     "max_regime_age_bars": "max_regime_age_bars",
++    "min_entry_atr_pct": "min_entry_atr_pct",
++    "max_entry_atr_pct": "max_entry_atr_pct",
+     "min_burst_volume_30m": "min_burst_volume_30m",
+     "min_burst_events_30m": "min_burst_events_30m",
+     "oi_inflow_gate_enabled": "oi_gate_enabled",

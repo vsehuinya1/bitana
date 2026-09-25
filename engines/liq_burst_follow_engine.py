@@ -436,6 +436,21 @@ class LiqBurstFollowEngine:
             )
             return None
 
+        # ASIA-MIDVOL (2026-09-25, patch): per-arm entry-ATR% band; fail CLOSED on missing atr_pct.
+        if rule.min_entry_atr_pct is not None or rule.max_entry_atr_pct is not None:
+            atr_pct = f.get("atr_pct")
+            if (
+                not atr_pct
+                or (rule.min_entry_atr_pct is not None and atr_pct < rule.min_entry_atr_pct)
+                or (rule.max_entry_atr_pct is not None and atr_pct >= rule.max_entry_atr_pct)
+            ):
+                cls.record_gate(session, "atr_band")
+                logger.debug(
+                    "Burst session skip", symbol=symbol, session=f["session"], reason="atr_band",
+                    atr_pct=atr_pct, lo=rule.min_entry_atr_pct, hi=rule.max_entry_atr_pct,
+                )
+                return None
+
         if rule.exclude_weekdays and bar_time.weekday() in rule.exclude_weekdays:
             cls.record_gate(session, "weekday")
             logger.debug(
