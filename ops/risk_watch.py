@@ -46,6 +46,7 @@ FRESH_LIMIT = {'shadow writer': 900, 'force-order feed': 900, 'live bot log': 18
 DD_LEVELS = (0.15, 0.20, 0.25, 0.30)
 MAX_MSGS_PER_HOUR = 20
 DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+SHORT_ARMS = {'asia'}        # asia pump-short (neg_imb_only); london/ny are long in every regime
 DRY = '--dry' in sys.argv
 # Row 11 (PREREG-LON-BULL-FADE) live-real basis at registration, quoted in fade-day messages
 FADE_NOTE = 'Row 11 fade day: London lost on 3 of 4 such days live (-2.39R). Stand-down: /pause before 10:00, /resume before 14:00.'
@@ -235,7 +236,6 @@ def tick(mode='loop'):
     P = v.get('performance') or {}
     ad = arm_day(d.get('trades') or [], P.get('trade_meta') or {}, day)
     bk = book(v.get('positions'))
-    armed_any = any(a.get('armed_now') for a in arms.values())
     # an arm whose allowed regimes exclude the current state is off, whatever its base hours say
     age = rh.get('age_bars')
     today_hours = {k: (a.get('hours_by_weekday', {}).get(wd, [])
@@ -321,8 +321,8 @@ def tick(mode='loop'):
                     flags.append(f'LON-BULL-FADE ON (ADX {d3:+.1f} over 3 bars)')
                 if state in ('bull', 'bear') and adx is not None and adx - EXIT_ADX < 1.0:
                     flags.append(f'ADX {adx:.1f}, {adx - EXIT_ADX:.1f} above the neutral exit')
-                if b and b['m60'] <= -0.5 and state != 'bear':
-                    flags.append(f"BTC 1h {b['m60']:+.2f}%")
+                if b and ((arm in SHORT_ARMS and b['m60'] >= 0.5) or (arm not in SHORT_ARMS and b['m60'] <= -0.5)):
+                    flags.append(f"BTC 1h {b['m60']:+.2f}% (against the {'short' if arm in SHORT_ARMS else 'long'} side)")
                 if ad.get(arm, {}).get('r', 0) <= -0.5:
                     flags.append(f"{arm} day {ad[arm]['r']:+.2f}R")
                 if bk.get(arm, {}).get('red', 0) >= 2 and bk[arm]['u'] <= -0.4:
@@ -333,9 +333,13 @@ def tick(mode='loop'):
                     note = ('\n' + FADE_NOTE) if (fade and arm == 'london') else ''
                     emit(f'PREHOUR:{arm}:{day}:{h}', 'PRE-HOUR', f"{arm} {h:02d}:00 arms in {60 - now.minute} min. Flags: "
                          + '; '.join(flags) + note)
-    # tape against the arms' side
-    if b and (armed_any or bk):
-        adverse = (b['m60'] >= 0.8 or b['m15'] >= 0.5) if state == 'bear' else (b['m60'] <= -0.8 or b['m15'] <= -0.5)
+    # tape against the side actually at risk: long arms/legs fear drops, short arms/legs (asia) fear rips
+    if b:
+        pos = v.get('positions') if isinstance(v.get('positions'), list) else []
+        long_live = any(a.get('armed_now') for k, a in arms.items() if k not in SHORT_ARMS) or any(p.get('side') == 'LONG' for p in pos)
+        short_live = any(a.get('armed_now') for k, a in arms.items() if k in SHORT_ARMS) or any(p.get('side') == 'SHORT' for p in pos)
+        adverse = ((long_live and (b['m60'] <= -0.8 or b['m15'] <= -0.5))
+                   or (short_live and (b['m60'] >= 0.8 or b['m15'] >= 0.5)))
         if adverse:
             emit(f'TAPE:{H}', 'TAPE', f"BTC 15m {b['m15']:+.2f}%, 1h {b['m60']:+.2f}% at {b['px']:.0f}. Armed: "
                  + (', '.join(k for k, a in arms.items() if a.get('armed_now')) or 'none')

@@ -1,6 +1,16 @@
 {
- "built": "2026-09-25T16:07:43+00:00",
+ "built": "2026-09-25T19:21:45+00:00",
  "rows": [
+  {
+   "name": "PREREG-ASIA-MIDVOL (LIVE, early wire)",
+   "kind": "live",
+   "next": "n>=30 revert check / n>=50 & 10d formal",
+   "status": "COUNTS-ONLY (n<30)",
+   "n": 0,
+   "days": 0,
+   "n_target": 50,
+   "days_target": 10
+  },
   {
    "name": "PREREG-LATE-BULL-FLUSH",
    "kind": "dark",
@@ -106,8 +116,8 @@
   {
    "name": "ASIA-PUMP-NEUTRAL (Row 3)",
    "kind": "dark",
-   "next": "trigger",
-   "status": "needs dist<+5% AND >=3 neutral bars AND 2 clean weekend tapes"
+   "next": "superseded",
+   "status": "superseded 2026-09-25 by ASIA-MIDVOL (its trigger: -0.075 R/leg, n=224)"
   },
   {
    "name": "TUEASIA",

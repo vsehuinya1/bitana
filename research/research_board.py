@@ -16,6 +16,7 @@ sys.path.insert(0, '/root/bitana/research')
 import late_bull_flush_reader as lbf  # noqa: E402
 import lon_bull_fade_reader as lfade  # noqa: E402
 import ny_flush_quality_reader as nyq  # noqa: E402
+import asia_midvol_reader as amv  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
 
@@ -31,7 +32,7 @@ ROWS = [
     ('LON-TAIL', 'dark', 'n>=30 / 5d', 'london 11:30-13:59 parity-era read'),
     ('NY-NEUT-KEEP (Row 1)', 'dark', 'n>=30 / 5d', 'NY neutral h16-17 status row'),
     ('LON-NEUT-H13 (Row 2)', 'dark', 'n>=100 / 5d', 'london neutral h12-13 measure-only'),
-    ('ASIA-PUMP-NEUTRAL (Row 3)', 'dark', 'trigger', 'needs dist<+5% AND >=3 neutral bars AND 2 clean weekend tapes'),
+    ('ASIA-PUMP-NEUTRAL (Row 3)', 'dark', 'superseded', 'superseded 2026-09-25 by ASIA-MIDVOL (its trigger: -0.075 R/leg, n=224)'),
     ('TUEASIA', 'queued', '2026-10-04', 'Tuesday asia neutral re-open (formal)'),
     ('WKNDNY', 'queued', '2026-10-04', 'bull-weekend NY buy, extension read'),
     ('BEAR-* playbook', 'dark', 'first bear bar', 'no bear bars since Aug-17; wired dormant'),
@@ -65,6 +66,11 @@ def main():
         rows.insert(3, {'name': 'PREREG-NY-KNIFE (Row 13)', 'kind': 'dark', 'next': 'knife n>=30 R-read / n>=50 & 5d formal',
                         'status': nyq.decide13(nr, now.strftime('%Y-%m-%d'), v12), 'n': nr['knife'].get('n', 0),
                         'days': nr['knife'].get('days', 0), 'n_target': 50, 'days_target': 5})
+        ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
+        a_s, a_lv = amv.stats(ak), amv.stats([x for x in ak if x['symbol'] in amv.LIVE])
+        rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (LIVE, early wire)', 'kind': 'live', 'next': 'n>=30 revert check / n>=50 & 10d formal',
+                        'status': amv.decide(a_s, a_lv, now.strftime('%Y-%m-%d')), 'n': a_s.get('n', 0),
+                        'days': a_s.get('days', 0), 'n_target': 50, 'days_target': 10})
     finally:
         for f in (db, db + '-wal', db + '-shm', db + '-journal'):
             if os.path.exists(f):

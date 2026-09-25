@@ -1481,3 +1481,31 @@ Source: Claude Code cross-arm market-state scan (owner ask for "more such gems")
   - `bitana-live-burst-follow` restarted **17:51:04Z**, on the owner's permission "I also give you permission to restart trading units", together with the catastrophe stop ("Apply and enable": `execution.catastrophe_stop_mult: 1.5`, commit 865d4b4). Window: BTC neutral, 0 positions, no arm armed. The London age cap and the backstop are live from then.
   - `bitana-v5-paper` restarted **17:54:05Z**. The WLA mirror re-binds `max_regime_age_bars`, so **London WLA=1 rows before 17:54:05Z were stamped without the cap**. Any WLA-based London read spanning this boundary needs a read-time age filter (Row 11 and its age split use re-derived gates and are unaffected).
   - Post-deploy checks: 0 error/critical lines in both logs; all units active; shadow writer fresh; bot not paused; websocket connected; regime neutral (age 0).
+
+## Amendment 2026-09-25 19:2xZ — PREREG-ASIA-MIDVOL wired EARLY (owner order "Wire"): Asia re-enabled in neutral with entry-ATR band 0.30–0.50%
+- **Source:** owner goal "find a profitable way to wire back Asia neutral".
+- **Diagnosis:** Asia's arms reused the London/NY template (5m-ATR stops, fixed costs).
+  - Asia median entry ATR 0.30% vs London 0.61% / NY 0.72%, so 20 bps = 0.67 ATR (vs 0.33 / 0.28).
+  - Most Asia strategies are gross-positive (+0.02..+0.09 R/leg) but net-negative.
+  - 39% of Asia neutral legs sit at ATR < 0.25% (the cost sink). Above 0.5%, pump-shorts lose gross.
+- **Search disclosure:** 1,721 cells (317 condition + 1,404 exit) passed none before the cost diagnosis. The band + old-gates cell was found after it: post hoc, with band edges chosen on the data.
+- **Wire:**
+  - `session_rules.asia` uncommented with the old gates unchanged: `asia_pump_short_4h`, neg-imb ≥ 0.5, no Tue/Sat/Sun, neutral, dist cap 5%, decile ≥ 2, vol_z ≥ 0, n_confirms ≥ 1, SL10 / 48 bars.
+  - Band: `min_entry_atr_pct: 0.30`, `max_entry_atr_pct: 0.50`. New engine gate + WLA mirror + structural map + 5 parity tests (`reports/asia_midvol_gate.patch`).
+  - Explicit `hours: [0..7]`, equal to the engine's asia session; display only.
+  - Backup `config/live_burst_ny_asia.yaml.pre_asia_midvol_20260925`.
+- **Basis (paper, in-sample):**
+  - n=24 / 7 days: E +0.157 @20bps (+0.177 @12), halves +0.110 / +0.222, 5/7 days positive
+  - **top-day 47% (> the 40% bar; disclosed)**
+  - live-bot symbols n=15 / 6 days: +0.251, 6/6 days positive
+  - same gates without the band: n=80 +0.044, halves +0.101 / −0.046
+  - live and paper ATR% are identical (20 matched legs)
+- **Reader of record:** `research/asia_midvol_reader.py`, forward from 2026-09-25T19:00Z; `--validate` PASS.
+  - **Keep/promote:** n ≥ 50 over ≥ 10 days, E ≥ +0.03, top-day ≤ 40%, both halves > 0, live subset ≥ 0.
+  - **Revert** (re-comment the asia block + restart) if forward E < 0 @20bps at n ≥ 30.
+  - Formal read by 2027-01-31.
+- **Row 3 (ASIA-PUMP-NEUTRAL conditional G0) is superseded:** its trigger population (dist < 5 & neutral age ≥ 3) makes −0.075 R/leg over 224 legs.
+- **Deploy:**
+  - Live bot restarted 19:16:59Z and 19:19:25Z (hours fix); v5-paper 19:18:08Z and 19:20:12Z.
+  - 0 error lines; bot not paused; websocket up.
+  - Asia stays inactive until BTC dist < 5% (+7.0% at deploy). First eligible bar Mon 2026-09-28 00:00Z.
