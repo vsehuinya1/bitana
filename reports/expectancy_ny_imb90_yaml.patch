@@ -1,0 +1,15 @@
+--- a/config/live_burst_ny_asia.yaml
++++ b/config/live_burst_ny_asia.yaml
+@@ -251,7 +251,11 @@
+       shadow_strategy: ny_flush_buy_1h
+       side_mode: follow
+       pos_imb_only: true
+-      min_imb: 0.5
++      # PROPOSED 2026-09-24 (NY-IMB90, expectancy sweep): 0.5 -> 0.9. Removed lane
++      # (0.5<=imb<0.9) NY family n=279/24d E-0.078R PF0.58, top-day 28%, negative
++      # in both windows and both regimes; live-real 1h n=10 -1.99R. Requires the
++      # companion WLA-mirror patch (signal_shadow.py) in the same restart.
++      min_imb: 0.9
+       exclude_weekdays: [0, 5, 6]
+       hours: [16, 17]
+       regime_hours:

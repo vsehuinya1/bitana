@@ -1,0 +1,30 @@
+--- a/research/signal_shadow.py
++++ b/research/signal_shadow.py
+@@ -502,6 +502,10 @@
+     # the WLA mirror never applied it — ~40% of ny WLA=1 rows were legs live
+     # would reject (ny vol_z<0 slice). Mirror now matches the engine.
+     min_vol_z: float | None = None
++    # NY-IMB90 (proposed 2026-09-24): the engine rejects abs(imb) < rule.min_imb
++    # in _matches; the mirror relied on the ShadowStrategy's own min_imb (0.5),
++    # so any yaml raise would leave WLA=1 on legs live rejects (vol_z-bug class).
++    min_imb: float = 0.0
+ 
+ 
+ _LIVE_CONFIG_PATH = os.environ.get("BITANA_LIVE_CONFIG", "/root/bitana/config/live_burst_ny_asia.yaml")
+@@ -544,6 +548,7 @@
+             neg_imb_only=bool(rule.neg_imb_only),
+             allowed_side=rule.allowed_side,
+             min_vol_z=rule.min_vol_z,
++            min_imb=float(rule.min_imb or 0.0),
+         )
+     return snaps
+ 
+@@ -1045,6 +1050,8 @@
+             return "pos_imb_only"
+         if g.neg_imb_only and imb >= 0:
+             return "neg_imb_only"
++        if g.min_imb > 0 and abs(imb) < g.min_imb:
++            return "imb"
+         if g.min_vol_z is not None and f.get("vol_z", 0.0) < g.min_vol_z:
+             # NY-VOLZ (2026-09-23): engine parity — _matches rejects vol_z <
+             # min_vol_z; the mirror ignored it, overstating the WLA book.

@@ -1347,3 +1347,47 @@ Every live-arm read that uses `would_live_accept=1`, or bars derived from the WL
 - **Structural guarantee going forward:** `tests/test_wla_gate_complete.py` parses the live engine source; a new engine gate fails the suite until mirrored — loader's "config edits can never desync them" is now enforced, not claimed.
 
 Caveats (disclosed, not blocking): historical WLA=1 rows stay as stamped (read-time filter mandatory pre-cut-over-3); `min_cascade_strength` binds the threshold but shadow computes cascade from a different source (corr 0.75 on same-bar twins — inert at 0.0, needs its own parity item if ever raised); mirror binds the global `burst_follow` block (no per-symbol overrides exist today); expect ~20–30% fewer WLA=1 mirror rows after cut-over. Stale yaml comment ("min_n_confirms near-vacuous") — OWNER cosmetic rider, pending order, no restart needed.
+
+## 2026-09-25 04:4xZ — PREREG-LATE-BULL-FLUSH (dark G0; owner order "Yes, register")
+Source: Claude Code weekend/late-session setup search (owner Q "Weekends and late session are sat out — can you find setups?"), findings in `possible_improvements.md` (2026-09-25 entry). **Selection disclosure: surfaced from ~91 tests** (77-cell strategy×side×regime scan over weekend + weekday-late windows, 0 passing; then 7 arm-clone setups × 2 exits). Multiple-comparisons risk is explicit. **Only the forward window counts.**
+
+- **Claim:** in BTC bull regime, long-liquidation flushes in the weekday late session (22:00–23:59Z) mean-revert within an hour, the same exhaustion mechanism as the NY 1h arm. Buying them with the NY 1h exit profile has positive net expectancy.
+- **Mechanism:** post-US-close books are thin, so forced-seller cascades overshoot. Bull regime supplies dip-buyers.
+- **Not a relitigation:**
+  - **Distinct from LATEFADE** (KILLED Sep-20: SHORT fade, neutral, h22–23 dec≥2). This row is LONG flush-buy, bull only, which satisfies LATEFADE's "new regime structure" clause.
+  - **No overlap with WKNDNY** (weekends excluded here).
+- **Population (frozen):**
+  - shadow `burst_follow` rows, side LONG, `liq_imb ≥ 0.5`
+  - bar-close hour 22–23 UTC, Mon–Fri (bar weekday 0–4), `btc_trend_state = bull`
+  - live-gate analogues: `entry_vol_z ≥ 0`, `decile ≥ 1`, `n_confirms ≥ 1` (column post-cut-over-3; READ-PROC-GATECOMPLETE applies)
+- **Exit (re-simulated from `trade_r_path`):** SL 5 ATR, no TP, time exit 12 bars (60m), stop-first. `post` bar 1 duplicates the exit bar, so bar N+k = post bar k+1.
+- **Units and costs:** R = net ATR / 5. **Bars at 20 bps round-trip** (late books thinner than the 12 bps plan standard); 12 bps is also reported.
+- **Basis (in-sample, pre-parity, disclosed verbatim; does NOT count toward promotion):**
+  - n=31 / 11 days (Aug-21 → Sep-23)
+  - E +0.1226 R net @12bps (ΣR +3.80), halves +0.095 / +0.161, 9/11 days positive
+  - by hour: h22 +0.066 (n19), h23 +0.212 (n12)
+  - **top-day Aug-24 = 59% of net → FAILS §6**; ex-top-day +0.054 / 29
+  - cost sensitivity: @20 bps +0.081; @30 bps +0.029
+  - live-symbol subset n=14 E +0.083; top-3 symbols (ARB/ENA/TRUMP) 74% of net
+- **Forward window:** entries ≥ 2026-09-25T04:40Z. This is parity-era by construction; `burst_follow` is a live-arm mirror, so it's evaluated per bar with engine dedup.
+- **Promote bar (ALL required, forward rows only):**
+  - n ≥ 50 legs over ≥ 10 distinct days
+  - E_net ≥ +0.05 R @20 bps
+  - top-day ≤ 40% of net
+  - both hours (22, 23) E ≥ 0
+  - live-symbol subset E ≥ 0 at n ≥ 20
+- **Kill (any ONE):**
+  - forward E_net < 0 @20 bps at n ≥ 30
+  - top-day > 40% at the formal read
+  - live-symbol subset E < −0.02 at n ≥ 20
+- **Read cadence:**
+  - counts only at Sunday loops until n ≥ 30, then the first R-read
+  - formal read at n ≥ 50 / ≥ 10 days, or 2026-11-08, whichever first
+  - ONE extension max (→ 2026-12-06), then park
+  - accrual pauses in non-bull regimes (expected: BTC ADX 27.8 and falling at registration)
+- **Wiring footprint:** ZERO now (dark; `burst_follow` already logs late rows; the read re-simulates exits from `trade_r_path`). Promotion is NOT config-only:
+  - a new `session_rules.late` arm in the live yaml
+  - a dedicated shadow strategy (e.g. `late_flush_buy_1h`: burst trigger, LONG, sessions {late}, SL5, 12 bars) plus its `_LIVE_ARM_FOR_STRATEGY` mapping (the mirror guard requires it; `burst_follow` is London's)
+  - `tests/test_wla_gate_complete.py` must pass
+  - re-check applicability of the Sep-6 mandatory-rider rule (arm_oi_p1 OI block + DISTCAP knob) at promotion
+- **Reader of record:** to be committed under `research/` before the first R-read (logic = the 2026-09-25 study: live-gate filter → `trade_r_path` re-sim → 20 bps net), with a backdated validation gate reproducing the n=31 basis.
