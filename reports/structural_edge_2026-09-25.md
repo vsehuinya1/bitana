@@ -59,3 +59,12 @@ Owner ask: "figure out the structurally bigger edge, or how to find it."
   wide disaster-stop variant.
 - **Next hypotheses on the same method:** squeeze-follow (the fade lost −1.03%, so continuation is the testable
   flip; OOS on 2020–21 only), funding-extreme reversals, OI-flush capitulation, weekend-gap reversion.
+
+## Tested after registration: squeeze continuation. NOT registered.
+The rule was fixed before testing: ≥ 50% of coins at hourly z ≥ +3 in the same hour, 24h cooldown, buy the basket at
+the next open, 20 bps.
+- 2022–26 (already seen through the fade test): 24h +0.63% (t +1.13), 72h +0.74% (t +1.11). Weak.
+- 2020–21 OOS (unseen): 24h **+3.73%** (n=19, t +1.64) vs ordinary +0.57%, but the top-5 events are 120% of net.
+  72h +3.27% (t +1.96) vs ordinary +1.72%.
+- Read: bull-market momentum (2020–21) rather than a general edge. A small, concentrated OOS and a weak in-sample.
+  Any bull-conditional version would have no clean holdout left, so it could only be judged forward. Parked.
