@@ -1521,3 +1521,36 @@ Source: Claude Code cross-arm market-state scan (owner ask for "more such gems")
 - **ASIA-MIDVOL:** reverted to paper at 19:47Z after 30 min live (0 trades). Its reader keeps measuring; re-enable only on a PROMOTE verdict.
 - **London age cap:** kept on owner order. It's treated as a risk reduction on an arm with a negative live record (−2.3R / 118 legs), not as a proven edge.
 - **Deploy:** live 19:47:02Z, v5-paper 19:47:57Z. `risk_pct_active` 2.625 (reduced mode, DD 21.8%); 0 error lines.
+
+## 2026-09-25 20:xxZ — PREREG-CAPITULATION-BASKET (paper G0, new strategy family; owner order "Register")
+Source: structural-edge search (owner ask "figure out the structurally bigger edge"); write-up `reports/structural_edge_2026-09-25.md`. The method rules out the failure modes of the per-leg research: it is event-level, uses 4.7 years of public data, has costs built in, and a frozen rule was tested once out-of-sample.
+- **Claim:** market-wide capitulation (forced selling across the whole market) overshoots and reverts. Buying an equal-weight basket after it earns a positive net return over 24h.
+- **Why "structurally bigger":** each trade targets about 1% against 0.2% costs (5–6×), while the current per-leg system's costs exceed its gross edge. It is one position per market event instead of up to 8 correlated legs (cascade ICC 0.48). It is the one mechanism that held in our own data (NY broad flushes +0.085/leg, narrow ≈ 0).
+- **Frozen rule** (`research/capitulation_reader.py`):
+  - universe: 20 USDT-M perps (BTC ETH SOL XRP ADA DOGE LINK AVAX DOT LTC BCH ATOM NEAR UNI FIL ETC TRX BNB XLM AAVE), Binance 1h klines
+  - z = hourly log return / trailing 720-bar sd (shifted one bar, ≥ 500 bars)
+  - **event:** ≥ 75% of valid coins at z ≤ −3 in the same hour (≥ 16 valid), 24h cooldown
+  - **trade:** buy all 20 at the next bar's open, exit at the open 24 bars later; equal-weight basket
+  - costs: 20 bps round trip (BTC-only reported at 10 bps)
+- **Basis (does NOT count toward promotion; `--validate` reproduces both: PASS):**
+  - **in-sample 2022-01 → 2026-09-25:** n=121 events (~26/yr), basket net **+1.10%/event**, median +0.76%, hit 58%, **t +2.28**; ordinary 24h +0.05%
+    - by year: 2022 +0.97, 2023 +1.60, 2024 +1.31, 2025 +1.29, 2026 +0.13
+    - threshold 60–90% × hold 24–48h all positive; 40 bps costs +0.90%; BTC above / below its 200d SMA +1.33 / +0.85%
+  - **OOS 2020–21 (never seen, frozen rule, min 8 valid coins):** n=37, **+2.73%/event**, median +2.97%, hit 62%, **t +1.77**; ordinary 24h +0.57%
+    - lumpy: 2020 +0.47% (below the control), 2021 +6.91% (n=13)
+  - **Disclosed risks:**
+    - top-5 events = 59% of in-sample net (ex-top-5 +0.48%)
+    - fat left tail: worst 24h −17.6%; worst intraday basket MAE −49.5% (Oct-2025 flash-crash wicks)
+    - 2025–26 weaker (+0.73%, t 0.99)
+    - about 18 threshold/hold/instrument combinations were looked at in-sample
+- **Forward window:** events whose entry bar opens at or after 2026-09-25T21:00Z. About 2 events a month are expected, so the forward test mainly checks decay and execution realism; significance comes from the pooled record.
+- **Promote (ALL):** forward n ≥ 12 events; forward mean net ≥ 0; pooled (in-sample + OOS + forward) t ≥ 2.0; no forward event below −20%.
+- **Kill (any ONE):** forward mean net < −1.0% at n ≥ 12; pooled t < 1.5 at the formal read.
+- **Cadence:** counts at Sunday loops. Formal read at forward n ≥ 12 or 2027-03-31, whichever first; ONE extension (→ 2027-09-30), then park.
+- **Paper tracker:** the reader rebuilds every forward event and its P&L from public klines (no service, no state). The risk watch posts a Telegram line when an event fires. Paper only, no orders.
+- **Wiring footprint at promotion (not config-only):**
+  - basket execution (20 market entries at the next open, exits 24h later)
+  - notional sizing, not ATR stops (proposal: total basket notional ≤ 0.5× equity)
+  - a wide disaster stop only; tight stops would fill at wick lows
+  - its own risk budget, separate from the burst arms
+  - the exact sizing and stop are preregistered before any wire

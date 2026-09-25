@@ -1,5 +1,5 @@
 {
- "built": "2026-09-25T19:21:45+00:00",
+ "built": "2026-09-25T20:19:56+00:00",
  "rows": [
   {
    "name": "PREREG-ASIA-MIDVOL (LIVE, early wire)",
@@ -10,6 +10,16 @@
    "days": 0,
    "n_target": 50,
    "days_target": 10
+  },
+  {
+   "name": "PREREG-CAPITULATION-BASKET (paper)",
+   "kind": "dark",
+   "next": "n>=12 events formal",
+   "status": "no events yet",
+   "n": 0,
+   "days": 0,
+   "n_target": 12,
+   "days_target": 12
   },
   {
    "name": "PREREG-LATE-BULL-FLUSH",

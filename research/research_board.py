@@ -17,6 +17,7 @@ import late_bull_flush_reader as lbf  # noqa: E402
 import lon_bull_fade_reader as lfade  # noqa: E402
 import ny_flush_quality_reader as nyq  # noqa: E402
 import asia_midvol_reader as amv  # noqa: E402
+import capitulation_reader as capr  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
 
@@ -66,6 +67,13 @@ def main():
         rows.insert(3, {'name': 'PREREG-NY-KNIFE (Row 13)', 'kind': 'dark', 'next': 'knife n>=30 R-read / n>=50 & 5d formal',
                         'status': nyq.decide13(nr, now.strftime('%Y-%m-%d'), v12), 'n': nr['knife'].get('n', 0),
                         'days': nr['knife'].get('days', 0), 'n_target': 50, 'days_target': 5})
+        ct, _ = capr.forward_read()
+        cdone = ct.dropna(subset=['basket_net']) if len(ct) else ct
+        cs = capr.stats(cdone.basket_net) if len(cdone) else {'n': 0}
+        rows.insert(0, {'name': 'PREREG-CAPITULATION-BASKET (paper)', 'kind': 'dark', 'next': 'n>=12 events formal',
+                        'status': (f"{cs['n']} closed events, mean {cs['mean'] * 100:+.2f}%" if cs.get('n') else 'no events yet')
+                                  + (f"; {len(ct) - len(cdone)} open" if len(ct) else ''),
+                        'n': cs.get('n', 0), 'days': cs.get('n', 0), 'n_target': 12, 'days_target': 12})
         ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
         a_s, a_lv = amv.stats(ak), amv.stats([x for x in ak if x['symbol'] in amv.LIVE])
         rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (LIVE, early wire)', 'kind': 'live', 'next': 'n>=30 revert check / n>=50 & 10d formal',

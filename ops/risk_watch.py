@@ -16,6 +16,7 @@ Telegram chat with the bot's token. TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are pa
   REGIME    state change; provisional flip at the next 4h close (forming bar, last 60 min before the close)
   OPS       dashboard/bot unreachable, unit/pm2 down, stale feed, bot paused, reduced mode, critical task unhealthy
   EOD       21:05 UTC Mon-Fri: day summary
+  CAPITULATION  hourly paper tracker for PREREG-CAPITULATION-BASKET: event alert + 24h exit result
 Usage: venv/bin/python -u ops/risk_watch.py [--dry] [--once] [--test]
   --dry   print instead of sending   --once  one START summary, then exit   --test  send a delivery test, exit
 Service: deploy/bitana-risk-watch.service
@@ -36,6 +37,8 @@ sys.path.insert(0, ROOT)
 os.environ.pop('API_FOOTBALL_KEY', None)
 from core.models import Candle  # noqa: E402
 from engines.btc_regime import compute_regime_snapshot  # noqa: E402
+sys.path.append(f'{ROOT}/research')        # append: research/config would shadow the bot's config package
+import capitulation_reader as capr  # noqa: E402  (PREREG-CAPITULATION-BASKET paper tracker)
 
 LOG = f'{ROOT}/logs/risk_watch_alerts.log'
 STATE = f'{ROOT}/logs/risk_watch_state.json'
@@ -383,6 +386,27 @@ def tick(mode='loop'):
             lead = f"if BTC holds ({b['px']:.0f})" if b else 'if BTC holds'
             emit(f'PROV:{day}:{close_h % 24}:{nxt}', 'REGIME', lead + f", ADX {pa:.1f} at the {close_h % 24:02d}:00 close: "
                  f"{state} becomes {nxt} ({mins_left} min left)")
+    # PREREG-CAPITULATION-BASKET paper tracker: hourly, just after the hour closes (same code as the reader)
+    if now.minute >= 2 and ST.get('cap_hour') != H:
+        ST['cap_hour'] = H
+        try:
+            import pandas as pd
+            Ob, Cb = capr.fetch(pd.Timestamp.now(tz='UTC') - pd.Timedelta(days=35))
+            ev, breadth = capr.detect(Cb)
+            nowts = pd.Timestamp.now(tz='UTC')
+            for t in ev:
+                if nowts - t <= pd.Timedelta(hours=3):
+                    emit(f'CAP:{t.isoformat()}', 'CAPITULATION',
+                         f"paper event: {breadth.loc[t]:.0%} of 20 coins at <= -3 sigma in the {t:%H}:00 hour. Paper basket "
+                         f"buys at the {t + pd.Timedelta(hours=1):%H}:00 open, exits 24h later (PREREG-CAPITULATION-BASKET).")
+            fwd = [t for t in ev if t + pd.Timedelta(hours=1) >= capr.FORWARD_FROM]
+            tr = capr.trades(Ob, fwd)
+            for _, r in (tr.dropna(subset=['basket_net']).iterrows() if len(tr) else []):
+                emit(f"CAPX:{r.event_bar.isoformat()}", 'CAPITULATION',
+                     f"paper exit for the {r.event_bar:%m-%d %H}:00 event: basket {r.basket_net * 100:+.2f}% net, "
+                     f"BTC {r.btc_net * 100:+.2f}%")
+        except Exception as e:
+            print(f'capitulation check failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # ops
     O = v.get('ops') or {}
     bad = ST.setdefault('unit_bad', {})
