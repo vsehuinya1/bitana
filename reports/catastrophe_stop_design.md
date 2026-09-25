@@ -1,8 +1,8 @@
 # Exchange-resident catastrophe stop: design notes (2026-09-25)
 
-Owner order: "the stop orders". Status: **design only**. A partial implementation lives in a scratch worktree. The
-order-placement logic was not written: Claude Code's auto-mode safety check blocked authoring live order code
-without an explicit permission rule. Nothing has been applied to the live tree, and the running bots are untouched.
+Owner order: "the stop orders". The first pass was blocked by Claude Code's auto-mode safety check (live order code);
+the owner then granted permission ("you have permission for the hard stop fix"). Status: **implemented as
+`reports/catastrophe_stop.patch`, NOT applied** (see Status and Deploy below). The running bots are untouched.
 
 ## Why this matters
 - Stops exist only inside the bot. `PositionManager` checks the stop on 5m candle closes and exits at market.
@@ -60,13 +60,35 @@ without an explicit permission rule. Nothing has been applied to the live tree, 
 - Validate on testnet before live: placement parameters, the cancel success shape (`code "200"`), query statuses
   and rate limits.
 
-## Status of the scratch worktree
-Done in the worktree (not the live tree):
-- the config knob
-- `BinanceRestClient.place_algo_order / get_algo_order / cancel_algo_order / cancel_all_algo_orders`
-- `BaseExecutor` no-op defaults
-- `LiveExecutor` pass-throughs
+## Status (2026-09-25 ~18:xxZ): IMPLEMENTED as a patch, NOT applied
+- Owner permission: "And you have permission for the hard stop fix." The patch is `reports/catastrophe_stop.patch`
+  (8 files, +459 lines, additive only). `git apply --check` is clean against the live tree.
+- **Code:**
+  - `config/loader.py`: `execution.catastrophe_stop_mult` (default **0.0 = OFF**) and `catastrophe_working_type`.
+  - `data/binance_rest.py`: `place_algo_order`, `get_algo_order`, `cancel_algo_order`, `cancel_all_algo_orders`.
+  - `execution/base_executor.py`: no-op defaults, so paper mode never places exchange stops.
+  - `execution/live_executor.py`: pass-throughs, STOP_MARKET with `closePosition`.
+  - `execution/order_manager.py`: `place_catastrophe_stop`, `cancel_catastrophe_stop`, `sync_catastrophe_stops`.
+  - `execution/position_manager.py`: `_finalize_close` cancels the stop; it never breaks close accounting.
+  - `main.py`: places the stop after each entry; the reconcile loop syncs about every 2 min (first sync right after
+    the first reconcile, so it also covers startup).
+- **Tests:** `tests/test_catastrophe_stop.py`, 17 new tests, all passing. Full suite 108 passed / 3 failed. The 3
+  failures are the same pre-existing `test_execution_preflight` failures as on clean HEAD (91 passed / 3 failed).
+  The new tests use a private event loop per call: `asyncio.run()` would clear the default loop and break later
+  tests that call `get_event_loop()`.
 
-Not written: the `OrderManager` place/cancel/sync logic, the hooks in `main.py` and `position_manager.py`, and the
-tests. Blocked pending the owner's permission for Claude Code to author live order-placement code, or another
-implementer.
+## Deploy (owner; nothing trades before Wed 16:00 while BTC is neutral)
+```
+cd /root/bitana
+git apply reports/catastrophe_stop.patch
+# enable in config/live_burst_ny_asia.yaml, under execution:
+#   catastrophe_stop_mult: 1.5
+#   catastrophe_working_type: MARK_PRICE
+systemctl restart bitana-live-burst-follow   # also activates the London age cap (f2346bf)
+systemctl restart bitana-v5-paper            # WLA mirror re-binds the age cap
+```
+- **Verify:** about 30 s after the restart, look for "Catastrophe stop" lines in the bot log. With no open positions
+  nothing is placed until the next entry. After the next entry, the Binance UI should show one STOP_MARKET
+  close-position algo order on that symbol at entry ∓ 1.5 × stop distance, and it should disappear after the exit.
+- **Rollback:** set `catastrophe_stop_mult: 0.0` and restart the bot (the code stays inert), or
+  `git apply -R reports/catastrophe_stop.patch` and restart.

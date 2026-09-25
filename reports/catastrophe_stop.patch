@@ -1,0 +1,563 @@
+diff --git a/config/loader.py b/config/loader.py
+index 5c71dc2..515d52c 100644
+--- a/config/loader.py
++++ b/config/loader.py
+@@ -245,6 +245,12 @@ class ExecutionConfig(BaseModel):
+     max_slippage_bps: float = 10.0
+     partial_fill_timeout_s: int = 30
+     client_order_id_prefix: str = "BITANA"
++    # Exchange-resident catastrophe stop (2026-09-25). 0 = OFF. When > 0, every bot-managed position gets a
++    # STOP_MARKET closePosition order on Binance's Algo service at entry -/+ mult x the signal stop distance,
++    # triggered on catastrophe_working_type. It sits beyond the bot's close-checked stop, so it only fires when
++    # the bot is down or a bar wicks through mult x the stop (paper: London 0/217 legs, NY 2.5% at 1.5).
++    catastrophe_stop_mult: float = 0.0
++    catastrophe_working_type: str = "MARK_PRICE"
+ 
+ 
+ class ReconciliationConfig(BaseModel):
+diff --git a/data/binance_rest.py b/data/binance_rest.py
+index e1d2f23..241b2c3 100644
+--- a/data/binance_rest.py
++++ b/data/binance_rest.py
+@@ -342,6 +342,56 @@ class BinanceRestClient:
+             params=params, signed=True, weight=1, is_order=True,
+         )
+ 
++    async def place_algo_order(
++        self,
++        symbol: str,
++        side: str,
++        order_type: str,
++        trigger_price: float,
++        close_position: bool = True,
++        working_type: str = "MARK_PRICE",
++        price_protect: bool = True,
++        client_algo_id: str | None = None,
++    ) -> dict:
++        """Conditional order via the Algo service. STOP_MARKET & co. on /fapi/v1/order fail with -4120
++        (STOP_ORDER_SWITCH_ALGO) since the 2025-12-09 migration."""
++        params: dict[str, Any] = {
++            "algoType": "CONDITIONAL",
++            "symbol": symbol,
++            "side": side,
++            "type": order_type,
++            "triggerPrice": str(trigger_price),
++            "workingType": working_type,
++            "priceProtect": "true" if price_protect else "false",
++        }
++        if close_position:
++            params["closePosition"] = "true"
++        if client_algo_id:
++            params["clientAlgoId"] = client_algo_id
++        return await self._request(
++            "POST", "/fapi/v1/algoOrder",
++            params=params, signed=True, weight=1, is_order=True,
++        )
++
++    async def get_algo_order(self, client_algo_id: str) -> dict:
++        return await self._request(
++            "GET", "/fapi/v1/algoOrder",
++            params={"clientAlgoId": client_algo_id}, signed=True, weight=1,
++        )
++
++    async def cancel_algo_order(self, client_algo_id: str) -> dict:
++        """Success answers carry code "200" (not an error)."""
++        return await self._request(
++            "DELETE", "/fapi/v1/algoOrder",
++            params={"clientAlgoId": client_algo_id}, signed=True, weight=1,
++        )
++
++    async def cancel_all_algo_orders(self, symbol: str) -> dict:
++        return await self._request(
++            "DELETE", "/fapi/v1/algoOpenOrders",
++            params={"symbol": symbol}, signed=True, weight=1,
++        )
++
+     async def get_order(
+         self,
+         symbol: str,
+diff --git a/execution/base_executor.py b/execution/base_executor.py
+index 005db87..6a85c6c 100644
+--- a/execution/base_executor.py
++++ b/execution/base_executor.py
+@@ -50,3 +50,19 @@ class BaseExecutor(ABC):
+     @abstractmethod
+     async def set_leverage(self, symbol: str, leverage: int) -> bool:
+         """Set leverage for a symbol."""
++
++    # Exchange-resident catastrophe stops (Algo service). Default: unsupported -> no-op.
++    async def place_algo_stop(
++        self, symbol: str, close_side: str, trigger_price: float,
++        client_algo_id: str, working_type: str,
++    ) -> dict | None:
++        return None
++
++    async def get_algo_order(self, client_algo_id: str) -> dict | None:
++        return None
++
++    async def cancel_algo_order(self, client_algo_id: str) -> dict | None:
++        return None
++
++    async def cancel_all_algo_orders(self, symbol: str) -> dict | None:
++        return None
+diff --git a/execution/live_executor.py b/execution/live_executor.py
+index 823d162..dca0bd6 100644
+--- a/execution/live_executor.py
++++ b/execution/live_executor.py
+@@ -303,3 +303,23 @@ class LiveExecutor(BaseExecutor):
+     async def set_leverage(self, symbol: str, leverage: int) -> bool:
+         resp = await self._rest.set_leverage(symbol, leverage)
+         return resp is not None and "code" not in resp
++
++    async def place_algo_stop(
++        self, symbol: str, close_side: str, trigger_price: float,
++        client_algo_id: str, working_type: str,
++    ) -> dict | None:
++        return await self._rest.place_algo_order(
++            symbol=symbol, side=close_side, order_type="STOP_MARKET",
++            trigger_price=trigger_price, close_position=True,
++            working_type=working_type, price_protect=True,
++            client_algo_id=client_algo_id,
++        )
++
++    async def get_algo_order(self, client_algo_id: str) -> dict | None:
++        return await self._rest.get_algo_order(client_algo_id)
++
++    async def cancel_algo_order(self, client_algo_id: str) -> dict | None:
++        return await self._rest.cancel_algo_order(client_algo_id)
++
++    async def cancel_all_algo_orders(self, symbol: str) -> dict | None:
++        return await self._rest.cancel_all_algo_orders(symbol)
+diff --git a/execution/order_manager.py b/execution/order_manager.py
+index 38dd3a2..a807bf8 100644
+--- a/execution/order_manager.py
++++ b/execution/order_manager.py
+@@ -9,6 +9,7 @@ from __future__ import annotations
+ import asyncio
+ import time
+ import uuid
++from datetime import datetime, timezone
+ from typing import Optional, TYPE_CHECKING
+ 
+ from config.loader import AppConfig
+@@ -52,6 +53,8 @@ class OrderManager:
+         # margin/balance. Lets the caller skip the signal instead of pausing.
+         self.last_soft_reject = False
+         self.last_soft_reject_reason: str | None = None
++        # catastrophe-stop placement attempts per trade (sync retries at most once per _CS_RETRY_S)
++        self._cs_attempts: dict[str, float] = {}
+ 
+     async def _critical_order_failure(
+         self,
+@@ -315,6 +318,122 @@ class OrderManager:
+             await self._critical_order_failure("STOP", symbol, result)
+         return result
+ 
++    # ------------------------------------------------------------------
++    # Exchange-resident catastrophe stop (2026-09-25, owner permission "hard stop fix")
++    # ------------------------------------------------------------------
++    # Backstop for a dead or unresponsive bot, not a replacement for the close-checked stop in PositionManager.
++    # STOP_MARKET closePosition on the Algo service at entry -/+ mult x stop distance, MARK_PRICE trigger.
++    # closePosition can only flatten, never open or flip. Assumes a one-way-mode account dedicated to the bot:
++    # the symbol's algo orders are cleared right before placing.
++    _CS_PREFIX = "BITANA_CS_"
++    _CS_ALIVE = ("NEW", "TRIGGERING")
++    _CS_RETRY_S = 600
++    _CS_MIN_AGE_S = 60
++
++    @staticmethod
++    def _algo_ok(resp: object) -> bool:
++        """Algo endpoints answer success with the order object (place/query) or code "200" (cancel)."""
++        if not isinstance(resp, dict) or not resp:
++            return False
++        code = resp.get("code")
++        return code is None or str(code) == "200"
++
++    def _cs_mult(self) -> float:
++        return float(getattr(self._cfg.execution, "catastrophe_stop_mult", 0.0) or 0.0)
++
++    def _cs_enabled(self) -> bool:
++        return self._cfg.mode == "live" and self._cs_mult() > 0
++
++    def catastrophe_trigger(self, position: Position) -> float | None:
++        dist = abs(position.entry_price - position.initial_stop)
++        mult = self._cs_mult()
++        if mult <= 0 or dist <= 0 or position.entry_price <= 0:
++            return None
++        if position.side == Side.LONG:
++            raw = position.entry_price - mult * dist
++        else:
++            raw = position.entry_price + mult * dist
++        if raw <= 0:
++            return None
++        return self._sym_info.round_price(position.symbol, raw)
++
++    async def place_catastrophe_stop(self, position: Position) -> bool:
++        """Place the backstop for a bot-managed position. Never raises; failures alert and return False."""
++        if not self._cs_enabled() or position.externally_managed:
++            return False
++        trigger = self.catastrophe_trigger(position)
++        if trigger is None:
++            return False
++        self._cs_attempts[position.trade_uuid] = time.time()
++        cid = f"{self._CS_PREFIX}{position.trade_uuid.replace('-', '')[:12]}_{int(time.time())}"
++        try:
++            # a stale closePosition stop from an earlier position on this symbol must never apply to this one
++            await self._executor.cancel_all_algo_orders(position.symbol)
++            close_side = "SELL" if position.side == Side.LONG else "BUY"
++            resp = await self._executor.place_algo_stop(
++                position.symbol, close_side, trigger, cid,
++                self._cfg.execution.catastrophe_working_type,
++            )
++        except Exception as e:  # noqa: BLE001
++            resp = {"code": "exception", "msg": f"{type(e).__name__}: {e}"}
++        if not self._algo_ok(resp):
++            msg = resp.get("msg", "no response") if isinstance(resp, dict) else "no response"
++            logger.error("Catastrophe stop rejected", symbol=position.symbol, trigger=trigger, response=resp)
++            await self._critical_order_failure(
++                "CATASTROPHE_STOP", position.symbol,
++                detail=f"{msg} (position keeps its bot-side stop)",
++            )
++            return False
++        position.signal_data = {
++            **(position.signal_data or {}),
++            "catastrophe_stop": {"client_algo_id": cid, "trigger": trigger, "algo_id": resp.get("algoId")},
++        }
++        await self._db.save_position(position)
++        logger.info("Catastrophe stop placed", symbol=position.symbol, trigger=trigger, client_algo_id=cid)
++        return True
++
++    async def cancel_catastrophe_stop(self, position: Position) -> None:
++        """Cancel the backstop after the bot closed the position. Never raises."""
++        cs = (position.signal_data or {}).get("catastrophe_stop") or {}
++        cid = cs.get("client_algo_id")
++        if not cid or self._cfg.mode != "live":
++            return
++        try:
++            resp = await self._executor.cancel_algo_order(cid)
++            if not self._algo_ok(resp):
++                # already triggered / finished / unknown: leave nothing of ours on a now-flat symbol
++                await self._executor.cancel_all_algo_orders(position.symbol)
++                logger.info("Catastrophe stop cancel fell back to symbol sweep", symbol=position.symbol, response=resp)
++        except Exception as e:  # noqa: BLE001
++            logger.warning("Catastrophe stop cancel failed", symbol=position.symbol, error=str(e))
++        finally:
++            self._cs_attempts.pop(position.trade_uuid, None)
++
++    async def sync_catastrophe_stops(self, open_positions: list[Position]) -> int:
++        """Make sure every bot-managed open position has a live backstop (startup + periodic). Returns placements."""
++        if not self._cs_enabled():
++            return 0
++        placed = 0
++        now = datetime.now(timezone.utc)
++        for pos in open_positions:
++            if pos.externally_managed or pos.state in (PositionState.CLOSED, PositionState.CANCELLED):
++                continue
++            if pos.entry_time and (now - pos.entry_time).total_seconds() < self._CS_MIN_AGE_S:
++                continue  # the entry flow places its own stop
++            cid = ((pos.signal_data or {}).get("catastrophe_stop") or {}).get("client_algo_id")
++            if cid:
++                try:
++                    resp = await self._executor.get_algo_order(cid)
++                except Exception:  # noqa: BLE001
++                    resp = None
++                if isinstance(resp, dict) and str(resp.get("algoStatus", "")) in self._CS_ALIVE:
++                    continue
++            if time.time() - self._cs_attempts.get(pos.trade_uuid, 0.0) < self._CS_RETRY_S:
++                continue
++            if await self.place_catastrophe_stop(pos):
++                placed += 1
++        return placed
++
+     async def _handle_partial_fill(self, result: OrderResult) -> OrderResult:
+         """Handle partially filled order: wait then cancel remainder."""
+         timeout = self._cfg.execution.partial_fill_timeout_s
+diff --git a/execution/position_manager.py b/execution/position_manager.py
+index 7938f3e..7b17628 100644
+--- a/execution/position_manager.py
++++ b/execution/position_manager.py
+@@ -404,6 +404,12 @@ class PositionManager:
+         await self._db.save_position(pos)
+         await self._db.save_trade(trade)
+ 
++        # exchange-resident catastrophe stop: cancel it once the position is closed (never breaks accounting)
++        try:
++            await self._orders.cancel_catastrophe_stop(pos)
++        except Exception as e:  # noqa: BLE001
++            logger.warning("Catastrophe stop cancel hook failed", symbol=pos.symbol, error=str(e))
++
+         logger.info(
+             "Position closed",
+             trade_uuid=pos.trade_uuid,
+diff --git a/main.py b/main.py
+index 2b37d31..177fc7f 100644
+--- a/main.py
++++ b/main.py
+@@ -364,12 +364,23 @@ class Bitana:
+                 self.watchdog.heartbeat("websocket")
+ 
+         async def recon_task():
++            cs_every = max(1, 120 // max(1, self.cfg.reconciliation.interval_s))
++            cycle = 0
+             while self._running:
+                 await asyncio.sleep(self.cfg.reconciliation.interval_s)
+                 self.watchdog.heartbeat("reconciliation")
+                 closed = await self.recon_mgr.reconcile()
+                 if closed:
+                     await self._process_closed_trades(closed)
++                # catastrophe stops: re-place any missing backstop (no-op unless enabled in live mode)
++                if cycle % cs_every == 0:
++                    try:
++                        await self.order_mgr.sync_catastrophe_stops(
++                            self.position_mgr.get_open_positions(),
++                        )
++                    except Exception as e:  # noqa: BLE001
++                        logger.warning("Catastrophe stop sync failed", error=str(e))
++                cycle += 1
+ 
+         async def candle_verify_task():
+             while self._running:
+@@ -845,6 +856,13 @@ class Bitana:
+             await self.position_mgr.add_position(pos)
+             open_positions.append(pos)
+ 
++            # Exchange-resident catastrophe stop (OFF unless execution.catastrophe_stop_mult > 0).
++            # Failures alert; the bot-side close-checked stop still manages the position.
++            try:
++                await self.order_mgr.place_catastrophe_stop(pos)
++            except Exception as e:  # noqa: BLE001
++                logger.error("Catastrophe stop placement crashed", symbol=pos.symbol, error=str(e))
++
+             await self.alerts.entry_alert(
+                 sig.symbol, sig.side.value, result.avg_fill_price,
+                 result.filled_qty, sig.engine.value, sig.trade_uuid,
+diff --git a/tests/test_catastrophe_stop.py b/tests/test_catastrophe_stop.py
+new file mode 100644
+index 0000000..4e374a0
+--- /dev/null
++++ b/tests/test_catastrophe_stop.py
+@@ -0,0 +1,224 @@
++"""Exchange-resident catastrophe stop (2026-09-25): Algo-service STOP_MARKET closePosition backstop.
++
++Covers trigger math, the OFF switches, clear-then-place at entry, cancel after close (code "200" success shape,
++sweep fallback), periodic sync (alive / missing / young / external / rate limit), the PositionManager close hook,
++and the exact REST parameters. No network: executor, REST transport, DB and alerts are mocked.
++"""
++from __future__ import annotations
++
++import asyncio
++import re
++from datetime import datetime, timedelta, timezone
++from unittest.mock import AsyncMock, MagicMock
++
++from core.models import EngineType, Position, PositionState, Side
++from data.binance_rest import BinanceRestClient
++from execution.live_executor import LiveExecutor
++from execution.order_manager import OrderManager
++from execution.paper_executor import PaperExecutor
++from execution.position_manager import PositionManager
++
++UUID = "11111111-2222-3333-4444-555555555555"
++
++
++def _run(coro):
++    """Private loop per call: _run() would clear the default loop and break later get_event_loop() tests."""
++    loop = asyncio.new_event_loop()
++    try:
++        return loop.run_until_complete(coro)
++    finally:
++        loop.close()
++
++
++def _cfg(sample_config, mult=1.5, mode="live"):
++    cfg = sample_config.model_copy(deep=True)
++    cfg.mode = mode
++    cfg.execution.catastrophe_stop_mult = mult
++    return cfg
++
++
++def _om(cfg, place_resp=None, cancel_resp=None, query_resp=None):
++    ex = MagicMock()
++    ex.place_algo_stop = AsyncMock(
++        return_value=place_resp if place_resp is not None else {"algoId": 7, "algoStatus": "NEW"},
++    )
++    ex.cancel_algo_order = AsyncMock(
++        return_value=cancel_resp if cancel_resp is not None else {"algoId": 7, "code": "200", "msg": "success"},
++    )
++    ex.cancel_all_algo_orders = AsyncMock(return_value={"code": 200, "msg": "done"})
++    ex.get_algo_order = AsyncMock(return_value=query_resp)
++    si = MagicMock()
++    si.round_price.side_effect = lambda symbol, price: round(price, 4)
++    db = MagicMock()
++    db.save_position = AsyncMock()
++    db.save_order = AsyncMock()
++    alerts = MagicMock()
++    alerts.critical = AsyncMock()
++    return OrderManager(ex, si, cfg, db, alerts), ex, db, alerts
++
++
++def _pos(side=Side.LONG, entry=100.0, stop=94.0, age_s=600, cs=None, ext=False, uuid=UUID, symbol="SOLUSDT"):
++    return Position(
++        trade_uuid=uuid, symbol=symbol, side=side, engine=EngineType.LIQ_BURST_FOLLOW,
++        state=PositionState.MANAGING, entry_price=entry,
++        entry_time=datetime.now(timezone.utc) - timedelta(seconds=age_s),
++        quantity=1.0, stop_price=stop, initial_stop=stop, leverage=5,
++        signal_data={} if cs is None else {"catastrophe_stop": cs}, externally_managed=ext,
++    )
++
++
++def test_trigger_long_and_short(sample_config):
++    om, *_ = _om(_cfg(sample_config))
++    assert om.catastrophe_trigger(_pos(Side.LONG, 100.0, 94.0)) == 91.0      # 100 - 1.5 x 6
++    assert om.catastrophe_trigger(_pos(Side.SHORT, 100.0, 106.0)) == 109.0   # 100 + 1.5 x 6
++
++
++def test_off_when_mult_zero_or_not_live(sample_config):
++    for cfg in (_cfg(sample_config, mult=0.0), _cfg(sample_config, mode="paper")):
++        om, ex, *_ = _om(cfg)
++        assert _run(om.place_catastrophe_stop(_pos())) is False
++        assert _run(om.sync_catastrophe_stops([_pos()])) == 0
++        ex.place_algo_stop.assert_not_awaited()
++        ex.cancel_all_algo_orders.assert_not_awaited()
++
++
++def test_place_clears_symbol_then_places_close_position_stop(sample_config):
++    om, ex, db, _ = _om(_cfg(sample_config))
++    calls = []
++    ex.cancel_all_algo_orders.side_effect = lambda s: calls.append(("clear", s)) or {"code": 200}
++    ex.place_algo_stop.side_effect = lambda *a: calls.append(("place", a[0])) or {"algoId": 9, "algoStatus": "NEW"}
++    pos = _pos()
++    assert _run(om.place_catastrophe_stop(pos)) is True
++    assert calls == [("clear", "SOLUSDT"), ("place", "SOLUSDT")]
++    symbol, side, trigger, cid, working = ex.place_algo_stop.call_args.args
++    assert (symbol, side, trigger, working) == ("SOLUSDT", "SELL", 91.0, "MARK_PRICE")
++    assert cid.startswith("BITANA_CS_") and re.fullmatch(r"[\.A-Z\:/a-z0-9_-]{1,36}", cid)
++    assert pos.signal_data["catastrophe_stop"] == {"client_algo_id": cid, "trigger": 91.0, "algo_id": 9}
++    db.save_position.assert_awaited_once_with(pos)
++
++
++def test_short_position_uses_buy_side(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config))
++    assert _run(om.place_catastrophe_stop(_pos(Side.SHORT, 100.0, 106.0))) is True
++    assert ex.place_algo_stop.call_args.args[1:3] == ("BUY", 109.0)
++
++
++def test_rejection_alerts_and_stores_nothing(sample_config):
++    om, _, db, alerts = _om(_cfg(sample_config), place_resp={"code": -4120, "msg": "STOP_ORDER_SWITCH_ALGO"})
++    pos = _pos()
++    assert _run(om.place_catastrophe_stop(pos)) is False
++    alerts.critical.assert_awaited_once()
++    assert "catastrophe_stop" not in pos.signal_data
++    db.save_position.assert_not_awaited()
++
++
++def test_placement_exception_is_contained(sample_config):
++    om, ex, _, alerts = _om(_cfg(sample_config))
++    ex.place_algo_stop.side_effect = RuntimeError("socket closed")
++    assert _run(om.place_catastrophe_stop(_pos())) is False
++    alerts.critical.assert_awaited_once()
++
++
++def test_externally_managed_position_is_left_alone(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config))
++    assert _run(om.place_catastrophe_stop(_pos(ext=True))) is False
++    ex.place_algo_stop.assert_not_awaited()
++
++
++def test_cancel_success_code_200_needs_no_sweep(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config))
++    _run(om.cancel_catastrophe_stop(_pos(cs={"client_algo_id": "BITANA_CS_x"})))
++    ex.cancel_algo_order.assert_awaited_once_with("BITANA_CS_x")
++    ex.cancel_all_algo_orders.assert_not_awaited()
++
++
++def test_cancel_failure_sweeps_the_symbol(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config), cancel_resp={"code": -2011, "msg": "Unknown order sent."})
++    _run(om.cancel_catastrophe_stop(_pos(cs={"client_algo_id": "BITANA_CS_x"})))
++    ex.cancel_all_algo_orders.assert_awaited_once_with("SOLUSDT")
++
++
++def test_cancel_without_stop_is_noop(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config))
++    _run(om.cancel_catastrophe_stop(_pos()))
++    ex.cancel_algo_order.assert_not_awaited()
++    ex.cancel_all_algo_orders.assert_not_awaited()
++
++
++def test_sync_places_only_where_needed(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config), query_resp={"algoStatus": "NEW"})
++    alive = _pos(uuid="a" * 36, cs={"client_algo_id": "BITANA_CS_alive"}, symbol="ETHUSDT")
++    missing = _pos(uuid="b" * 36, symbol="XRPUSDT")
++    young = _pos(uuid="c" * 36, age_s=10, symbol="ADAUSDT")
++    external = _pos(uuid="d" * 36, ext=True, symbol="ZECUSDT")
++    assert _run(om.sync_catastrophe_stops([alive, missing, young, external])) == 1
++    assert [c.args[0] for c in ex.place_algo_stop.call_args_list] == ["XRPUSDT"]
++
++
++def test_sync_replaces_finished_stop_and_rate_limits_retries(sample_config):
++    om, ex, *_ = _om(_cfg(sample_config), query_resp={"algoStatus": "FINISHED"},
++                     place_resp={"code": -1001, "msg": "Internal error"})
++    pos = _pos(cs={"client_algo_id": "BITANA_CS_old"})
++    assert _run(om.sync_catastrophe_stops([pos])) == 0     # attempted, rejected
++    assert _run(om.sync_catastrophe_stops([pos])) == 0     # within 10 min: no retry
++    assert ex.place_algo_stop.await_count == 1
++
++
++def _pm(sample_config, cancel_side_effect=None):
++    orders = MagicMock()
++    orders.execute_exit = AsyncMock()
++    orders.cancel_catastrophe_stop = AsyncMock(side_effect=cancel_side_effect)
++    db = MagicMock()
++    db.save_position = AsyncMock()
++    db.save_trade = AsyncMock()
++    return PositionManager(orders, sample_config, db), orders
++
++
++def test_close_cancels_catastrophe_stop(sample_config):
++    mgr, orders = _pm(sample_config)
++    pos = _pos(cs={"client_algo_id": "BITANA_CS_x"})
++    trade = _run(mgr.record_external_close(pos, exit_price=95.0))
++    assert trade is not None
++    orders.cancel_catastrophe_stop.assert_awaited_once_with(pos)
++
++
++def test_close_accounting_survives_cancel_error(sample_config):
++    mgr, _ = _pm(sample_config, cancel_side_effect=RuntimeError("boom"))
++    trade = _run(mgr.record_external_close(_pos(), exit_price=95.0))
++    assert trade is not None and trade.exit_reason == "external_close"
++
++
++def test_rest_algo_order_parameters():
++    rest = BinanceRestClient()
++    rest._request = AsyncMock(return_value={"algoId": 1})
++    _run(rest.place_algo_order(
++        symbol="SOLUSDT", side="SELL", order_type="STOP_MARKET", trigger_price=91.0,
++        client_algo_id="BITANA_CS_x",
++    ))
++    method, path = rest._request.call_args.args
++    params = rest._request.call_args.kwargs["params"]
++    assert (method, path) == ("POST", "/fapi/v1/algoOrder")
++    assert params == {
++        "algoType": "CONDITIONAL", "symbol": "SOLUSDT", "side": "SELL", "type": "STOP_MARKET",
++        "triggerPrice": "91.0", "workingType": "MARK_PRICE", "priceProtect": "true",
++        "closePosition": "true", "clientAlgoId": "BITANA_CS_x",
++    }
++    assert rest._request.call_args.kwargs["is_order"] is True
++    _run(rest.cancel_algo_order("BITANA_CS_x"))
++    assert rest._request.call_args.args == ("DELETE", "/fapi/v1/algoOrder")
++    _run(rest.cancel_all_algo_orders("SOLUSDT"))
++    assert rest._request.call_args.args == ("DELETE", "/fapi/v1/algoOpenOrders")
++
++
++def test_live_executor_passes_close_position_stop(sample_config):
++    rest = MagicMock()
++    rest.place_algo_order = AsyncMock(return_value={"algoId": 1})
++    ex = LiveExecutor(rest, MagicMock(), sample_config)
++    _run(ex.place_algo_stop("SOLUSDT", "SELL", 91.0, "BITANA_CS_x", "MARK_PRICE"))
++    kw = rest.place_algo_order.call_args.kwargs
++    assert kw["order_type"] == "STOP_MARKET" and kw["close_position"] is True and kw["trigger_price"] == 91.0
++
++
++def test_paper_executor_never_places_exchange_stops(sample_config):
++    ex = PaperExecutor(sample_config)
++    assert _run(ex.place_algo_stop("SOLUSDT", "SELL", 91.0, "BITANA_CS_x", "MARK_PRICE")) is None
