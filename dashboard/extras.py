@@ -291,8 +291,10 @@ def _ops():
             units[u] = "unknown"
     pm2 = {}
     try:
-        r = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=5)
-        pm2 = {p["name"]: p["pm2_env"]["status"] for p in json.loads(r.stdout or "[]")}
+        # systemd gives this process no HOME: without PM2_HOME, pm2 spawns a second, empty daemon (/etc/.pm2)
+        r = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=5,
+                           env={**os.environ, "HOME": "/root", "PM2_HOME": "/root/.pm2"})
+        pm2 = {p["name"]: p["pm2_env"]["status"] for p in json.loads(r.stdout or "[]")} or {"pm2": "no processes listed"}
     except Exception:  # noqa: BLE001
         pm2 = {"pm2": "unavailable"}
     fresh = {k: (int(time.time() - p.stat().st_mtime) if p.exists() else None) for k, p in FRESHNESS.items()}
