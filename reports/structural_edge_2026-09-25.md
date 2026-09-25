@@ -68,3 +68,26 @@ the next open, 20 bps.
   72h +3.27% (t +1.96) vs ordinary +1.72%.
 - Read: bull-market momentum (2020–21) rather than a general edge. A small, concentrated OOS and a weak in-sample.
   Any bull-conditional version would have no clean holdout left, so it could only be judged forward. Parked.
+
+## Tested: funding extremes. No independent edge.
+Rules were fixed before testing. Market-wide 8h funding (20 coins) at its trailing 180d p95 / p5, plus per-coin
+funding z ≥ 2.5 vs the coin's own 180d. Fade the crowd, hold 24/72h, 20 bps, funding carry counted. 2020–21 / 2022–24 /
+2025–26 reported separately.
+- **Crowded longs → short (contrarian): loses.** Market 72h −1.51% (t −2.20, negative in all 3 periods). Per coin
+  −2.03% per trade (t −2.65). The +0.26–0.55% of funding collected doesn't cover the rally.
+  **Crowded longs are a momentum signal; fading them loses.**
+- **Crowded shorts → buy:** market-wide inconsistent (24h 2020–21 −1.05 / 2022–24 +1.01 / 2025–26 +0.14%). Per coin
+  +0.64% (t +2.98 by day), but that is carried by 2020–21 (+6.3% vs +1.7% drift). 2022–24 excess ≈ +0.2%, 2025–26 ≈ +0.9%
+  (t ≈ 1.4). 36% of legs fall within 72h after a capitulation event, which the capitulation basket already captures.
+
+## Tested: OI flushes (owner's DBs). No edge, and no help to the capitulation basket.
+Data: `/root/hermes_lab/data/coinalyze_oi.db`, daily OI (in coins) for BTC/ETH/SOL/XRP, 2023-05 → 2026-02. Hourly OI
+(`oi_live.db`, `coinalyze_oi.db`) spans only 4–7 months.
+- **Standalone** (4-coin OI z ≤ −2 & price down, next-day entry): 17 events. 1d −0.83% (t −0.91); 3d +0.44% vs ordinary +0.47%.
+- **Capitulation events split by same-day OI change** (median −2.5%; mechanism check only, not tradable):
+  deleveraging (mean OI −7.8%) +1.46% (n=33) vs OI held/rose +1.29% (n=33). OI adds nothing to the price-breadth rule.
+
+## Mechanism check for PREREG-CAPITULATION-BASKET (Coinalyze hourly liquidations, 28 coins, 2025-12 → 2026-05)
+- All 11 capitulation events in the window were long-liquidation cascades: 9× to 2,546× the median hour's long
+  liquidations, 8/11 above the 92nd percentile, long:short liquidations 8:1 to 7,216:1.
+- The price-breadth rule identifies forced selling without needing a liquidation feed.
