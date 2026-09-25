@@ -143,3 +143,18 @@ Resume point after any interruption: the first unchecked box below.
     break-even at 20 bps.
   - **Avoid:** late squeeze-shorts (−0.06/−0.08 R/leg); weekend 22–24Z LONG (−0.19/−0.21).
   - **Registered/killed, left alone:** WKNDNY (Oct-4), weekend tradability (killed), LATEFADE (killed).
+
+## 2026-09-25 — Neutral-regime fresh look (owner order: all sessions; retest kills with own metrics; bring theses + yaml suggestions)
+- [x] N0 fresh shadow copy; neutral occupancy by day/session; live-real neutral legs by arm
+- [x] N1 retest kills: LATEFADE, NY neutral h14-15 widen, NY neutral h18-20, London neutral exclusion, asia_burst_fade,
+      age gate (neutral 24-48h), Tue-neutral exclusion, NY Monday blackout (neutral), weekend (neutral)
+- [x] N2 neutral scan: session × hour-band × side × strategy family (own exits + live-exit re-sims), halves + concentration
+- [x] N3 exits in neutral (hold/stop/TP) for surviving cells; pending NEUT-STOP not pre-empted
+- [x] N4 portfolio check under live caps for any candidate; yaml patch(es) + prereg rows; report
+- Pending rows NOT pre-empted: NY-NEUT-KEEP, LON-NEUT-H13, ASIA-PUMP-NEUTRAL, NEUT-STOP, FK1-3, TUEASIA
+- **Neutral fresh look DONE (report: reports/neutral_regime_fresh_look_2026-09-25.md):**
+  - **Kills:** every killed or invalidated neutral theory's kill is JUSTIFIED on my metrics.
+  - **Live cell endorsed:** NY h16–17 Wed–Fri, E +0.473 (28 legs/5d); 60m is the best hold.
+  - **Scan:** 0 of 120 cells pass. The 24h near-miss is mostly beta (corr +0.63, β-adjusted ≈ +0.15 R/leg).
+  - **Yaml:** no neutral change recommended. The next neutral arm = Asia pump-short (Row 3 pending; live-real +1.14R/37).
+  - N4 portfolio check was not needed (no candidate).
