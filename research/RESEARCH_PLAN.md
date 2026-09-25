@@ -1509,3 +1509,15 @@ Source: Claude Code cross-arm market-state scan (owner ask for "more such gems")
   - Live bot restarted 19:16:59Z and 19:19:25Z (hours fix); v5-paper 19:18:08Z and 19:20:12Z.
   - 0 error lines; bot not paused; websocket up.
   - Asia stays inactive until BTC dist < 5% (+7.0% at deploy). First eligible bar Mon 2026-09-28 00:00Z.
+
+## Amendment 2026-09-25 19:4xZ — Sizing 3%/leg + 60-min cascade window; ASIA-MIDVOL back to paper (owner orders)
+- **Why:** the live edge is statistically indistinguishable from zero. Current arms: 105 legs, E +0.021 R/leg, t by day +0.37. All live trades since Jul-22: 265 legs, E −0.028. At this edge and daily sd (~2R), about 257 trading days are needed for t=2. Sizing now follows the evidence.
+- **Sizing:** 10 → 3% per leg (reduced 8.75 → 2.625; all four copies moved together).
+- **Cascades:**
+  - Legs in one 60-min window are one bet: 48% of leg-R variance is shared within the hour.
+  - The engine now reads `portfolio.cluster_window_minutes` (it hard-coded 15; the key had no consumer). Window 60, 3 legs, cluster risk 15 → 9%.
+  - Paper replay at 3%/leg: worst day −17.5% → −10.6%, daily Sharpe 0.33 → 0.31. Config-only caps were worse.
+  - The WLA mirror re-buckets live-mirror book caps to the same width; the stored 15-min `cluster_bucket` column is unchanged.
+- **ASIA-MIDVOL:** reverted to paper at 19:47Z after 30 min live (0 trades). Its reader keeps measuring; re-enable only on a PROMOTE verdict.
+- **London age cap:** kept on owner order. It's treated as a risk reduction on an arm with a negative live record (−2.3R / 118 legs), not as a proven edge.
+- **Deploy:** live 19:47:02Z, v5-paper 19:47:57Z. `risk_pct_active` 2.625 (reduced mode, DD 21.8%); 0 error lines.
