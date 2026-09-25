@@ -17,6 +17,10 @@ PROMOTE (ALL): forward n >= 12 events; forward mean net >= 0; pooled (in-sample 
                no forward event below -20%.
 KILL (ANY):    forward mean net < -1.0% at n >= 12; pooled t < 1.5 at the formal read.
 Formal read at forward n >= 12 events or 2027-03-31, whichever first; one extension to 2027-09-30, then park.
+AMENDMENT 2026-09-25 (owner order "Add it"): parallel paper track MAJORS5. Same events; the executed basket is
+BTC ETH SOL XRP BNB (available coins) at 15 bps. It is the implied live design (fills far more easily in a crash).
+It is REPORT-ONLY: the verdict above stays on the registered 20-coin basket. At promotion the owner picks the executed
+basket with both records in hand. MAJORS5 basis: in-sample n=121 +1.08% (t +2.27); OOS 2020-21 n=37 +1.85% (t +1.38).
 --validate reproduces the basis:
   in-sample 2022-01-01 -> 2026-09-25T20:00Z: n=121, basket net +1.10%/event, t +2.28
   OOS 2020-2021 (min 8 valid coins): n=37, basket net +2.73%/event, t +1.77
@@ -40,9 +44,11 @@ UNIVERSE = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', '
 Z_WIN, Z_MIN, Z_TH, BREADTH, COOLDOWN_H, HOLD_H = 720, 500, -3.0, 0.75, 24, 24
 MIN_VALID = 16
 COST_BASKET, COST_BTC = 0.0020, 0.0010
+MAJORS5, COST_MAJORS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT'], 0.0015
 FORWARD_FROM = pd.Timestamp('2026-09-25T21:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-03-31', '2027-09-30'
 BASIS = {'is': (121, 0.0110), 'oos': (37, 0.0273)}
+BASIS_MAJORS = {'is': (121, 0.010821), 'oos': (37, 0.018459)}
 IS_FROM, IS_TO = pd.Timestamp('2022-01-01T00:00:00Z'), pd.Timestamp('2026-09-25T20:00:00Z')
 OOS_FROM, OOS_TO = pd.Timestamp('2019-12-01T00:00:00Z'), pd.Timestamp('2022-01-02T00:00:00Z')
 CTX = ssl.create_default_context()
@@ -97,8 +103,12 @@ def trades(O: pd.DataFrame, events: list) -> pd.DataFrame:
         e, x = ent.loc[t], ex.loc[t]
         basket = (x / e - 1).mean() if x.notna().any() else np.nan
         btc = (x['BTCUSDT'] / e['BTCUSDT'] - 1) if 'BTCUSDT' in x and pd.notna(x['BTCUSDT']) else np.nan
+        cols = [c for c in MAJORS5 if c in x.index]
+        mok = e[cols].notna() & x[cols].notna()
+        majors = (x[cols][mok] / e[cols][mok] - 1).mean() if mok.any() else np.nan
         out.append({'event_bar': t, 'entry_bar': t + pd.Timedelta(hours=1),
                     'basket_net': basket - COST_BASKET if pd.notna(basket) else np.nan,
+                    'majors_net': majors - COST_MAJORS if pd.notna(majors) else np.nan,
                     'btc_net': btc - COST_BTC if pd.notna(btc) else np.nan})
     return pd.DataFrame(out)
 
@@ -159,10 +169,15 @@ def main():
     if a.validate:
         ti, to = basis_frames()
         si, so = stats(ti.basket_net), stats(to.basket_net)
+        mi, mo = stats(ti.majors_net), stats(to.majors_net)
         print(f'VALIDATE in-sample 2022-01 -> 2026-09-25: {fmt(si)}')
         print(f'VALIDATE OOS 2020-2021:                  {fmt(so)}')
+        print(f'  MAJORS5 track in-sample:               {fmt(mi)}')
+        print(f'  MAJORS5 track OOS 2020-2021:           {fmt(mo)}')
         ok = (si.get('n') == BASIS['is'][0] and abs(si['mean'] - BASIS['is'][1]) < 5e-4
-              and so.get('n') == BASIS['oos'][0] and abs(so['mean'] - BASIS['oos'][1]) < 5e-4)
+              and so.get('n') == BASIS['oos'][0] and abs(so['mean'] - BASIS['oos'][1]) < 5e-4
+              and mi.get('n') == BASIS_MAJORS['is'][0] and abs(mi['mean'] - BASIS_MAJORS['is'][1]) < 5e-4
+              and mo.get('n') == BASIS_MAJORS['oos'][0] and abs(mo['mean'] - BASIS_MAJORS['oos'][1]) < 5e-4)
         print('VALIDATION', 'PASS' if ok else 'FAIL')
         sys.exit(0 if ok else 1)
     tf, breadth = forward_read()
@@ -172,6 +187,8 @@ def main():
     last = breadth.dropna()
     print(f"PREREG-CAPITULATION-BASKET forward read ({today}), entries from {FORWARD_FROM.isoformat()}")
     print(f"  closed events: {fmt(fwd)} | open (24h hold running): {open_n}")
+    if len(done):
+        print(f"  MAJORS5 track (report-only, implied live design): {fmt(stats(done.majors_net))}")
     if len(last):
         print(f"  latest closed hour {last.index[-1].isoformat()}: breadth {last.iloc[-1]:.0%} of coins at z <= -3 "
               f"(event threshold {BREADTH:.0%})")

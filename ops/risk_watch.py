@@ -403,8 +403,8 @@ def tick(mode='loop'):
             tr = capr.trades(Ob, fwd)
             for _, r in (tr.dropna(subset=['basket_net']).iterrows() if len(tr) else []):
                 emit(f"CAPX:{r.event_bar.isoformat()}", 'CAPITULATION',
-                     f"paper exit for the {r.event_bar:%m-%d %H}:00 event: basket {r.basket_net * 100:+.2f}% net, "
-                     f"BTC {r.btc_net * 100:+.2f}%")
+                     f"paper exit for the {r.event_bar:%m-%d %H}:00 event: 20-coin basket {r.basket_net * 100:+.2f}% net, "
+                     f"5 majors {r.majors_net * 100:+.2f}%, BTC {r.btc_net * 100:+.2f}%")
         except Exception as e:
             print(f'capitulation check failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # ops

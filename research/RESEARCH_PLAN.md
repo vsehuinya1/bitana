@@ -1554,3 +1554,14 @@ Source: structural-edge search (owner ask "figure out the structurally bigger ed
   - a wide disaster stop only; tight stops would fill at wick lows
   - its own risk budget, separate from the burst arms
   - the exact sizing and stop are preregistered before any wire
+
+### Amendment 2026-09-25 20:45Z — PREREG-CAPITULATION-BASKET: parallel paper track MAJORS5 (owner order "Add it")
+- **What:** the same events, with the executed basket = BTC ETH SOL XRP BNB (available coins) at 15 bps round trip. This
+  is the implied live design: it matches the 20-coin return and fills far more easily in a crash. Execution-realism study
+  (`reports/structural_edge_2026-09-25.md`): the 5-min fill drift is −1.4 bps on average for the majors; the edge
+  survives realistic fills (+1.08%, t 2.25).
+- **Basis** (frozen in the reader; `--validate` checks it): in-sample 2022-01 → 2026-09 n=121 **+1.08%** (t +2.27, worst −24.3%);
+  OOS 2020–21 n=37 **+1.85%** (t +1.38).
+- **Status: REPORT-ONLY.** The registered rule's verdict (promote/kill) stays on the 20-coin basket, unchanged. At promotion the
+  owner chooses the executed basket with both forward records in hand.
+- **Surfaces:** reader forward reads, research board status, and the watch's paper-exit Telegram line (20-coin, 5 majors, BTC).

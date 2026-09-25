@@ -71,7 +71,8 @@ def main():
         cdone = ct.dropna(subset=['basket_net']) if len(ct) else ct
         cs = capr.stats(cdone.basket_net) if len(cdone) else {'n': 0}
         rows.insert(0, {'name': 'PREREG-CAPITULATION-BASKET (paper)', 'kind': 'dark', 'next': 'n>=12 events formal',
-                        'status': (f"{cs['n']} closed events, mean {cs['mean'] * 100:+.2f}%" if cs.get('n') else 'no events yet')
+                        'status': (f"{cs['n']} closed events, 20-coin {cs['mean'] * 100:+.2f}%, 5 majors "
+                                   f"{capr.stats(cdone.majors_net)['mean'] * 100:+.2f}%" if cs.get('n') else 'no events yet')
                                   + (f"; {len(ct) - len(cdone)} open" if len(ct) else ''),
                         'n': cs.get('n', 0), 'days': cs.get('n', 0), 'n_target': 12, 'days_target': 12})
         ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
