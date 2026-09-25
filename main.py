@@ -277,6 +277,7 @@ class Bitana:
             if burst_enabled and resolved.burst_follow.enabled:
                 sym_engines["burst_follow"] = LiqBurstFollowEngine(
                     resolved.burst_follow, rest_client=self.rest_client,
+                    cluster_window_min=self.cfg.portfolio.cluster_window_minutes,
                 )
                 sym_engines["burst_follow_cfg"] = resolved.burst_follow
             self.engines[sym] = sym_engines

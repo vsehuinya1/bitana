@@ -236,9 +236,11 @@ class PortfolioConfig(BaseModel):
     max_cluster_positions: int = 0
     # 2026-08-31: same-cluster aggregate-risk cap (% of equity, sizing-only).
     # Caps SUM of remaining risk-to-stop across open positions sharing
-    # engine+session+side+15-min cluster bucket; new legs are sized down to
+    # engine+session+side+cluster bucket (cluster_window_minutes); new legs are sized down to
     # fit, never blocked while budget remains. 0 = off.
     max_cluster_risk_pct: float = 0.0
+    # Width of the cascade bucket the cluster caps group by (engine-wired 2026-09-25; before that the engine
+    # hard-coded 15 and this key had no consumer).
     cluster_window_minutes: int = 15
     limit_by_engine: bool = False
     btc_priority: bool = True

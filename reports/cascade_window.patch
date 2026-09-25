@@ -1,0 +1,191 @@
+diff --git a/config/loader.py b/config/loader.py
+index e78261b..2109c95 100644
+--- a/config/loader.py
++++ b/config/loader.py
+@@ -236,9 +236,11 @@ class PortfolioConfig(BaseModel):
+     max_cluster_positions: int = 0
+     # 2026-08-31: same-cluster aggregate-risk cap (% of equity, sizing-only).
+     # Caps SUM of remaining risk-to-stop across open positions sharing
+-    # engine+session+side+15-min cluster bucket; new legs are sized down to
++    # engine+session+side+cluster bucket (cluster_window_minutes); new legs are sized down to
+     # fit, never blocked while budget remains. 0 = off.
+     max_cluster_risk_pct: float = 0.0
++    # Width of the cascade bucket the cluster caps group by (engine-wired 2026-09-25; before that the engine
++    # hard-coded 15 and this key had no consumer).
+     cluster_window_minutes: int = 15
+     limit_by_engine: bool = False
+     btc_priority: bool = True
+diff --git a/engines/liq_burst_follow_engine.py b/engines/liq_burst_follow_engine.py
+index b242224..5ad259c 100644
+--- a/engines/liq_burst_follow_engine.py
++++ b/engines/liq_burst_follow_engine.py
+@@ -128,9 +128,14 @@ class LiqBurstFollowEngine:
+         self,
+         cfg: LiqBurstFollowConfig,
+         rest_client=None,  # data.binance_rest.BinanceRestClient (OI gate data)
++        cluster_window_min: int = 15,
+     ) -> None:
+         self.cfg = cfg
+         self._rest_client = rest_client
++        # 2026-09-25 cascade window: width of signal_data["cluster_bucket"], which the portfolio's
++        # max_cluster_positions / max_cluster_risk_pct and the consecutive-loss counter group by.
++        # Wired from portfolio.cluster_window_minutes (that key had no consumer before).
++        self._cluster_window_min = int(cluster_window_min or 15)
+         # PREREG-OIGATE: OI cache cloned from tools/v5_forward_test.py
+         # (_refresh_oi_delta) so the live gate computes the SAME
+         # oi_delta_30m_pct field the shadow basis was measured on.
+@@ -539,7 +544,7 @@ class LiqBurstFollowEngine:
+             "shadow_strategy": strategy_name,
+             "side_mode": rule.side_mode,
+             "session": f["session"],
+-            "cluster_bucket": _cluster_bucket(bar_time),
++            "cluster_bucket": _cluster_bucket(bar_time, self._cluster_window_min),
+             "stop_atr": stop_atr,
+             "tp_atr": rule.tp_atr,
+             "time_bars": rule.time_bars,
+diff --git a/main.py b/main.py
+index 177fc7f..ccd799a 100644
+--- a/main.py
++++ b/main.py
+@@ -277,6 +277,7 @@ class Bitana:
+             if burst_enabled and resolved.burst_follow.enabled:
+                 sym_engines["burst_follow"] = LiqBurstFollowEngine(
+                     resolved.burst_follow, rest_client=self.rest_client,
++                    cluster_window_min=self.cfg.portfolio.cluster_window_minutes,
+                 )
+                 sym_engines["burst_follow_cfg"] = resolved.burst_follow
+             self.engines[sym] = sym_engines
+diff --git a/research/signal_shadow.py b/research/signal_shadow.py
+index 4d69e9f..67e19e0 100644
+--- a/research/signal_shadow.py
++++ b/research/signal_shadow.py
+@@ -98,6 +98,18 @@ def _cluster_bucket(bar_time: datetime, window_min: int = 15) -> str:
+     return bt.isoformat()
+ 
+ 
++# Live cascade window (portfolio.cluster_window_minutes), bound with the live gates. The stored cluster_bucket
++# column stays 15-min for research continuity; live-mirror book caps re-bucket to this width at check time.
++_LIVE_CLUSTER_WINDOW_MIN = 15
++
++
++def _rebucket(bucket: str | None, window_min: int) -> str | None:
++    """Floor a stored 15-min bucket string to a wider window (window a multiple of 15)."""
++    if not bucket or window_min <= 15:
++        return bucket
++    return _cluster_bucket(datetime.fromisoformat(bucket), window_min)
++
++
+ @dataclass
+ class ShadowPortfolioConfig:
+     """Portfolio caps — disabled by default so shadow logs everything in parallel."""
+@@ -542,6 +554,8 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
+         if key is not None:
+             os.environ["API_FOOTBALL_KEY"] = key
+     bf = cfg.burst_follow
++    global _LIVE_CLUSTER_WINDOW_MIN
++    _LIVE_CLUSTER_WINDOW_MIN = int(getattr(cfg.portfolio, "cluster_window_minutes", 15) or 15)
+     return {arm: _snapshot_for(arm, rule, bf) for arm, rule in bf.session_rules.items()}
+ 
+ 
+@@ -1044,11 +1058,13 @@ class SignalShadow:
+             return 0
+         if sum(1 for r in rows if r["symbol"] == symbol) >= cfg.live_max_per_symbol:
+             return 0
++        win = _LIVE_CLUSTER_WINDOW_MIN if strategy in _LIVE_MIRROR_NAMES else 15
++        bucket = _rebucket(cluster_bucket, win)
+         cluster_n = sum(
+             1 for r in rows
+             if r["side"] == side
+             and r["session"] == session
+-            and r["cluster_bucket"] == cluster_bucket
++            and _rebucket(r["cluster_bucket"], win) == bucket
+         )
+         if cluster_n >= cfg.live_max_cluster:
+             return 0
+diff --git a/tests/test_cascade_window.py b/tests/test_cascade_window.py
+new file mode 100644
+index 0000000..69ea0ce
+--- /dev/null
++++ b/tests/test_cascade_window.py
+@@ -0,0 +1,81 @@
++"""Cascade window (2026-09-25): portfolio.cluster_window_minutes now sets the cluster-bucket width.
++
++The engine stamps signal_data["cluster_bucket"] at the configured width, so max_cluster_positions /
++max_cluster_risk_pct cap a whole cascade instead of a 15-min slice of it. The WLA mirror re-buckets live-mirror
++book caps to the same width, while its stored 15-min cluster_bucket column is left unchanged for research.
++"""
++from __future__ import annotations
++
++import asyncio
++import os
++from datetime import datetime, timedelta, timezone
++
++import research.signal_shadow as ss
++from engines.liq_burst_follow_engine import BurstFollowState, LiqBurstFollowEngine, _cluster_bucket
++
++
++def _run(coro):
++    loop = asyncio.new_event_loop()   # private loop: asyncio.run() would clear the default loop for later tests
++    try:
++        return loop.run_until_complete(coro)
++    finally:
++        loop.close()
++
++
++def test_bucket_floors_to_the_window():
++    t = datetime(2026, 9, 25, 13, 47, 59, tzinfo=timezone.utc)
++    assert _cluster_bucket(t) == "2026-09-25T13:45:00+00:00"
++    assert _cluster_bucket(t, 60) == "2026-09-25T13:00:00+00:00"
++
++
++def _signal(window):
++    os.environ.pop("API_FOOTBALL_KEY", None)
++    from config.loader import load_config
++    bf = load_config(ss._LIVE_CONFIG_PATH).burst_follow
++    rule = bf.session_rules["ny"]
++    for wd in range(5):
++        if wd in (rule.exclude_weekdays or []):
++            continue
++        hours = [h for h in range(24) if rule.hour_gate_reason(h, wd, "neutral") is None]
++        if hours:
++            break
++    bar_time = datetime(2026, 9, 21, tzinfo=timezone.utc) + timedelta(days=wd, hours=hours[0], minutes=34, seconds=59)
++    f = {"bar_time": bar_time, "hour": hours[0], "session": "ny", "close": 100.0, "atr": 1.0, "atr_pct": 1.0,
++         "cascade_strength": 0.6, "vol_z": 0.5, "n_confirms": 3, "decile": 3, "liq_imbalance_30m": 0.95,
++         "burst_volume_30m": 1e9, "burst_events_30m": 1000}
++    engine = LiqBurstFollowEngine(bf, cluster_window_min=window)
++    engine._features = lambda candles, st, f=f: dict(f)
++    burst = {"volume_30m": 1e9, "events_30m": 1000, "imbalance_30m": 0.95}
++    return _run(engine.evaluate("TESTUSDT", [], [], [], BurstFollowState(), burst=burst,
++                                btc_regime="neutral", btc_regime_age_bars=1, btc_regime_dist=None))
++
++
++def test_engine_stamps_the_configured_window():
++    s15, s60 = _signal(15), _signal(60)
++    assert s15 is not None and s60 is not None
++    assert s15.signal_data["cluster_bucket"].endswith(":30:00+00:00")   # xx:34 -> 15-min slice
++    assert s60.signal_data["cluster_bucket"].endswith(":00:00+00:00")   # xx:34 -> the hour
++
++
++def test_rebucket():
++    assert ss._rebucket("2026-09-25T13:45:00+00:00", 60) == "2026-09-25T13:00:00+00:00"
++    assert ss._rebucket("2026-09-25T13:45:00+00:00", 15) == "2026-09-25T13:45:00+00:00"
++    assert ss._rebucket(None, 60) is None
++
++
++def test_mirror_book_cap_counts_the_whole_cascade(tmp_path, monkeypatch):
++    shadow = ss.SignalShadow(str(tmp_path / "shadow.db"), portfolio=ss.ShadowPortfolioConfig(live_max_concurrent=8))
++    rows = [("AAAUSDT", "2026-09-25T13:00:00+00:00"), ("BBBUSDT", "2026-09-25T13:15:00+00:00"),
++            ("CCCUSDT", "2026-09-25T13:30:00+00:00")]
++    for sym, bucket in rows:
++        shadow.conn.execute(
++            "INSERT INTO shadow_trades (strategy, symbol, side, session, cluster_bucket, status, would_live_accept) "
++            "VALUES ('ny_flush_buy_1h', ?, 'LONG', 'ny', ?, 'open', 1)", (sym, bucket))
++    shadow.conn.commit()
++    monkeypatch.setattr(ss, "_LIVE_CLUSTER_WINDOW_MIN", 15)
++    assert shadow._would_live_accept("ny_flush_buy_1h", "DDDUSDT", "LONG", "ny", "2026-09-25T13:45:00+00:00") == 1
++    monkeypatch.setattr(ss, "_LIVE_CLUSTER_WINDOW_MIN", 60)
++    assert shadow._would_live_accept("ny_flush_buy_1h", "DDDUSDT", "LONG", "ny", "2026-09-25T13:45:00+00:00") == 0
++    assert shadow._would_live_accept("ny_flush_buy_1h", "DDDUSDT", "LONG", "ny", "2026-09-25T14:00:00+00:00") == 1
++    # research strategies keep their own 15-min book regardless of the live window
++    assert shadow._would_live_accept("ny_flush_buy_2h", "DDDUSDT", "LONG", "ny", "2026-09-25T13:45:00+00:00") == 1

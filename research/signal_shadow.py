@@ -98,6 +98,18 @@ def _cluster_bucket(bar_time: datetime, window_min: int = 15) -> str:
     return bt.isoformat()
 
 
+# Live cascade window (portfolio.cluster_window_minutes), bound with the live gates. The stored cluster_bucket
+# column stays 15-min for research continuity; live-mirror book caps re-bucket to this width at check time.
+_LIVE_CLUSTER_WINDOW_MIN = 15
+
+
+def _rebucket(bucket: str | None, window_min: int) -> str | None:
+    """Floor a stored 15-min bucket string to a wider window (window a multiple of 15)."""
+    if not bucket or window_min <= 15:
+        return bucket
+    return _cluster_bucket(datetime.fromisoformat(bucket), window_min)
+
+
 @dataclass
 class ShadowPortfolioConfig:
     """Portfolio caps — disabled by default so shadow logs everything in parallel."""
@@ -542,6 +554,8 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
         if key is not None:
             os.environ["API_FOOTBALL_KEY"] = key
     bf = cfg.burst_follow
+    global _LIVE_CLUSTER_WINDOW_MIN
+    _LIVE_CLUSTER_WINDOW_MIN = int(getattr(cfg.portfolio, "cluster_window_minutes", 15) or 15)
     return {arm: _snapshot_for(arm, rule, bf) for arm, rule in bf.session_rules.items()}
 
 
@@ -1044,11 +1058,13 @@ class SignalShadow:
             return 0
         if sum(1 for r in rows if r["symbol"] == symbol) >= cfg.live_max_per_symbol:
             return 0
+        win = _LIVE_CLUSTER_WINDOW_MIN if strategy in _LIVE_MIRROR_NAMES else 15
+        bucket = _rebucket(cluster_bucket, win)
         cluster_n = sum(
             1 for r in rows
             if r["side"] == side
             and r["session"] == session
-            and r["cluster_bucket"] == cluster_bucket
+            and _rebucket(r["cluster_bucket"], win) == bucket
         )
         if cluster_n >= cfg.live_max_cluster:
             return 0

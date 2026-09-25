@@ -128,9 +128,14 @@ class LiqBurstFollowEngine:
         self,
         cfg: LiqBurstFollowConfig,
         rest_client=None,  # data.binance_rest.BinanceRestClient (OI gate data)
+        cluster_window_min: int = 15,
     ) -> None:
         self.cfg = cfg
         self._rest_client = rest_client
+        # 2026-09-25 cascade window: width of signal_data["cluster_bucket"], which the portfolio's
+        # max_cluster_positions / max_cluster_risk_pct and the consecutive-loss counter group by.
+        # Wired from portfolio.cluster_window_minutes (that key had no consumer before).
+        self._cluster_window_min = int(cluster_window_min or 15)
         # PREREG-OIGATE: OI cache cloned from tools/v5_forward_test.py
         # (_refresh_oi_delta) so the live gate computes the SAME
         # oi_delta_30m_pct field the shadow basis was measured on.
@@ -539,7 +544,7 @@ class LiqBurstFollowEngine:
             "shadow_strategy": strategy_name,
             "side_mode": rule.side_mode,
             "session": f["session"],
-            "cluster_bucket": _cluster_bucket(bar_time),
+            "cluster_bucket": _cluster_bucket(bar_time, self._cluster_window_min),
             "stop_atr": stop_atr,
             "tp_atr": rule.tp_atr,
             "time_bars": rule.time_bars,
