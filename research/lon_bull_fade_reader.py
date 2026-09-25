@@ -25,6 +25,9 @@ Forward window: entry_time >= 2026-09-25T14:40Z.
 PROMOTE (ALL, forward rows): fade n>=50 over >=5 days; fade E <= -0.02 @20bps; control E - fade E >= +0.05;
   fade top-day share of net <= 40%; both day-halves of the fade legs E < 0.
 KILL (ANY): fade E >= +0.02 @20bps at n>=30; at the formal read, fade E >= control E or top-day > 40%.
+AGE SPLIT (amendment 2026-09-25, owner order "Register everything"; REPORT ONLY, no bar): bull day 1-3 = regime age
+  <= 18 closed 4h bars; legs split into day 1-3 / day 4+ no fade / day 4+ fade, for the paper book and the live check.
+  Measure line for a possible future LON-YOUNG-BULL row; it never changes this row's population, bars or verdict.
 Cadence: counts only until fade n>=30, then R-reads. Formal read at fade n>=50 and >=5 fade days, or 2026-12-31,
   whichever comes first. One extension to 2027-03-31, then park.
 
@@ -130,6 +133,27 @@ def regime_series(frm=REPLAY_FROM):
     return out
 
 
+def ages_of(series):
+    """Regime age in closed 4h bars at each replayed bar (1 = the bar the state began)."""
+    out, a, prev = [], 0, None
+    for _, st, _ in series:
+        a = a + 1 if st == prev else 1
+        out.append(a)
+        prev = st
+    return out
+
+
+def age_split(legs_, series, closes):
+    """Report-only: stats for bull day 1-3 / day 4+ no fade / day 4+ fade (key 'R20' or booked pnl 'R')."""
+    ages = ages_of(series)
+    groups = {'day 1-3': [], 'day 4+ no fade': [], 'day 4+ fade': []}
+    for x in legs_:
+        j = bisect_right(closes, x['_ms']) - 1
+        young = ages[j] <= 18
+        groups['day 1-3' if young else ('day 4+ fade' if x['fade'] else 'day 4+ no fade')].append(x)
+    return groups
+
+
 def tag(entry_ms, series, closes):
     """(state, adx, d3) of the last 4h bar closed at or before entry; None if unknown."""
     j = bisect_right(closes, entry_ms) - 1
@@ -203,7 +227,7 @@ def legs(rows, paths, series, closes):
         st, adx, d3 = tg
         if st != 'bull':
             continue
-        out.append({**r, 'pnl_atr': pnl, 'adx': adx, 'd3': d3, 'fade': d3 <= FADE_D3})
+        out.append({**r, 'pnl_atr': pnl, 'adx': adx, 'd3': d3, 'fade': d3 <= FADE_D3, '_ms': _ms(r['entry_time'])})
     return out, missing, untagged
 
 
@@ -254,6 +278,7 @@ def read(db, frm, to, unknown_passes=False, series=None):
         'excluded_incomplete_path': miss_k + miss_u, 'excluded_untagged': untag_k,
         'excluded_n_confirms_0': len(below),
         'fade_by_day': {d: round(sum(R(x, BAR_BPS) for x in fade if x['d'] == d), 2) for d in days},
+        'age_split': {k: stats(v) for k, v in age_split(lk, series, closes).items()},
     }
 
 
@@ -263,7 +288,7 @@ def live_check(series):
     db = copy_db(LIVE_TRADES_DB, prefix='lon_bull_fade_live_')
     try:
         con = sqlite3.connect(db)
-        out = {'fade': [], 'control': []}
+        out, ages = {'fade': [], 'control': []}, []
         for ts, hold, pnl_r, sd in con.execute('SELECT timestamp, hold_time_s, pnl_r, signal_data FROM trades'):
             s = json.loads(sd or '{}')
             if s.get('shadow_strategy') != 'burst_follow' or s.get('session') != 'london':
@@ -272,6 +297,8 @@ def live_check(series):
             if tg is None or tg[0] != 'bull' or tg[2] is None:
                 continue
             out['fade' if tg[2] <= FADE_D3 else 'control'].append((ts[:10], pnl_r, s.get('stop_atr')))
+            ent_ms = _ms(ts) - int((hold or 0) * 1000)
+            ages.append({'d': ts[:10], 'R': pnl_r, 'fade': tg[2] <= FADE_D3, '_ms': ent_ms})
         con.close()
     finally:
         drop_copy(db)
@@ -283,6 +310,9 @@ def live_check(series):
         res[k] = {'n': len(v), 'days': len(days), 'sumR': round(sum(r for _, r, _ in v), 2),
                   'E': round(sum(r for _, r, _ in v) / len(v), 4) if v else None,
                   'sl6_n': sum(1 for *_, st in v if st == 6.0), 'by_day': {d: round(x, 2) for d, x in sorted(days.items())}}
+    res['age_split'] = {k: {'n': len(v), 'days': len({x['d'] for x in v}), 'sumR': round(sum(x['R'] for x in v), 2),
+                            'E': round(sum(x['R'] for x in v) / len(v), 4) if v else None}
+                        for k, v in age_split(ages, series, closes).items()}
     return res
 
 
@@ -340,6 +370,7 @@ def main():
             print(f"  fade by day: {res['fade_by_day']} | excluded incomplete path {res['excluded_incomplete_path']}, "
                   f"untagged {res['excluded_untagged']}, n_confirms=0 {res['excluded_n_confirms_0']}")
             print(f"  registered: fade n={BASIS['n']} days={BASIS['days']} E={BASIS['E20']:+.4f}")
+            print('  AGE SPLIT (report only): ' + ' | '.join(f"{k}: {fmt(v)}" for k, v in res['age_split'].items()))
             print('VALIDATION', 'PASS' if ok else 'FAIL')
             if a.live:
                 print('LIVE-REAL cross-check (all dates, report only):', json.dumps(live_check(series)))
@@ -360,6 +391,7 @@ def main():
             print(f"  control @20bps:        {fmt(res['control'])}")
             print(f"  fade halves: {fmt(res['half1'])} | {fmt(res['half2'])}")
             print(f"  fade h11+h13 only (Row 8 interaction): {fmt(res['fade_h11_13'])}")
+            print('  AGE SPLIT (report only): ' + ' | '.join(f"{k}: {fmt(v)}" for k, v in res['age_split'].items()))
             print(f"  UNKNOWN n_confirms line (never passes a bar): {fmt(res['unknown_line'])}")
             print(f"  excluded: n_confirms=0 {res['excluded_n_confirms_0']}, incomplete path {res['excluded_incomplete_path']}, "
                   f"untagged {res['excluded_untagged']}")

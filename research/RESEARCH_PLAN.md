@@ -1418,3 +1418,51 @@ Source: Claude Code same-day loss review (owner Q "why has London been so bad to
 - **Wiring footprint:** ZERO now. Promotion is NOT config-only: the engine has no ADX-slope gate. It needs a knob preregistered on owner order before wiring (e.g. `session_rules.london.max_adx_drop_3bars: 4.0`), the engine gate, its WLA mirror in `research/signal_shadow.py`, and `tests/test_wla_gate_complete.py` passing (the structural test fails until the gate is mirrored).
 - **Manual stand-downs:** owner-discretion pauses on fade days (Telegram /pause) do not touch the population; the paper harness keeps logging.
 - **Reader of record:** `research/lon_bull_fade_reader.py` (`--validate` reproduces the basis; `--live` adds the live-real line; `--peek` counts only).
+
+## 2026-09-25 16:xxZ — Cross-arm scan → Row 12 NY-BREADTH + Row 13 NY-KNIFE (dark) + Row 11 age-split amendment (owner order "Register everything")
+Source: Claude Code cross-arm market-state scan (owner ask for "more such gems"). 25 features × 2 arms at current gates and live exits, paper book, 20 bps. A pattern had to hold in both bull runs (Aug 19–29, Sep 18–25) and be checked against live. Findings: `possible_improvements.md` (2026-09-25 cross-arm entry). **Selection disclosure: ~50 comparisons, post hoc. Only the forward windows count.** Reader of record for Rows 12/13: `research/ny_flush_quality_reader.py` (`--validate` PASS). **Forward window (Rows 12/13): entries ≥ 2026-09-25T16:30Z.** Row 11's age split lives in `research/lon_bull_fade_reader.py` (report only).
+
+### Row 12 — PREREG-NY-BREADTH (dark; candidate = veto narrow flushes on NY in bull; fallback = sizing tilt)
+- **Claim:** NY flush-buys pay when the flush is market-wide. BROAD = `cluster_breadth` > 20: distinct symbols bursting in the same 15-min bucket, counted by the paper harness at entry (`tools/v5_forward_test.py` `_cluster_breadth`). NARROW = ≤ 20.
+- **Mechanism:** a market-wide flush is forced selling everywhere and bounces. A narrow flush is symbol-specific, so there's no reason for it to bounce, and on a crash day the narrow flushes are the knives.
+- **Scope: BULL only.** The neutral cell is reported, never judged: narrow flushes there made +0.458 R/leg (n=26, 5/5 days). A blanket veto would gut NY's best cell.
+- **Population (frozen):** shadow `ny_flush_buy_1h`, ny, LONG, `liq_imb ≥ 0.5`, `vol_z ≥ 0`, `decile ≥ 1`, `n_confirms ≥ 1` (READ-PROC-GATECOMPLETE); replayed live regime + ADXBAND; frozen NY bull lattice Tue 14–15, Wed 14–17, Thu 14–17 + 19, Fri 14–16 + 18–20; exit SL5 / no TP / 12 bars; 20 bps.
+- **Basis (bull, Aug-21 → Sep-24, in-sample, does NOT count):**
+  - broad n=93 / 7 days: E +0.0798 (6/7 days positive)
+  - narrow n=216 / 11 days: E −0.0483
+  - broad − narrow by day-half: +0.130 / +0.157
+  - **Concentration:** on Sep-23, narrow lost −17.69R while broad lost −0.90R. Ex-Sep-23: broad +0.219 (38 legs, 6/6 days) vs narrow +0.041 (177 legs). Narrow is only negative because of the crash day, but broad is better on both kinds of day.
+  - live twin-matched (all regimes and eras; report only): broad n=5 E +0.104 vs narrow n=23 E +0.051 — not confirming
+- **Promote (ALL, forward bull):** broad n ≥ 50 over ≥ 6 days AND narrow n ≥ 100 over ≥ 6 days; narrow E ≤ 0; broad E ≥ +0.05; broad − narrow ≥ +0.05 overall and > 0 in both day-halves; broad top-day ≤ 40%.
+- **Fallback:** if narrow E > 0 but broad − narrow ≥ +0.10 in both halves → TILT-CANDIDATE. Register a sizing-tilt G0 row (broad at full size, narrow reduced); never the veto.
+- **Kill (any ONE):** narrow E ≥ +0.03 at an R-read; at the formal read, broad − narrow ≤ 0 or broad top-day > 40%.
+- **Cadence:** counts only until broad n ≥ 20 and narrow n ≥ 60. Formal read at the promote sizes or 2026-11-30, whichever first. One extension (→ 2027-01-31), then park.
+- **Interactions:**
+  - FK2 (market-flow floor, dark): corr(breadth, flow) = 0.67. Within FK2's pass zone broad makes +0.077 vs narrow −0.036, so breadth adds something beyond flow. Read after FK2 and NY-VOLZ-OFF.
+  - The frozen population keeps `vol_z ≥ 0` even if NY-VOLZ-OFF drops that gate.
+- **Wiring footprint:** ZERO now. Promotion needs an engine gate using the same breadth measure over the paper harness's symbol universe (the live bot does not compute breadth today; check feasibility at promotion), its WLA mirror, `tests/test_wla_gate_complete.py` passing, and an owner restart.
+
+### Row 13 — PREREG-NY-KNIFE (dark; candidate = veto narrow flushes on red BTC days, bull)
+- **Claim:** on a red BTC day (BTCUSDT 24h return < −1.5% at entry, from 5m closes) a narrow flush (breadth ≤ 20) is a falling knife.
+- **Mechanism:** a flush inside a down day is part of trend liquidation. Without market-wide capitulation there is no forced-selling exhaustion to bounce from.
+- **Basis (bull, in-sample, does NOT count):**
+  - knife n=72 / 4 days: E −0.0534, 1/4 days positive
+  - worst day Aug-28 −6.29R (top-day 164%); day-halves −0.145 / +0.091 (inconsistent)
+  - rest n=237: E +0.0036
+  - live twin-matched: knife n=6 / 2 days, E +0.231 — contradicts
+  - **The weakest of the three rows: it rests on essentially one day.**
+- **Promote (ALL, forward bull):** knife n ≥ 50 over ≥ 5 days; knife E ≤ −0.03 @20bps; rest E − knife E ≥ +0.05; knife top-day ≤ 40%; knife E < 0 in both day-halves.
+- **Kill (any ONE):** knife E ≥ 0 at n ≥ 30; at the formal read, top-day > 40% or rest E < knife E.
+- **Cadence:** counts only until knife n ≥ 30. Formal read at knife n ≥ 50 over ≥ 5 days or 2026-12-31. One extension (→ 2027-03-31), then park.
+- **Nesting:** if Row 12 promotes, Row 13 is moot and parks. It is part of the falling-knife family (FK1 rvol floor, FK2 flow floor, FK3 panic counter) but uses a different axis, BTC's 24h return.
+- **Wiring footprint:** ZERO now.
+
+### Row 11 amendment — age split (report only)
+- **Added report lines:** bull day 1–3 (regime age ≤ 18 closed 4h bars) / day 4+ no fade / day 4+ fade, for both paper and live.
+- **Basis (paper, Sep-24 copy window):**
+  - day 1–3: +0.113 (44 legs, 5/5 days)
+  - day 4+ no fade: +0.059 (114 legs, 5/6)
+  - day 4+ fade: −0.072 (39 legs, 1/3)
+- **Live at current hours (10/11/13):** day 1–3 +0.130 (28 legs); day 4+ −0.04 either way. SL6 era: day 1–3 +0.204 vs day 4+ −0.10 / −0.12.
+- **Row 11's population, bars and verdict are unchanged;** `--validate` still PASSES.
+- **Future LON-YOUNG-BULL row:** registrable only if, at Row 11's formal read, day 4+ no-fade E ≤ 0 at n ≥ 50 over 5 days while day 1–3 E ≥ +0.05.

@@ -2,7 +2,7 @@
 """Write dashboard/research_board.json: the research rows the owner tracks, with live accrual counts where a
 reader of record exists (2026-09-25).
 
-Counts (LATE-BULL-FLUSH, LON-BULL-FADE) come from the readers' own code (never re-implemented here), against ONE /tmp copy of the shadow DB
+Counts (LATE-BULL-FLUSH, LON-BULL-FADE, NY-BREADTH, NY-KNIFE) come from the readers' own code (never re-implemented here), against ONE /tmp copy of the shadow DB
 per run (CLAUDE.md). Rows without a reader carry status text and their next read date only. Edit ROWS when
 a row is registered, read, or killed. Run: python research/research_board.py  (about 25s, mostly the DB copy).
 """
@@ -15,6 +15,7 @@ sys.path.insert(0, '/root/bitana')
 sys.path.insert(0, '/root/bitana/research')
 import late_bull_flush_reader as lbf  # noqa: E402
 import lon_bull_fade_reader as lfade  # noqa: E402
+import ny_flush_quality_reader as nyq  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
 
@@ -55,6 +56,15 @@ def main():
                         'status': lfade.decide(fr, now.strftime('%Y-%m-%d')),
                         'n': f.get('n', 0), 'days': f.get('days', 0), 'n_target': 50, 'days_target': 5,
                         'unknown': fr['unknown_line'].get('n', 0)})
+        ct, cl = nyq.btc_5m(lfade._ms(nyq.FORWARD_FROM) - 2 * 86400000)
+        nl, _ = nyq.load(db, nyq.FORWARD_FROM, '9999', lfade.regime_series(), ct, cl)
+        nr = nyq.read(nl, ('bull',))
+        v12 = nyq.decide12(nr, now.strftime('%Y-%m-%d'))
+        rows.insert(2, {'name': 'PREREG-NY-BREADTH (Row 12)', 'kind': 'dark', 'next': 'broad n>=50 & narrow n>=100 over 6d',
+                        'status': v12, 'n': nr['broad'].get('n', 0), 'days': nr['broad'].get('days', 0), 'n_target': 50, 'days_target': 6})
+        rows.insert(3, {'name': 'PREREG-NY-KNIFE (Row 13)', 'kind': 'dark', 'next': 'knife n>=30 R-read / n>=50 & 5d formal',
+                        'status': nyq.decide13(nr, now.strftime('%Y-%m-%d'), v12), 'n': nr['knife'].get('n', 0),
+                        'days': nr['knife'].get('days', 0), 'n_target': 50, 'days_target': 5})
     finally:
         for f in (db, db + '-wal', db + '-shm', db + '-journal'):
             if os.path.exists(f):

@@ -1,5 +1,5 @@
 {
- "built": "2026-09-25T14:32:44+00:00",
+ "built": "2026-09-25T16:07:43+00:00",
  "rows": [
   {
    "name": "PREREG-LATE-BULL-FLUSH",
@@ -22,6 +22,26 @@
    "n_target": 50,
    "days_target": 5,
    "unknown": 0
+  },
+  {
+   "name": "PREREG-NY-BREADTH (Row 12)",
+   "kind": "dark",
+   "next": "broad n>=50 & narrow n>=100 over 6d",
+   "status": "COUNTS-ONLY (needs broad n>=20 and narrow n>=60)",
+   "n": 0,
+   "days": 0,
+   "n_target": 50,
+   "days_target": 6
+  },
+  {
+   "name": "PREREG-NY-KNIFE (Row 13)",
+   "kind": "dark",
+   "next": "knife n>=30 R-read / n>=50 & 5d formal",
+   "status": "COUNTS-ONLY (knife n<30)",
+   "n": 0,
+   "days": 0,
+   "n_target": 50,
+   "days_target": 5
   },
   {
    "name": "NY-VOLZ-OFF",

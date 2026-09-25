@@ -165,3 +165,19 @@ Resume point after any interruption: the first unchecked box below.
   Top-day 76% → watch row only, no cut. Live-real: fade −0.056/leg (n=43/4d) vs control +0.001 (n=75/10d).
 - **Reader:** `research/lon_bull_fade_reader.py` (`--validate` PASS); research-board row added. Forward from 2026-09-25T14:40Z.
 - **Live ops:** Claude Code live risk watch (session-scoped) sends pre-London/pre-NY briefs at 08:40/13:40 UTC with the fade flag, plus intra-session alerts.
+
+## 2026-09-25 ~16:xxZ — Cross-arm market-state scan ("gems", owner ask)
+Paper legs at current gates + live exits, 20 bps (London bull 203, NY bull 329), 25 features × 2 arms. A pattern had to
+hold in both bull runs (Aug 19–29, Sep 18–25) and be checked against live. Post hoc: ~50 comparisons, so leads only; nothing wired.
+- **NY breadth:** flushes with >20 symbols liquidating at once make +0.085/leg (96 legs, 7/8 days, both runs); ≤20 lose −0.025 (233 legs).
+  Not FK2 in disguise (corr 0.67): within FK2's pass zone broad +0.077 vs narrow −0.036. Live twin-matched (thin): broad(13+) +0.20/11 vs narrow −0.08/21.
+  London points the same way (>12 symbols +0.076, 7/9 days, vs ≤6 −0.003).
+- **London is front-loaded in a bull:** bull days 1–3 paper +0.113 (44 legs, 5/5 days), live at current hours +0.130 (SL6 era +0.204).
+  Fading day 4+ loses in both books (Row 11). Non-fading day 4+ is disputed (paper +0.065 6/6d vs live −0.044). NY is the reverse (fine late).
+- **NY and BTC's 24h move:** paper rises steadily −0.021 (<−1.5%) → +0.074 (>+1%); live the same way (−0.004 → +0.274, thin).
+  Red day + narrow flush −0.053 (1/4 days); non-red day + broad flush +0.249 (5/5 days).
+- **Dropped:** vol_z (books contradict; NY-VOLZ-OFF reads Sunday); ADX level (no floor or ceiling holds).
+- **REGISTERED 2026-09-25 16:xxZ (owner order "Register everything"):**
+  - Row 12 NY-BREADTH (dark, bull only; veto or sizing-tilt fallback) and Row 13 NY-KNIFE (dark, bull), reader `research/ny_flush_quality_reader.py`, forward from 16:30Z.
+  - Row 11 amendment: report-only age split in `research/lon_bull_fade_reader.py`.
+  - Registration caveats: the narrow-flush loss is Sep-23-driven (ex-Sep-23 narrow +0.041 vs broad +0.219), the knife cell is essentially one day (Aug-28), and the neutral cell's narrow flushes make +0.458/leg, hence the bull-only scope.
