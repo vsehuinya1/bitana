@@ -91,3 +91,35 @@ Data: `/root/hermes_lab/data/coinalyze_oi.db`, daily OI (in coins) for BTC/ETH/S
 - All 11 capitulation events in the window were long-liquidation cascades: 9× to 2,546× the median hour's long
   liquidations, 8/11 above the 92nd percentile, long:short liquidations 8:1 to 7,216:1.
 - The price-breadth rule identifies forced selling without needing a liquidation feed.
+
+## Execution realism for PREREG-CAPITULATION-BASKET (in-sample events, 2022-01 → 2026-09)
+- **Entry delay** (24h hold from entry): 0h +1.10% (t 2.28) → 1h +0.83% → 2h +0.76% → 4h +0.39% (t 0.83). The edge is
+  the immediate rebound, so entry must be automated at the hour close.
+- **Basket:** 20 coins +1.10% (20 bps) · **5 majors (BTC ETH SOL XRP BNB) +1.08%** (15 bps, t 2.27, worst −24.3%) · BTC only
+  +0.50%. The 5-major basket matches the return and fills far more easily in a crash.
+- **Disaster stop** (basket, hourly lows): −10% +0.47% (12 hits) · −15% +0.89% · **−20% +0.98% (2 hits)** · none +1.10%.
+  Tight stops sell the bottom. Only a wide −20% catastrophe stop is cheap.
+- **First-minutes slippage** (1m klines, all 121 events × 20 coins):
+  - buying evenly over 5 minutes vs the 1h open: mean −3.0 bps, median −3.0, p90 +46
+  - worst case (first-minute high): mean +27, median +16, p90 +66
+  - 5 majors: 5-min mean −1.4 bps (p90 +48)
+  - **Net with the 5-min fill and 25 bps costs: +1.08%/event (t 2.25).** The edge survives realistic execution.
+- **Live design implied (for the promote decision):** automated 5-min entry after the event hour closes, 5 majors,
+  notional sizing, −20% basket catastrophe stop, 24h hold.
+
+## Tested: weekend-gap reversion. No edge (the sign flips by period).
+Rule fixed before testing: weekend move = Fri 21:00 → Sun 22:00 UTC (CME close → reopen), BTC and the 20-coin basket.
+Continuous test = correlation with the next 24h/72h; event test = |z| ≥ 2 vs the trailing 26 weekends, faded from Sun 22:00.
+- **Continuous:** BTC r24 2020–21 −0.19 · **2022–24 +0.37** · 2025–26 −0.29 (all −0.03). Basket −0.22 / **+0.26** / −0.27
+  (all −0.07). Reversion in two periods, continuation in the middle one. Regime-dependent, so not tradable ex ante.
+- **Events:** only 23 in 6.7 years. The BTC fade loses at 72h (−3.78%, t −2.98): big weekend moves tend to continue. The
+  basket 24h +1.16% (t 0.71) is inconsistent by period.
+
+## Scorecard (2026-09-25)
+| idea | status |
+|---|---|
+| Market-capitulation basket buy | **registered** (PREREG-CAPITULATION-BASKET), paper-tracked; executable with realistic fills |
+| Squeeze continuation | parked (bull-market momentum; small, concentrated OOS) |
+| Funding extremes | no independent edge (crowded longs = momentum; crowded-shorts buy overlaps capitulation) |
+| OI flushes | no edge; adds nothing to capitulation |
+| Weekend-gap reversion | no edge (sign flips by period) |
