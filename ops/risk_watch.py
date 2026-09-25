@@ -62,6 +62,19 @@ def _env(path, key):
     return None
 
 
+def _age_caps():
+    """session -> max_regime_age_bars from the live yaml (read-only), e.g. PREREG-LON-AGE-CAP london: 17."""
+    try:
+        import yaml
+        cfg = yaml.safe_load(open(f'{ROOT}/config/live_burst_ny_asia.yaml')) or {}
+        rules = (cfg.get('burst_follow') or {}).get('session_rules') or {}
+        return {k: v['max_regime_age_bars'] for k, v in rules.items()
+                if isinstance(v, dict) and v.get('max_regime_age_bars') is not None}
+    except Exception:
+        return {}
+
+
+AGE_CAPS = _age_caps()
 DASH_TOKEN = _env(f'{ROOT}/.env.dashboard', 'DASHBOARD_TOKEN')
 TG_TOKEN = _env(f'{ROOT}/.env', 'TELEGRAM_BOT_TOKEN')
 TG_CHAT = _env(f'{ROOT}/.env', 'TELEGRAM_CHAT_ID')
@@ -224,7 +237,10 @@ def tick(mode='loop'):
     bk = book(v.get('positions'))
     armed_any = any(a.get('armed_now') for a in arms.values())
     # an arm whose allowed regimes exclude the current state is off, whatever its base hours say
-    today_hours = {k: (a.get('hours_by_weekday', {}).get(wd, []) if (not a.get('regimes') or state in a['regimes']) else [])
+    age = rh.get('age_bars')
+    today_hours = {k: (a.get('hours_by_weekday', {}).get(wd, [])
+                       if (not a.get('regimes') or state in a['regimes'])
+                       and (k not in AGE_CAPS or (age is not None and age <= AGE_CAPS[k])) else [])
                    for k, a in arms.items()}
     # drawdown vs the equity pause, in $ and in R at the active risk per leg
     rk, rc = d.get('risk') or {}, v.get('risk_context') or {}
