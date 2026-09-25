@@ -115,6 +115,41 @@ Continuous test = correlation with the next 24h/72h; event test = |z| ≥ 2 vs t
 - **Events:** only 23 in 6.7 years. The BTC fade loses at 72h (−3.78%, t −2.98): big weekend moves tend to continue. The
   basket 24h +1.16% (t 0.71) is inconsistent by period.
 
+## Tested: NY "wait out the crash hour" gate (owner "Test it"). Not supported; the first cut was hindsight-biased.
+Question: should NY flush-buys skip entries while a market-wide crash is under way, and wait for the crash hour to close?
+Real-time alarm, fixed before testing: at each 5m close, take each coin's move since the hour open and scale it by the
+coin's trailing hourly sd × √(elapsed/60). The alarm fires at the first close where ≥ 75% of the 20 coins are at
+z ≤ −3 (≥ 16 coins from 2022, ≥ 8 in 2020–21).
+- **First cut, biased (not used):** it looked only at the 158 hours that *ended* as capitulation events. Waiting looked
+  far better (+1.97%/event, t 7.0). But an event is defined by the hour's close, so selecting on it guarantees that
+  prices kept falling after a mid-hour alarm.
+- **Bias-free:** every hour where the alarm fired, 2020-01 → 2026-09-24. That is 856 hours on 552 days (127 a year),
+  median alarm minute 15, and **77% of those hours bounced before the close**. Simulated NY-style legs on all 20 coins
+  (5-ATR intrabar stop, 1h time exit, 20 bps), with t computed over days:
+
+  | entry | R/leg | t |
+  |---|---|---|
+  | first 5m after the alarm | −0.026 | −1.41 |
+  | any 5m until the hour closes (what a wait gate blocks) | −0.032 | −2.82 |
+  | next hour's open (waiting) | −0.029 | −2.74 |
+
+  - Same three entries with a 10-ATR stop: −0.005 / −0.013 / −0.014.
+  - NY hours only (13–20 UTC, 387 alarms): −0.026 / −0.043 / −0.040.
+  - By period (any 5m): 2020–21 +0.002, 2022–24 −0.053, 2025–26 −0.030.
+  - Hours that ended as events: −0.52R right after the alarm. Hours that bounced: +0.09R. Only hindsight separates the
+    two.
+- **Sep 23:** the alarm fired at 14:15. At 14:10 only 40% of coins were down. The three legs that got stopped out
+  entered at 14:10, before the alarm. A gate would have blocked the 14:16–14:51 legs (+1.60R and −0.60R), so it would
+  have cost **−1.00R** that day.
+- **Capitulation basket timing (same data):** buying the basket at the alarm, one basket at a time with a 24h cooldown,
+  gives 468 trades at +0.50% (t 1.88): 2022–24 +0.28%, 2025–26 +0.02%, worst −40.3% (2020-03-12). The registered rule
+  waits for the hour close: +1.10% (t 2.28), worst −17.6%. This confirms the registered design.
+- **Caveats:**
+  - The simulation buys all 20 coins, not NY's signal picks.
+  - The universe is today's survivors (no LUNA or FTT).
+- **Verdict:** no NY wait gate. On a day like Sep 23 the 60-min cascade cap blocks the same re-entries. On average those
+  legs are about −0.03R, so the cap is a cheap exposure limit, not an edge filter. Keep it.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -123,3 +158,4 @@ Continuous test = correlation with the next 24h/72h; event test = |z| ≥ 2 vs t
 | Funding extremes | no independent edge (crowded longs = momentum; crowded-shorts buy overlaps capitulation) |
 | OI flushes | no edge; adds nothing to capitulation |
 | Weekend-gap reversion | no edge (sign flips by period) |
+| NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
