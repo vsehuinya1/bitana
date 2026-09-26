@@ -64,6 +64,7 @@ def test_rebucket():
 
 
 def test_mirror_book_cap_counts_the_whole_cascade(tmp_path, monkeypatch):
+    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", None)   # synthetic symbols: test the window, not the live universe
     shadow = ss.SignalShadow(str(tmp_path / "shadow.db"), portfolio=ss.ShadowPortfolioConfig(live_max_concurrent=8))
     rows = [("AAAUSDT", "2026-09-25T13:00:00+00:00"), ("BBBUSDT", "2026-09-25T13:15:00+00:00"),
             ("CCCUSDT", "2026-09-25T13:30:00+00:00")]

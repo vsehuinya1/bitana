@@ -166,8 +166,10 @@ def test_mirror_equals_engine_on_every_gate(arm, rule_updates, bf_updates):
     assert not mismatches, f"{len(mismatches)} mirror/engine mismatches, first: {mismatches[:3]}"
 
 
-def test_n_confirms_non_null_on_every_insert(tmp_path):
+def test_n_confirms_non_null_on_every_insert(tmp_path, monkeypatch):
     import research.signal_shadow as ss
+
+    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", None)   # synthetic symbols: test the gates, not the live universe
 
     shadow = ss.SignalShadow(str(tmp_path / "shadow.db"), portfolio=ss.ShadowPortfolioConfig())
     for table in ("shadow_trades", "shadow_pending_entries"):

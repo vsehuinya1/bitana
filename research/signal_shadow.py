@@ -101,6 +101,10 @@ def _cluster_bucket(bar_time: datetime, window_min: int = 15) -> str:
 # Live cascade window (portfolio.cluster_window_minutes), bound with the live gates. The stored cluster_bucket
 # column stays 15-min for research continuity; live-mirror book caps re-bucket to this width at check time.
 _LIVE_CLUSTER_WINDOW_MIN = 15
+# Live symbol universe (symbols.active), bound with the live gates. The shadow tracks a wider universe for research;
+# rows on symbols the live bot does not trade can never be live-accepted, so they must not hold live-book slots.
+# None = unbound (research use without the live yaml): no symbol filter.
+_LIVE_SYMBOLS: frozenset[str] | None = None
 
 
 def _rebucket(bucket: str | None, window_min: int) -> str | None:
@@ -554,8 +558,9 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
         if key is not None:
             os.environ["API_FOOTBALL_KEY"] = key
     bf = cfg.burst_follow
-    global _LIVE_CLUSTER_WINDOW_MIN
+    global _LIVE_CLUSTER_WINDOW_MIN, _LIVE_SYMBOLS
     _LIVE_CLUSTER_WINDOW_MIN = int(getattr(cfg.portfolio, "cluster_window_minutes", 15) or 15)
+    _LIVE_SYMBOLS = frozenset(cfg.symbols.active)
     return {arm: _snapshot_for(arm, rule, bf) for arm, rule in bf.session_rules.items()}
 
 
@@ -1044,6 +1049,10 @@ class SignalShadow:
         open leg while their shadow rows went WLA=1 and held the slot).
         """
         cfg = self.portfolio
+        # 2026-09-26 WLA-SYMBOLS: an untracked symbol is never live-accepted, so it cannot occupy the shared book
+        # (Sep-25: PEPE/TAO took London b13:45 slots -> live SOL fill stamped WLA=0).
+        if strategy in _LIVE_MIRROR_NAMES and _LIVE_SYMBOLS is not None and symbol not in _LIVE_SYMBOLS:
+            return 0
         names = sorted(_LIVE_MIRROR_NAMES) if strategy in _LIVE_MIRROR_NAMES else [strategy]
         rows = self.conn.execute(
             f"""

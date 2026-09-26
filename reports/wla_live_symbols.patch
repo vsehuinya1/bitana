@@ -1,0 +1,115 @@
+diff --git a/research/signal_shadow.py b/research/signal_shadow.py
+index 67e19e0..e6faf54 100644
+--- a/research/signal_shadow.py
++++ b/research/signal_shadow.py
+@@ -101,6 +101,10 @@ def _cluster_bucket(bar_time: datetime, window_min: int = 15) -> str:
+ # Live cascade window (portfolio.cluster_window_minutes), bound with the live gates. The stored cluster_bucket
+ # column stays 15-min for research continuity; live-mirror book caps re-bucket to this width at check time.
+ _LIVE_CLUSTER_WINDOW_MIN = 15
++# Live symbol universe (symbols.active), bound with the live gates. The shadow tracks a wider universe for research;
++# rows on symbols the live bot does not trade can never be live-accepted, so they must not hold live-book slots.
++# None = unbound (research use without the live yaml): no symbol filter.
++_LIVE_SYMBOLS: frozenset[str] | None = None
+ 
+ 
+ def _rebucket(bucket: str | None, window_min: int) -> str | None:
+@@ -554,8 +558,9 @@ def _load_live_gate_snapshots() -> dict[str, LiveGateSnapshot]:
+         if key is not None:
+             os.environ["API_FOOTBALL_KEY"] = key
+     bf = cfg.burst_follow
+-    global _LIVE_CLUSTER_WINDOW_MIN
++    global _LIVE_CLUSTER_WINDOW_MIN, _LIVE_SYMBOLS
+     _LIVE_CLUSTER_WINDOW_MIN = int(getattr(cfg.portfolio, "cluster_window_minutes", 15) or 15)
++    _LIVE_SYMBOLS = frozenset(cfg.symbols.active)
+     return {arm: _snapshot_for(arm, rule, bf) for arm, rule in bf.session_rules.items()}
+ 
+ 
+@@ -1044,6 +1049,10 @@ class SignalShadow:
+         open leg while their shadow rows went WLA=1 and held the slot).
+         """
+         cfg = self.portfolio
++        # 2026-09-26 WLA-SYMBOLS: an untracked symbol is never live-accepted, so it cannot occupy the shared book
++        # (Sep-25: PEPE/TAO took London b13:45 slots -> live SOL fill stamped WLA=0).
++        if strategy in _LIVE_MIRROR_NAMES and _LIVE_SYMBOLS is not None and symbol not in _LIVE_SYMBOLS:
++            return 0
+         names = sorted(_LIVE_MIRROR_NAMES) if strategy in _LIVE_MIRROR_NAMES else [strategy]
+         rows = self.conn.execute(
+             f"""
+diff --git a/tests/test_cascade_window.py b/tests/test_cascade_window.py
+index 69ea0ce..0fff066 100644
+--- a/tests/test_cascade_window.py
++++ b/tests/test_cascade_window.py
+@@ -64,6 +64,7 @@ def test_rebucket():
+ 
+ 
+ def test_mirror_book_cap_counts_the_whole_cascade(tmp_path, monkeypatch):
++    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", None)   # synthetic symbols: test the window, not the live universe
+     shadow = ss.SignalShadow(str(tmp_path / "shadow.db"), portfolio=ss.ShadowPortfolioConfig(live_max_concurrent=8))
+     rows = [("AAAUSDT", "2026-09-25T13:00:00+00:00"), ("BBBUSDT", "2026-09-25T13:15:00+00:00"),
+             ("CCCUSDT", "2026-09-25T13:30:00+00:00")]
+diff --git a/tests/test_wla_gate_complete.py b/tests/test_wla_gate_complete.py
+index 63d8fa1..7d459cd 100644
+--- a/tests/test_wla_gate_complete.py
++++ b/tests/test_wla_gate_complete.py
+@@ -166,9 +166,11 @@ def test_mirror_equals_engine_on_every_gate(arm, rule_updates, bf_updates):
+     assert not mismatches, f"{len(mismatches)} mirror/engine mismatches, first: {mismatches[:3]}"
+ 
+ 
+-def test_n_confirms_non_null_on_every_insert(tmp_path):
++def test_n_confirms_non_null_on_every_insert(tmp_path, monkeypatch):
+     import research.signal_shadow as ss
+ 
++    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", None)   # synthetic symbols: test the gates, not the live universe
++
+     shadow = ss.SignalShadow(str(tmp_path / "shadow.db"), portfolio=ss.ShadowPortfolioConfig())
+     for table in ("shadow_trades", "shadow_pending_entries"):
+         cols = {r[1] for r in shadow.conn.execute(f"PRAGMA table_info({table})")}
+diff --git a/tests/test_wla_live_symbols.py b/tests/test_wla_live_symbols.py
+new file mode 100644
+index 0000000..223638e
+--- /dev/null
++++ b/tests/test_wla_live_symbols.py
+@@ -0,0 +1,43 @@
++"""WLA-SYMBOLS (2026-09-26): the live-mirror book only admits symbols the live bot trades (symbols.active).
++
++Before: untracked shadow symbols went WLA=1 and held cluster/concurrency slots, crowding out live symbols the bot
++actually filled (Sep-25 London b13:45: PEPE, XRP, TAO held the 3 slots; live filled SOL, stamped WLA=0).
++"""
++from __future__ import annotations
++
++import research.signal_shadow as ss
++
++
++def _shadow(tmp_path):
++    return ss.SignalShadow(str(tmp_path / "shadow.db"), portfolio=ss.ShadowPortfolioConfig(live_max_concurrent=8))
++
++
++def test_bound_from_the_live_yaml():
++    ss._load_live_gate_snapshots()
++    assert ss._LIVE_SYMBOLS and "ETHUSDT" in ss._LIVE_SYMBOLS
++
++
++def test_untracked_symbol_never_live_accepted(tmp_path, monkeypatch):
++    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", frozenset({"SOLUSDT", "XRPUSDT"}))
++    sh = _shadow(tmp_path)
++    assert sh._would_live_accept("burst_follow", "PEPEUSDT", "LONG", "london", "2026-09-25T13:45:00+00:00") == 0
++    assert sh._would_live_accept("burst_follow", "SOLUSDT", "LONG", "london", "2026-09-25T13:45:00+00:00") == 1
++
++
++def test_untracked_rows_cannot_crowd_out(tmp_path, monkeypatch):
++    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", frozenset({"SOLUSDT", "XRPUSDT"}))
++    monkeypatch.setattr(ss, "_LIVE_CLUSTER_WINDOW_MIN", 15)
++    sh = _shadow(tmp_path)
++    for sym in ("1000PEPEUSDT", "XRPUSDT", "TAOUSDT"):
++        ok = sh._would_live_accept("burst_follow", sym, "LONG", "london", "2026-09-25T13:45:00+00:00")
++        sh.conn.execute("INSERT INTO shadow_trades (strategy, symbol, side, session, cluster_bucket, status, "
++                        "would_live_accept) VALUES ('burst_follow', ?, 'LONG', 'london', "
++                        "'2026-09-25T13:45:00+00:00', 'open', ?)", (sym, ok))
++    sh.conn.commit()
++    assert sh._would_live_accept("burst_follow", "SOLUSDT", "LONG", "london", "2026-09-25T13:45:00+00:00") == 1
++
++
++def test_research_strategies_unfiltered(tmp_path, monkeypatch):
++    monkeypatch.setattr(ss, "_LIVE_SYMBOLS", frozenset({"SOLUSDT"}))
++    sh = _shadow(tmp_path)
++    assert sh._would_live_accept("ny_flush_buy_4h", "PEPEUSDT", "LONG", "ny", "2026-09-25T14:00:00+00:00") == 1
