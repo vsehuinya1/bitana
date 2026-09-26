@@ -296,6 +296,26 @@ perp basis counted. Capital: 20 slots, 1.25× capital per notional.
   0–3% of the time. Right now (2026-09-26) the majors are at ≤ 11%/yr, the default floor, so there is nothing to
   hold. High-funding names (+70–180%/yr) are illiquid small caps with pump and basis risk.
 
+## Tested (2026-09-26): improving PREREG-BREAKOUT-4H. Pre-specified variants; the chosen one failed its holdout.
+Procedure, fixed before running: choose on 2021–24 only (edge ≥ baseline + 0.05R, higher t, n ≥ 40%), highest t
+wins, then one check on the 2020 and 2025–26 holdouts. Data: 5m archive with volume resampled to 4h, 20 coins, 20 bps,
+control = random longs with the same exit.
+
+| variant | 2020 edge | 2021–24 edge (t) | 2025–26 edge (t) | 2025–26 total / maxDD | worst week (21–24) |
+|---|---|---|---|---|---|
+| V0 registered | +0.019R | +0.206R (1.92) | +0.104R (0.51) | +26R / −152R | −23R |
+| V1 BTC > EMA200 | −0.025R | +0.277R (2.27) | +0.107R (0.47) | +23R / −149R | −23R |
+| V2 squeeze (ATR% ≤ 30d median) | −0.032R | +0.227R (1.74) | +0.116R (0.47) | +25R / −104R | −23R |
+| V3 volume ≥ 1.5× 20-bar mean | +0.055R | +0.258R (2.04) | **+0.303R (1.03)** | +116R / −112R | −19R |
+| V4 caps (3 new/bar, 8 open) | +0.176R | +0.221R (2.01) | +0.094R (0.47) | +13R / −93R | −13R |
+
+- **By the fixed rule:** V1 and V3 qualified on discovery. V1 had the higher t, so it was chosen, and it **failed** the
+  2020 holdout. No variant is adopted by the procedure.
+- **Disclosed peek:** the runner-up V3 (volume) beats the baseline in both holdouts. Choosing it now is a 2-way
+  selection on holdout data, so it can only be a separate forward paper track, never a replacement.
+- **Risk finding:** portfolio drawdowns in R are large against totals (2025–26: +26R total with a −152R max DD). Any
+  live sizing must be per portfolio (≤ 0.1–0.25% risk per trade, or hard caps like V4, which halves the worst week).
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -312,4 +332,5 @@ perp basis counted. Capital: 20 slots, 1.25× capital per notional.
 | NY with engine filters + lattice (6.7y, Tardis) | no edge: gross −0.11R/leg, net −0.19R; lattice worse than raw |
 | London as live (6.7y, Tardis) | no gross edge (+0.01R); net −0.08R, thin in-schedule sample |
 | Funding carry (delta-neutral, 20 coins) | works: CAGR +7.7%, tiny DD, but ~0 in 2022/2025/2026; idle now |
+| Breakout-4H variants (market / squeeze / volume / caps) | procedure's pick (market filter) failed 2020 holdout; volume filter passed both holdouts (runner-up, disclosed peek) |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
