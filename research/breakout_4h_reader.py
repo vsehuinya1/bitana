@@ -204,6 +204,28 @@ def decide(s, today):
     return 'PARK (extension exhausted)' if today >= EXTENSION_DATE else 'INCONCLUSIVE -> one extension to ' + EXTENSION_DATE
 
 
+def weekly_digest(now=None):
+    """Telegram text for the weekly update (risk watch, Sundays): last 7 days, since start, open paper positions."""
+    now = now or pd.Timestamp.now(tz='UTC')
+    frames = {s: api_4h(s, FORWARD_FROM - pd.Timedelta(days=150)) for s in UNIVERSE}
+    tot = pooled(frames, str(FORWARD_FROM), str(now.normalize() + pd.Timedelta(days=1)), entries_from=FORWARD_FROM)
+    wk, opened = [], []
+    for sym, df in frames.items():
+        if len(df) < EMA_SPAN + 50:
+            continue
+        for t, r, closed in run(df, FORWARD_FROM):
+            if not closed:
+                opened.append(f"{sym.replace('USDT', '')} {r:+.1f}R")
+            elif t + pd.Timedelta(hours=4 * HOLD) >= now - pd.Timedelta(days=7):
+                wk.append(r)
+    head = (f"last 7 days: {len(wk)} closed, {sum(wk):+.1f}R ({np.mean(wk):+.2f}R/trade)" if wk
+            else "last 7 days: no closed trades")
+    since = (f"since {FORWARD_FROM:%d %b}: {tot['n']} closed, E {tot['E']:+.3f}R, random longs {tot['ctrl']:+.3f}R, "
+             f"edge {tot['edge']:+.3f}R (t {tot['t']:+.2f})" if tot.get('n') else f"since {FORWARD_FROM:%d %b}: none closed yet")
+    op = f"open now: {len(opened)}" + (f" ({', '.join(opened[:8])}{'…' if len(opened) > 8 else ''})" if opened else '')
+    return f"PREREG-BREAKOUT-4H weekly | {head} | {since} | {op} | {decide(tot, now.strftime('%Y-%m-%d'))}"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--validate', action='store_true')

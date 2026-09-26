@@ -39,6 +39,7 @@ from core.models import Candle  # noqa: E402
 from engines.btc_regime import compute_regime_snapshot  # noqa: E402
 sys.path.append(f'{ROOT}/research')        # append: research/config would shadow the bot's config package
 import capitulation_reader as capr  # noqa: E402  (PREREG-CAPITULATION-BASKET paper tracker)
+import breakout_4h_reader as bo4  # noqa: E402  (PREREG-BREAKOUT-4H weekly update)
 
 LOG = f'{ROOT}/logs/risk_watch_alerts.log'
 STATE = f'{ROOT}/logs/risk_watch_state.json'
@@ -407,6 +408,14 @@ def tick(mode='loop'):
                      f"5 majors {r.majors_net * 100:+.2f}%, BTC {r.btc_net * 100:+.2f}%")
         except Exception as e:
             print(f'capitulation check failed: {type(e).__name__}', file=sys.stderr, flush=True)
+    # PREREG-BREAKOUT-4H: weekly update, Sundays from 17:00Z (owner request 2026-09-26), once per ISO week
+    wk_key = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]:02d}"
+    if now.weekday() == 6 and now.hour >= 17 and ST.get('bo_week') != wk_key:
+        ST['bo_week'] = wk_key
+        try:
+            emit(f'BO4W:{wk_key}', 'BREAKOUT', bo4.weekly_digest())
+        except Exception as e:
+            print(f'breakout weekly failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # ops
     O = v.get('ops') or {}
     bad = ST.setdefault('unit_bad', {})
