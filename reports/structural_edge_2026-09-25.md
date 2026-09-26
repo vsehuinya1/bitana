@@ -248,6 +248,25 @@ target the 20-bar high; 20 bars):
 **Read:** wide stops fix the cost problem, but neither entry times the market better than random. The floor's
 mechanical ideas are now exhausted: only PREREG-BREAKOUT-4H survived to paper.
 
+## Tested (2026-09-26): NY with the engine's own filters, on 6.7 years of liquidations. No edge; the lattice hurts.
+Same 81 Tardis days × 20 coins. Features are computed with the live engine's functions (`liq_cluster_engine_v5`:
+vol_z, the 6 confirmations, the aggression decile) on the 300 5m candles ending at the signal bar. The NY lattice is
+replayed with the live BTC regime classifier. Exit: NY (5/5/10 ATR, 1h, 20 bps).
+
+| population | legs | days | net | gross | t (day) |
+|---|---|---|---|---|---|
+| raw trigger | 4,217 | 80 | −0.105R | +0.008R | −5.9 |
+| + engine gates (vol_z ≥ 0, n_confirms ≥ 1) | 3,018 | 80 | −0.093R | +0.010R | −4.5 |
+| raw + NY lattice | 340 | 37 | −0.177R | −0.093R | −2.8 |
+| **NY as live (gates + lattice)** | 255 | 35 | **−0.189R** | **−0.113R** | −2.5 |
+
+- **NY as live, by period:** 2020–21 −0.23R, 2022–24 −0.25R, 2025–26 +0.001R (57 legs, one day carries the net).
+- **Read:** the engine gates pass 34% of triggers but add almost nothing (gross +0.008 → +0.010R). The lattice hours
+  were chosen on Aug–Sep 2026 shadow data, and in earlier years they select worse-than-average legs. NY's paper
+  profit since August is not supported by the long history.
+- **Caveats:** 81 sample days; the stream before 2021-04 is complete, later it is Binance's 1-per-second snapshot
+  (same as live); only 35 lattice days.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -261,4 +280,5 @@ mechanical ideas are now exhausted: only PREREG-BREAKOUT-4H survived to paper.
 | Risk Lab floor: 4h BOS-above-EMA200 breakout (20 coins) | consistent small edge vs random longs, unproven (t ≤ 2.3); forward-paper candidate |
 | Risk Lab order-flow cards (extreme buying / selling / absorbed, 30m) | lose after costs every period (−0.02 to −0.16R); beat a cost-sunk control only |
 | Risk Lab HTF: sweep & reclaim (4h/1D), 0.777 limit pullback (4h/1D) | no timing edge; 4h loses every period, 1D weak/concentrated or negative |
+| NY with engine filters + lattice (6.7y, Tardis) | no edge: gross −0.11R/leg, net −0.19R; lattice worse than raw |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
