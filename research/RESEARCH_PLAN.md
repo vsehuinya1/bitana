@@ -1634,3 +1634,36 @@ Source: structural-edge search (owner ask "figure out the structurally bigger ed
   - 28-day ranking: +14%/yr, t 1.0, maxDD −56%
   - 7-day ranking: +18%/yr, t 1.5, maxDD −33%; 2026 −22%
   - both negative or decaying since 2024
+
+### PREREG-BREAKOUT-4H-VOL (paper, parallel track) — registered 2026-09-26 ~12:40Z (owner order "Yes, do")
+- **Rule:** PREREG-BREAKOUT-4H unchanged, plus a filter: signal-bar volume ≥ 1.5 × the mean of the prior 20 bars.
+  Reader of record: `research/breakout_4h_vol_reader.py`. The plain rule's reader gained an optional `vol_mult`
+  argument (default off) and still passes `--validate` with identical numbers.
+- **Origin, disclosed:** pre-specified variant test (edge report, "improving PREREG-BREAKOUT-4H"). The procedure chose
+  the market filter, which failed its 2020 holdout. This volume filter was the runner-up on 2021–24 and beat the plain
+  rule in both holdouts. Choosing it is a 2-way look at holdout data, so it runs as a separate forward track, never a
+  replacement.
+- **Basis** (`--validate`, public archive; does not count):
+
+  | window | trades | E | edge | t(week) | plain rule, same window |
+  |---|---|---|---|---|---|
+  | 2020 | 286 | +0.346R | +0.055R | 0.24 | edge +0.019R |
+  | 2021-01 → 2025-01 | 1,561 | +0.328R | +0.257R | 2.06 | edge +0.205R |
+  | 2025-02 → 2026-08 | 472 | +0.264R | +0.316R | 1.02 | edge +0.108R |
+
+  The 2025-02 → 2026-08 top-5 weeks are 211% of net (concentrated).
+- **Forward:** entries ≥ 2026-09-26T12:00Z.
+- **PROMOTE (ALL):**
+  - E ≥ +0.10R
+  - edge ≥ +0.10R
+  - t(week) ≥ 1.5
+  - top-5 weeks ≤ 60%
+  - edge ≥ the plain rule's forward edge over the same window + 0.05R
+- **KILL:** E < 0 at n ≥ 70; edge ≤ the plain rule's at the formal read.
+- **Formal read:** n ≥ 100 over ≥ 16 weeks, or 2027-03-31. One extension to 2027-06-30.
+- **Sizing note for any live design:** portfolio drawdowns in R are large against totals (plain rule 2025–26: +26R
+  total, −152R max DD). Size per portfolio (≤ 0.1–0.25% risk per trade, or hard caps).
+- **Surfaces:**
+  - Paper Lab tab "Breakout + volume", with an A/B tile against the plain rule
+  - the risk-watch Sunday weekly line
+  - research board row

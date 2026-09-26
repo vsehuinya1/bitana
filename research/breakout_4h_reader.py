@@ -78,7 +78,7 @@ def archive_4h(sym, start='2019-12', end='2026-08'):
         z = zipfile.ZipFile(io.BytesIO(b))
         for line in z.read(z.namelist()[0]).decode().splitlines():
             if line and line[0].isdigit():
-                rows.append([float(x) for x in line.split(',')[:5]])
+                rows.append([float(x) for x in line.split(',')[:6]])          # + volume (unused by this rule)
     return _frame(rows)
 
 
@@ -91,7 +91,7 @@ def api_4h(sym, start):
             context=CTX, timeout=30))
         if not r:
             break
-        rows += [[float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4])] for k in r if k[6] < now]
+        rows += [[float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])] for k in r if k[6] < now]
         t = r[-1][0] + 4 * 3600000
         if len(r) < 1000:
             break
@@ -103,11 +103,12 @@ def _frame(rows):
     if not rows:
         return pd.DataFrame(columns=list('ohlc'))
     a = np.array(rows)
-    df = pd.DataFrame(a[:, 1:5], columns=list('ohlc'), index=pd.to_datetime(a[:, 0], unit='ms', utc=True))
+    df = pd.DataFrame(a[:, 1:6], columns=['o', 'h', 'l', 'c', 'v'], index=pd.to_datetime(a[:, 0], unit='ms', utc=True))
     return df[~df.index.duplicated(keep='last')].sort_index()
 
 
-def signals(df):
+def signals(df, vol_mult=None):
+    """vol_mult: PREREG-BREAKOUT-4H-VOL only (signal-bar volume >= vol_mult x mean of the prior 20 bars). None = this rule."""
     h, c, n = df.h.values, df.c.values, len(df)
     level, last = np.full(n, np.nan), np.nan
     for i in range(2 * PIVOT, n):
@@ -119,16 +120,18 @@ def signals(df):
     sig[1:] = (c[1:] > level[1:]) & (c[:-1] <= level[:-1])
     sig &= c > df.c.ewm(span=EMA_SPAN, adjust=False).mean().values
     sig[:EMA_SPAN] = False
+    if vol_mult is not None:
+        sig &= (df.v >= vol_mult * df.v.shift(1).rolling(20).mean()).fillna(False).values
     pc = df.c.shift(1)
     atr = (np.maximum(df.h, pc) - np.minimum(df.l, pc)).rolling(ATR_N).mean().values
     return sig, atr
 
 
-def run(df, entries_from=None, every_bar=False, detail=False):
+def run(df, entries_from=None, every_bar=False, detail=False, vol_mult=None):
     """Trades (entry_time, R, closed). every_bar=True -> the control (overlap allowed).
     detail=True -> dicts with prices/exit reason, plus skipped signals (a position was already open) as kind='skipped'."""
     o, h, l, c = df.o.values, df.h.values, df.l.values, df.c.values
-    sig, atr = signals(df)
+    sig, atr = signals(df, vol_mult)
     n, out, busy = len(df), [], -1
     cand = np.where(np.isfinite(atr))[0] if every_bar else np.where(sig)[0]
     for s in cand:
@@ -207,12 +210,12 @@ def fmt(s):
             f"t(week)={s['t']:+.2f} top-5 weeks={s['top5']:.0%}")
 
 
-def pooled(frames, a, b, entries_from=None):
+def pooled(frames, a, b, entries_from=None, vol_mult=None):
     tr, ct = [], []
     for df in frames.values():
         if len(df) < EMA_SPAN + 50:
             continue
-        tr += run(df, entries_from)
+        tr += run(df, entries_from, vol_mult=vol_mult)
         ct += [x for x in run(df, entries_from, every_bar=True) if a <= str(x[0]) < b and x[2]]
     ctrl_E = float(np.mean([x[1] for x in ct])) if ct else float('nan')
     return summarize(tr, ctrl_E, pd.Timestamp(a, tz='UTC'), pd.Timestamp(b, tz='UTC'))

@@ -65,7 +65,7 @@ svg text{fill:var(--text-3);font:10px var(--mono)}
   </div>
   <nav class="tabs sys-tabs" id="systabs">
     <button data-k="overview" class="on">Overview</button><button data-k="capitulation">Capitulation</button>
-    <button data-k="breakout">4h Breakout</button><button data-k="carry">Funding carry</button>
+    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button>
   </nav>
   <div id="errors"></div>
   <div id="view"></div>
@@ -151,6 +151,7 @@ function viewBO(s) {
     ${kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', st.n ? `t(week) ${st.t == null ? '—' : st.t.toFixed(2)}` : 'promote needs ≥ +0.10R, t ≥ 1.5', cls(st.edge))}
     ${kpi('Open positions', open.length, `marked ${rr(s.open_R)}`, cls(s.open_R))}
     ${kpi('Top-5 weeks share', st.n && st.top5 != null ? (st.top5 * 100).toFixed(0) + '%' : '—', 'promote needs ≤ 60%')}
+    ${s.vol ? kpi('Plain rule, same window', s.plain_same_window && s.plain_same_window.n ? rr(s.plain_same_window.edge, 3) : '—', 'edge vs random · volume must add ≥ +0.05R', cls(s.plain_same_window && s.plain_same_window.edge)) : ''}
   </div></div>`;
   const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R'],
     s.trades.map(t => [t.sym, dt(t.signal), dt(t.entry_time), px(t.entry), px(t.stop), t.closed ? dt(t.exit_time) : '—',
@@ -158,19 +159,20 @@ function viewBO(s) {
     'No breakout trade since paper started (2026-09-26 08:00Z).');
   const sk = table(['Coin', 'Signal bar', 'Close', 'Why not taken'], s.skipped.map(x => [x.sym, dt(x.signal), px(x.close), esc(x.why)]),
     'No skipped signals.');
-  const w = table(['Coin', 'Close', 'Swing-high trigger', 'Distance', 'EMA200 filter', 'State'],
+  const w = table(['Coin', 'Close', 'Swing-high trigger', 'Distance', 'EMA200 filter'].concat(s.vol ? ['Last bar volume'] : []).concat(['State']),
     s.watch.map(w => {
       const d = w.to_trigger_pct, state = w.open_position ? '<span class="pill warn">in trade</span>'
         : !w.above_ema ? '<span class="mut">below EMA200 — off</span>'
         : d == null ? '<span class="mut">no swing high yet</span>'
         : d > 0 ? `armed: needs a close above ${px(w.level)}` : '<span class="mut">already above — waits for a new swing high</span>';
       return [w.sym, px(w.close), px(w.level), d == null ? '—' : (d > 0 ? '+' + d.toFixed(2) + '%' : 'above'),
-        w.above_ema ? '<span class="pos">above</span>' : '<span class="neg">below</span>', state];
+        w.above_ema ? '<span class="pos">above</span>' : '<span class="neg">below</span>']
+        .concat(s.vol ? [w.vol_ratio == null ? '—' : `<span class="${w.vol_ratio >= 1.5 ? 'pos' : 'mut'}">${w.vol_ratio.toFixed(2)}× avg</span>`] : []).concat([state]);
     }), 'No data.');
   return head(s) + k + `<div class="card"><h3>Cumulative R (closed trades)</h3>${lineChart(s.curve)}</div>
     <div class="card"><h3>Paper trades</h3>${tr}</div>
     <div class="card"><h3>Non-trades · every coin now (last closed 4h bar)</h3>${w}
-      <div class="note">A trade fires when a 4h bar closes above the trigger while price is above its EMA200. Sorted: nearest armed triggers first.</div></div>
+      <div class="note">A trade fires when a 4h bar closes above the trigger while price is above its EMA200${s.vol ? ' and that bar\'s volume is at least 1.5× its 20-bar average' : ''}. Sorted: nearest armed triggers first.</div></div>
     <div class="card"><h3>Non-trades · signals skipped</h3>${sk}</div>`;
 }
 
@@ -213,6 +215,11 @@ function viewOverview(d) {
     kpi('Closed', st.n || 0, b.trades.filter(t => !t.closed).length + ' open') + kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'net', cls(st.E))
     + kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', '', cls(st.edge)) + kpi('Open R', rr(b.open_R), 'marked', cls(b.open_R)),
     'Pays in trends. ~11 trades a week, in bunches.', b.verdict); }
+  const bv = S.breakout_vol;
+  if (bv) { const st = bv.stats || {}, pl = bv.plain_same_window || {}; h += card('breakout_vol', '4h Breakout + volume',
+    kpi('Closed', st.n || 0, bv.trades.filter(t => !t.closed).length + ' open') + kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', '', cls(st.edge))
+    + kpi('Plain rule, same window', pl.n ? rr(pl.edge, 3) : '—', 'volume must add ≥ +0.05R', cls(pl.edge)) + kpi('Open R', rr(bv.open_R), 'marked', cls(bv.open_R)),
+    'Same breakout, only on volume-confirmed bars. Answers: does volume add edge?', bv.verdict); }
   if (f) { h += card('carry', 'Funding carry',
     kpi('Open', f.trades.filter(t => !t.closed).length, f.trades.filter(t => t.closed).length + ' closed') + kpi('Net on capital', pct(f.net_on_capital, 3), '', cls(f.net_on_capital))
     + kpi('Highest funding', f.watch[0] ? pct(f.watch[0].trailing_ann, 0) : '—', 'entry at 15%/yr'),
@@ -228,6 +235,7 @@ function render() {
   $('#view').innerHTML = TAB === 'overview' ? viewOverview(DATA)
     : TAB === 'capitulation' && S.capitulation ? viewCap(S.capitulation)
     : TAB === 'breakout' && S.breakout ? viewBO(S.breakout)
+    : TAB === 'breakout_vol' && S.breakout_vol ? viewBO(S.breakout_vol)
     : TAB === 'carry' && S.carry ? viewCarry(S.carry) : '<div class="empty">No data for this system in the snapshot.</div>';
 }
 document.querySelectorAll('#systabs button').forEach(b => b.onclick = () => go(b.dataset.k));

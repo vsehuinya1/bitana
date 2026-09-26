@@ -21,6 +21,7 @@ import ny_flush_quality_reader as nyq  # noqa: E402
 import asia_midvol_reader as amv  # noqa: E402
 import breakout_4h_reader as bo4  # noqa: E402
 import funding_carry_reader as fcr  # noqa: E402
+import breakout_4h_vol_reader as bov  # noqa: E402
 import capitulation_reader as capr  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
@@ -89,6 +90,14 @@ def main():
                             'n': bs.get('n', 0), 'days': bs.get('weeks', 0), 'n_target': 150, 'days_target': 16})
         except Exception as e:
             print(f'breakout row failed: {type(e).__name__}: {e}', file=sys.stderr)
+        try:
+            vs, vp = bov.read(bf)
+            rows.insert(1, {'name': 'PREREG-BREAKOUT-4H-VOL (paper)', 'kind': 'dark', 'next': 'n>=100 over 16 weeks formal',
+                            'status': (f"{vs['n']} closed, edge {vs['edge']:+.3f}R vs plain {vp.get('edge', float('nan')):+.3f}R"
+                                       if vs.get('n') else 'no closed trades yet') + ' | ' + bov.decide(vs, vp, now.strftime('%Y-%m-%d')),
+                            'n': vs.get('n', 0), 'days': vs.get('weeks', 0), 'n_target': 100, 'days_target': 16})
+        except Exception as e:
+            print(f'breakout-vol row failed: {type(e).__name__}: {e}', file=sys.stderr)
         try:
             fr_ = fcr.read()
             rows.insert(1, {'name': 'PREREG-FUNDING-CARRY (paper)', 'kind': 'dark', 'next': '20 closed or 2027-09-30 formal',

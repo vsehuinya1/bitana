@@ -24,6 +24,7 @@ sys.path.append('/root/bitana/research')
 import capitulation_reader as capr  # noqa: E402
 import breakout_4h_reader as bo4  # noqa: E402
 import funding_carry_reader as fcr  # noqa: E402
+import breakout_4h_vol_reader as bov  # noqa: E402
 
 OUT = '/root/bitana/dashboard/paper_lab.json'
 
@@ -69,35 +70,54 @@ def capitulation(today):
             'threshold': capr.BREADTH}
 
 
-def breakout(today):
+_FRAMES = {}
+
+
+def _frames():
+    if not _FRAMES:
+        start = min(bo4.FORWARD_FROM, bov.FORWARD_FROM) - pd.Timedelta(days=150)
+        _FRAMES.update({s: bo4.api_4h(s, start) for s in bo4.UNIVERSE})
+    return _FRAMES
+
+
+def breakout(today, vol=False):
     now = pd.Timestamp.now(tz='UTC')
+    ff = bov.FORWARD_FROM if vol else bo4.FORWARD_FROM
+    vm = bov.VOL_MULT if vol else None
     trades, skipped, watch, ctrl = [], [], [], []
-    for s in bo4.UNIVERSE:
-        df = bo4.api_4h(s, bo4.FORWARD_FROM - pd.Timedelta(days=150))
+    for s, df in _frames().items():
         if len(df) < bo4.EMA_SPAN + 50:
             continue
-        for x in bo4.run(df, bo4.FORWARD_FROM, detail=True):
+        for x in bo4.run(df, ff, detail=True, vol_mult=vm):
             x['sym'] = s.replace('USDT', '')
             (trades if x['kind'] == 'trade' else skipped).append(x)
-        ctrl += [x for x in bo4.run(df, bo4.FORWARD_FROM, every_bar=True) if x[2]]
+        ctrl += [x for x in bo4.run(df, ff, every_bar=True) if x[2]]
         w = bo4.watch(df)
         if w:
+            w['vol_ratio'] = float(df.v.iloc[-1] / df.v.iloc[-21:-1].mean()) if 'v' in df and df.v.iloc[-21:-1].mean() > 0 else None
             w['sym'] = s.replace('USDT', '')
             w['open_position'] = any(t['sym'] == w['sym'] and not t['closed'] for t in trades)
             watch.append(w)
     ctrl_E = float(np.mean([x[1] for x in ctrl])) if ctrl else None
     closed = [t for t in trades if t['closed']]
     st = bo4.summarize([(t['entry_time'], t['R'], True) for t in closed], ctrl_E if ctrl_E is not None else float('nan'),
-                       bo4.FORWARD_FROM, now.normalize() + pd.Timedelta(days=1)) if closed else {'n': 0}
+                       ff, now.normalize() + pd.Timedelta(days=1)) if closed else {'n': 0}
     curve, cum = [], 0.0
     for t in sorted(closed, key=lambda t: t['exit_time']):
         cum += t['R']; curve.append({'t': t['exit_time'], 'v': cum})
     watch.sort(key=lambda w: (not w['above_ema'], w['to_trigger_pct'] is None or w['to_trigger_pct'] <= 0, abs(w['to_trigger_pct'] or 1e9)))
-    return {'name': '4h breakout', 'prereg': 'PREREG-BREAKOUT-4H', 'forward_from': bo4.FORWARD_FROM,
-            'rule': ('4h close crosses above the last pivot-3 swing high while close > EMA200. Buy next open, stop 2x ATR14, '
-                     'exit on the stop or after 36 bars (6 days). 20 bps. One position per coin. Control: a long at '
-                     'every 4h open with the same exit.'),
-            'verdict': bo4.decide(st, today), 'stats': st, 'control_E': ctrl_E,
+    rule = ('4h close crosses above the last pivot-3 swing high while close > EMA200. Buy next open, stop 2x ATR14, '
+            'exit on the stop or after 36 bars (6 days). 20 bps. One position per coin. Control: a long at '
+            'every 4h open with the same exit.')
+    if vol:
+        plain = bo4.pooled(_frames(), str(ff), str(now.normalize() + pd.Timedelta(days=1)), entries_from=ff)
+        verdict = bov.decide(st, plain, today)
+        rule = rule.replace('while close > EMA200.', 'while close > EMA200 AND the bar\'s volume >= 1.5x its prior-20-bar mean.')
+    else:
+        plain, verdict = None, bo4.decide(st, today)
+    return {'name': '4h breakout + volume' if vol else '4h breakout', 'prereg': 'PREREG-BREAKOUT-4H-VOL' if vol else 'PREREG-BREAKOUT-4H',
+            'forward_from': ff, 'vol': vol, 'plain_same_window': plain,
+            'rule': rule, 'verdict': verdict, 'stats': st, 'control_E': ctrl_E,
             'open_R': sum(t['R'] for t in trades if not t['closed']),
             'trades': sorted(trades, key=lambda t: t['entry_time'], reverse=True), 'skipped': skipped,
             'watch': watch, 'curve': curve}
@@ -123,7 +143,8 @@ def carry(today):
 def main():
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     out = {'built': datetime.now(timezone.utc).isoformat(timespec='seconds'), 'systems': {}, 'errors': {}}
-    for key, fn in (('capitulation', capitulation), ('breakout', breakout), ('carry', carry)):
+    for key, fn in (('capitulation', capitulation), ('breakout', breakout), ('breakout_vol', lambda d: breakout(d, vol=True)),
+                    ('carry', carry)):
         try:
             out['systems'][key] = fn(today)
         except Exception as e:

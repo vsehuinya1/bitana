@@ -41,6 +41,7 @@ sys.path.append(f'{ROOT}/research')        # append: research/config would shado
 import capitulation_reader as capr  # noqa: E402  (PREREG-CAPITULATION-BASKET paper tracker)
 import breakout_4h_reader as bo4  # noqa: E402  (PREREG-BREAKOUT-4H weekly update)
 import funding_carry_reader as fcr  # noqa: E402  (PREREG-FUNDING-CARRY paper track)
+import breakout_4h_vol_reader as bov  # noqa: E402  (PREREG-BREAKOUT-4H-VOL weekly line)
 
 LOG = f'{ROOT}/logs/risk_watch_alerts.log'
 STATE = f'{ROOT}/logs/risk_watch_state.json'
@@ -415,6 +416,9 @@ def tick(mode='loop'):
         ST['bo_week'] = wk_key
         try:
             emit(f'BO4W:{wk_key}', 'BREAKOUT', bo4.weekly_digest())
+            vs, vp = bov.read()
+            emit(f'BO4VW:{wk_key}', 'BREAKOUT', 'PREREG-BREAKOUT-4H-VOL weekly | ' + bo4.fmt(vs)
+                 + f" | plain rule same window: {bo4.fmt(vp)} | {bov.decide(vs, vp, day)}")
             if ST.get('fc_summary'):
                 emit(f'FCW:{wk_key}', 'CARRY', 'PREREG-FUNDING-CARRY weekly | ' + ST['fc_summary'])
         except Exception as e:
