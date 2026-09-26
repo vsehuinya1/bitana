@@ -202,6 +202,25 @@ entries with the same exit, t clustered by week including empty weeks):
 - **tanuki "0.777"** (152 self-logged trades, +187R): discretionary exits and limit fills. It can't be mechanized or
   verified.
 
+## Tested (2026-09-26): Risk Lab order-flow cards on 6.7 years × 20 coins. All lose after costs.
+Data: the Binance 5m archive with taker-buy volume, resampled to 30m. Net taker flow D = (2·taker buy − volume) ×
+close, ranked only against the trailing 90 days. Exit as the ΔAGG card: stop 2 ATR, 3R target, breakeven at +1.5R,
+100 bars. Control: long every 3h, same exit.
+
+| rule | 2020 | 2021–24 | 2025–26 | net of 20 bps |
+|---|---|---|---|---|
+| R1 extreme buying (D ≥ p95), the ΔAGG card | −0.038R | −0.102R | −0.132R | loses every period |
+| R2 extreme selling (D ≤ p5), flush reversal | −0.021R | −0.106R | −0.158R | loses every period |
+| R3 selling absorbed (volume ≥ p90, D < 0, close ≥ open) | −0.056R | −0.056R | −0.105R | loses every period |
+
+- **All rules beat the control** by +0.03 to +0.12R (R3 t 3.9 in 2021–24). But the control itself is −0.17 to −0.19R:
+  this exit on 30m bars is sunk by costs. The triggers fire on big bars, where 20 bps is a smaller share of the stop.
+- **At 10 bps** they are still mostly negative (−0.01 to −0.09R). BTC alone is negative in every rule and period.
+- **The Lab's BRK60+CVD card on BTC 15m** (the Lab's own 6 months): −0.51R over 140 trades, and it broke out of sample.
+  The cards' +10–13R forward results are 9–19 trades each, taken long during one bounce week.
+- **Read:** at 15–30m, order-flow triggers carry a little timing information but nowhere near their costs. Same
+  lesson as NY: short-horizon edges are smaller than execution costs.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -213,4 +232,5 @@ entries with the same exit, t clustered by week including empty weeks):
 | NY flush-buy mechanism, 6.7y liquidations (raw trigger) | no gross edge (+0.005–0.009R, same as random; −0.10 to −0.12R after costs) |
 | Risk Lab floor: fib-bounce family, Lucky f50b | fail on long history / fragile |
 | Risk Lab floor: 4h BOS-above-EMA200 breakout (20 coins) | consistent small edge vs random longs, unproven (t ≤ 2.3); forward-paper candidate |
+| Risk Lab order-flow cards (extreme buying / selling / absorbed, 30m) | lose after costs every period (−0.02 to −0.16R); beat a cost-sunk control only |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
