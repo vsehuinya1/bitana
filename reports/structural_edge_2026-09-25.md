@@ -172,6 +172,36 @@ n_confirms and decile gates are not replicated (5m volume and the aggression sco
   come from the unreplicated gates (fitted on about 5 weeks) or from the recent market. This matches live since
   Jul-22: −0.028 R/leg.
 
+## Risk Lab review (2026-09-26, owner-authorized free week; read-only apart from Lab runs)
+
+**What the Lab can test:**
+- It has no usable liquidation history in backtests. The long-liquidation-flush trigger never fired, even at the top
+  50%, on the 41-day Binance 5m tape. So Bitana-style rules can't be tested there. Our Tardis/6.7y data remains the
+  tool for them.
+- Price tapes are short: 4h back to 13 Aug 2025, 30m about 6 months, 5m about 6 weeks.
+
+**Floor directory:**
+- 58 playbooks, mostly discretionary and self-logged.
+- The mechanical ones are BIGROCKS's 12 BTC-long cards and Lucky's f50b.
+
+**Replication** (rules copied from the cards, 5m data 2020-01 → 2026-09, 20 coins, 20 bps, compared against random long
+entries with the same exit, t clustered by week including empty weeks):
+- **Fib-bounce family** (12h 50/78.6, trail/BE/36-bar, London variant): E ≤ 0 in the authors' own last-30% window
+  (2025-02 → 2026-09) on BTC and on the other 19 coins. The earlier profits look like 2021 bull beta. **Fails.**
+- **BOS pivot-3 breakout** (4h/6h, EMA200 filter): beats random longs in all 12 variant × period cells, by +0.03 to
+  +0.43 R/trade. But week-clustered t is only 0.2–2.3; the best is 4h EMA with a 36-bar exit, +0.24R (t 2.25) in
+  2021–25 and +0.15R (t 0.7) in 2025–26. Gains are concentrated in a few trend weeks. **Consistent but unproven** — a
+  candidate for a frozen forward paper track, not a wire.
+- **Lucky f50b (BTC 30m, NY window, fib 50, 1.5R):**
+  - Lab run (Bybit, 30 Mar → 26 Sep 2026): 63 trades, +0.36R, and the sealed last 30% made +0.23R on 22 trades.
+  - The Lab's own robustness is fragile: a 3.75-ATR swing gives −0.30R, and dropping the NY window gives +0.08R.
+  - Our long-history approximation is negative in every year 2021–2026 (−0.09 to −0.20R at 10 bps). It is not an
+    exact match: 110 vs 63 trades on the same window.
+  - Lucky's discretionary record: 11 trades, +10.9R, average loser −3.67R. His group's paper record: −1.1R over 13.
+  - **Nothing to adopt.**
+- **tanuki "0.777"** (152 self-logged trades, +187R): discretionary exits and limit fills. It can't be mechanized or
+  verified.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -181,4 +211,6 @@ n_confirms and decile gates are not replicated (5m volume and the aggression sco
 | OI flushes | no edge; adds nothing to capitulation |
 | Weekend-gap reversion | no edge (sign flips by period) |
 | NY flush-buy mechanism, 6.7y liquidations (raw trigger) | no gross edge (+0.005–0.009R, same as random; −0.10 to −0.12R after costs) |
+| Risk Lab floor: fib-bounce family, Lucky f50b | fail on long history / fragile |
+| Risk Lab floor: 4h BOS-above-EMA200 breakout (20 coins) | consistent small edge vs random longs, unproven (t ≤ 2.3); forward-paper candidate |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
