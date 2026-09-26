@@ -221,6 +221,33 @@ close, ranked only against the trailing 90 days. Exit as the ΔAGG card: stop 2 
 - **Read:** at 15–30m, order-flow triggers carry a little timing information but nowhere near their costs. Same
   lesson as NY: short-horizon edges are smaller than execution costs.
 
+## Tested (2026-09-26): Risk Lab HTF setups (wide stops, wins many times costs). Neither holds.
+Rules were fixed before running: 20 coins, 2020 → 2026-09, 20 bps. The control replays each trade's own stop % and
+target % from 20 random entry times, so it isolates the timing.
+
+**S1 sweep & reclaim** (a bar trades below the prior-20-bar low and closes back above it; stop under the sweep low;
+target the 20-bar high; 20 bars):
+| | 2020 | 2021–24 | 2025–26 |
+|---|---|---|---|
+| 4h | −0.10R | −0.15R | −0.22R |
+| 1D | −0.11R | +0.05R | +0.25R |
+
+- 4h: no edge over the control.
+- 1D: 269 trades in 2025–26 with an edge of +0.37R, but t is only 1.13, the top-5 weeks are 222% of net, and 2020 is
+  negative. Weak and concentrated.
+
+**S2 0.777 limit** (buy at 0.777 of a confirmed 3-ATR up leg, stop at 0.886, target the swing high, 50 bars):
+| | 2020 | 2021–24 | 2025–26 |
+|---|---|---|---|
+| 4h | +0.03R | −0.56R | −0.44R |
+| 1D | +0.21R | +0.13R | −0.65R |
+
+- The win rate is 6–15% against a target of about 7R, and 1D 2025–26 is t −2.6 versus the control. The discretionary
+  record (tanuki, +187R over 152 trades) is not reproduced by the mechanical core.
+
+**Read:** wide stops fix the cost problem, but neither entry times the market better than random. The floor's
+mechanical ideas are now exhausted: only PREREG-BREAKOUT-4H survived to paper.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -233,4 +260,5 @@ close, ranked only against the trailing 90 days. Exit as the ΔAGG card: stop 2 
 | Risk Lab floor: fib-bounce family, Lucky f50b | fail on long history / fragile |
 | Risk Lab floor: 4h BOS-above-EMA200 breakout (20 coins) | consistent small edge vs random longs, unproven (t ≤ 2.3); forward-paper candidate |
 | Risk Lab order-flow cards (extreme buying / selling / absorbed, 30m) | lose after costs every period (−0.02 to −0.16R); beat a cost-sunk control only |
+| Risk Lab HTF: sweep & reclaim (4h/1D), 0.777 limit pullback (4h/1D) | no timing edge; 4h loses every period, 1D weak/concentrated or negative |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
