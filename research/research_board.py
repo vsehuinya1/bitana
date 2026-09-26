@@ -7,6 +7,8 @@ per run (CLAUDE.md). Rows without a reader carry status text and their next read
 a row is registered, read, or killed. Run: python research/research_board.py  (about 25s, mostly the DB copy).
 """
 import json
+
+import pandas as pd
 import os
 import sys
 from datetime import datetime, timezone
@@ -17,6 +19,7 @@ import late_bull_flush_reader as lbf  # noqa: E402
 import lon_bull_fade_reader as lfade  # noqa: E402
 import ny_flush_quality_reader as nyq  # noqa: E402
 import asia_midvol_reader as amv  # noqa: E402
+import breakout_4h_reader as bo4  # noqa: E402
 import capitulation_reader as capr  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
@@ -75,9 +78,19 @@ def main():
                                    f"{capr.stats(cdone.majors_net)['mean'] * 100:+.2f}%" if cs.get('n') else 'no events yet')
                                   + (f"; {len(ct) - len(cdone)} open" if len(ct) else ''),
                         'n': cs.get('n', 0), 'days': cs.get('n', 0), 'n_target': 12, 'days_target': 12})
+        try:
+            bf = {s_: bo4.api_4h(s_, bo4.FORWARD_FROM - pd.Timedelta(days=150)) for s_ in bo4.UNIVERSE}
+            bs = bo4.pooled(bf, str(bo4.FORWARD_FROM), str(pd.Timestamp.now(tz='UTC').normalize() + pd.Timedelta(days=1)),
+                            entries_from=bo4.FORWARD_FROM)
+            rows.insert(0, {'name': 'PREREG-BREAKOUT-4H (paper)', 'kind': 'dark', 'next': 'n>=150 over 16 weeks formal',
+                            'status': (f"{bs['n']} closed, E {bs['E']:+.3f}R, edge vs random longs {bs['edge']:+.3f}R"
+                                       if bs.get('n') else 'no closed trades yet') + ' | ' + bo4.decide(bs, now.strftime('%Y-%m-%d')),
+                            'n': bs.get('n', 0), 'days': bs.get('weeks', 0), 'n_target': 150, 'days_target': 16})
+        except Exception as e:
+            print(f'breakout row failed: {type(e).__name__}: {e}', file=sys.stderr)
         ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
         a_s, a_lv = amv.stats(ak), amv.stats([x for x in ak if x['symbol'] in amv.LIVE])
-        rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (LIVE, early wire)', 'kind': 'live', 'next': 'n>=30 revert check / n>=50 & 10d formal',
+        rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (paper since 2026-09-25)', 'kind': 'dark', 'next': 'n>=30 revert check / n>=50 & 10d formal',
                         'status': amv.decide(a_s, a_lv, now.strftime('%Y-%m-%d')), 'n': a_s.get('n', 0),
                         'days': a_s.get('days', 0), 'n_target': 50, 'days_target': 10})
     finally:

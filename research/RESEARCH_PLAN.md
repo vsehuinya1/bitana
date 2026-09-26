@@ -1565,3 +1565,41 @@ Source: structural-edge search (owner ask "figure out the structurally bigger ed
 - **Status: REPORT-ONLY.** The registered rule's verdict (promote/kill) stays on the 20-coin basket, unchanged. At promotion the
   owner chooses the executed basket with both forward records in hand.
 - **Surfaces:** reader forward reads, research board status, and the watch's paper-exit Telegram line (20-coin, 5 majors, BTC).
+
+### PREREG-BREAKOUT-4H (paper) — registered 2026-09-26 ~08:40Z (owner order "Put the breakout rule on paper yes and register")
+- **Source:** the Risk Lab floor card "4h bos 36" (@BIGROCKS, BTC only). It was replicated on 20 coins × 6.7 years
+  (`reports/structural_edge_2026-09-25.md`, "Risk Lab review"). It is a trend-following sleeve, unrelated to the burst
+  arms. DARK: nothing is wired.
+- **Frozen rule** (reader of record `research/breakout_4h_reader.py`, docstring authoritative). Each coin runs
+  independently, with one position per coin:
+  - bars: Binance 4h
+  - signal: close crosses above the last pivot-3 swing high AND close > EMA200
+  - entry: next open
+  - stop: entry − 2 × ATR14 (signal bar), intrabar
+  - exit: close of the 36th bar
+  - cost: 20 bps
+  - universe: the 20 coins of PREREG-CAPITULATION-BASKET
+- **Control:** a long at every 4h open, same stop and exit. Edge = E − control E. The t-stat is clustered by week, with
+  empty weeks included.
+- **Basis** (`--validate`, public archive; in-sample, does not count):
+
+  | window | trades | E | control | edge | t(week) | top-5 weeks |
+  |---|---|---|---|---|---|---|
+  | 2020 | 408 | +0.310R | +0.291R | +0.019R | +0.10 | — |
+  | 2021-01 → 2025-01 | 2,336 | +0.276R | +0.071R | +0.205R | +1.93 | 54% |
+  | 2025-02 → 2026-08 | 769 | +0.055R | −0.053R | +0.108R | +0.50 | 714% |
+
+  Disclosed: the edge is positive in every window but never significant on its own, and the recent window is thin
+  and concentrated.
+- **Forward:** entries ≥ 2026-09-26T08:00Z.
+- **PROMOTE (ALL, formal read):**
+  - E ≥ +0.10R
+  - edge ≥ +0.10R
+  - t(week) ≥ 1.5
+  - top-5 weeks ≤ 60% of net
+- **KILL (ANY):** E < 0 at n ≥ 100; edge ≤ 0 at the formal read.
+- **Formal read:** n ≥ 150 closed over ≥ 16 weeks, or 2027-03-31. One extension to 2027-06-30, then park.
+- **Promotion:** an owner decision on a separately sized sleeve (about 11 trades a week across 20 coins, multi-day
+  holds, many concurrent longs). The size must be set for correlation: concurrent longs are close to one market bet.
+- **Surfaces:** `research/research_board.py` row "PREREG-BREAKOUT-4H (paper)". The board row for ASIA-MIDVOL was
+  relabelled paper (it went back to paper 2026-09-25).
