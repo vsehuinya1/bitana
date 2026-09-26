@@ -460,9 +460,17 @@ def tick(mode='loop'):
         # a restart passes through deactivating/activating for a few seconds: alert only if it persists 2 ticks
         if s not in ('activating', 'deactivating', 'reloading') or bad[u] >= 2:
             emit(f'OPS:unit:{u}:{H}', 'OPS', f'{u} is {s}')
+    pbad = ST.setdefault('pm2_bad', {})
     for u, s in (O.get('pm2') or {}).items():
-        if s != 'online':
-            emit(f'OPS:pm2:{u}:{H}', 'OPS', f'pm2 {u} is {s}')
+        if s == 'online':
+            pbad.pop(u, None)
+            continue
+        pbad[u] = pbad.get(u, 0) + 1
+        # 2026-09-26: a single slow 'pm2 jlist' (5 s timeout under host load) reads as "unavailable" -> alert on 2 ticks
+        if pbad[u] >= 2:
+            emit(f'OPS:pm2:{u}:{H}', 'OPS', f'pm2 {u} is {s} (2 checks in a row)')
+    for u in [k for k in pbad if k not in (O.get('pm2') or {})]:
+        pbad.pop(u, None)
     for k, s in (O.get('freshness_s') or {}).items():
         if k in FRESH_LIMIT and s is not None and s > FRESH_LIMIT[k]:
             emit(f'OPS:fresh:{k}:{H}', 'OPS', f'{k} stale for {s / 60:.0f} min')
