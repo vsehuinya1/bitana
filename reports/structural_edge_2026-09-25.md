@@ -316,6 +316,22 @@ control = random longs with the same exit.
 - **Risk finding:** portfolio drawdowns in R are large against totals (2025–26: +26R total with a −152R max DD). Any
   live sizing must be per portfolio (≤ 0.1–0.25% risk per trade, or hard caps like V4, which halves the worst week).
 
+## Tested (2026-09-26): breakout-4H execution, market vs limit entry (5m simulation, 2020 → 2026-09)
+Signals are the registered rule's. Costs: market entry 0.10%, maker 0.02%, exit 0.10%. Missed limits count as 0R.
+
+| per signal | 2020 (329) | 2021–24 (1,872) | 2025–26 (718) |
+|---|---|---|---|
+| A market at next 4h open | +0.305R | +0.285R | +0.061R |
+| L1 limit back at the broken level, 24h | +0.157R (fill 75%) | +0.144R (74%) | −0.054R (74%) |
+| L2 limit at the signal close, 4h | **+0.328R** (99%) | +0.283R (99%) | **+0.080R** (99%) |
+
+- **L1 is adverse selection.** The 25% it misses are the runners, +1.0 to +1.5R each at market. The fills it gets are
+  the breakouts that failed back. Rejected.
+- **L2 fills 99% at maker** and saves about +0.02–0.03R per filled trade (the fee difference). Its rare misses are big
+  runners (2021–24: 12 signals averaging +3.4R). Net ≈ +0.00 to +0.02R per signal.
+- **Read:** execution is worth about +0.02R per trade: a live implementation detail (post at the close, fall back to
+  market if unfilled), not an edge lever.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -333,4 +349,5 @@ control = random longs with the same exit.
 | London as live (6.7y, Tardis) | no gross edge (+0.01R); net −0.08R, thin in-schedule sample |
 | Funding carry (delta-neutral, 20 coins) | works: CAGR +7.7%, tiny DD, but ~0 in 2022/2025/2026; idle now |
 | Breakout-4H variants (market / squeeze / volume / caps) | procedure's pick (market filter) failed 2020 holdout; volume filter passed both holdouts (runner-up, disclosed peek) |
+| Breakout-4H limit entry | retest limit loses the runners (reject); limit at close ≈ +0.02R/trade (execution detail) |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
