@@ -40,6 +40,7 @@ from engines.btc_regime import compute_regime_snapshot  # noqa: E402
 sys.path.append(f'{ROOT}/research')        # append: research/config would shadow the bot's config package
 import capitulation_reader as capr  # noqa: E402  (PREREG-CAPITULATION-BASKET paper tracker)
 import breakout_4h_reader as bo4  # noqa: E402  (PREREG-BREAKOUT-4H weekly update)
+import funding_carry_reader as fcr  # noqa: E402  (PREREG-FUNDING-CARRY paper track)
 
 LOG = f'{ROOT}/logs/risk_watch_alerts.log'
 STATE = f'{ROOT}/logs/risk_watch_state.json'
@@ -414,8 +415,26 @@ def tick(mode='loop'):
         ST['bo_week'] = wk_key
         try:
             emit(f'BO4W:{wk_key}', 'BREAKOUT', bo4.weekly_digest())
+            if ST.get('fc_summary'):
+                emit(f'FCW:{wk_key}', 'CARRY', 'PREREG-FUNDING-CARRY weekly | ' + ST['fc_summary'])
         except Exception as e:
             print(f'breakout weekly failed: {type(e).__name__}', file=sys.stderr, flush=True)
+    # PREREG-FUNDING-CARRY: after each paper act time (settlement + 1h = 01/09/17Z), alert entries/exits
+    if now.hour in (1, 9, 17) and now.minute >= 5 and ST.get('fc_slot') != f'{day}:{now.hour}':
+        ST['fc_slot'] = f'{day}:{now.hour}'
+        try:
+            r = fcr.read()
+            for t in r['open']:
+                emit(f"FCIN:{t['sym']}:{t['entry'].isoformat()}", 'CARRY',
+                     f"paper entry {t['sym']} at {t['entry']:%d %b %H}:00Z: trailing-24h funding >= {fcr.ENTER:.0%}/yr "
+                     f"(long spot / short perp, PREREG-FUNDING-CARRY)")
+            for t in r['closed']:
+                emit(f"FCOUT:{t['sym']}:{t['exit'].isoformat()}", 'CARRY',
+                     f"paper exit {t['sym']} at {t['exit']:%d %b %H}:00Z: funding {t['funding'] * 100:+.2f}%, "
+                     f"basis {t['basis'] * 100:+.2f}%, net {t['net'] * 100:+.2f}% of notional")
+            ST['fc_summary'] = fcr.summary(r, day)
+        except Exception as e:
+            print(f'carry check failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # ops
     O = v.get('ops') or {}
     bad = ST.setdefault('unit_bad', {})

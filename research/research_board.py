@@ -20,6 +20,7 @@ import lon_bull_fade_reader as lfade  # noqa: E402
 import ny_flush_quality_reader as nyq  # noqa: E402
 import asia_midvol_reader as amv  # noqa: E402
 import breakout_4h_reader as bo4  # noqa: E402
+import funding_carry_reader as fcr  # noqa: E402
 import capitulation_reader as capr  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
@@ -88,6 +89,13 @@ def main():
                             'n': bs.get('n', 0), 'days': bs.get('weeks', 0), 'n_target': 150, 'days_target': 16})
         except Exception as e:
             print(f'breakout row failed: {type(e).__name__}: {e}', file=sys.stderr)
+        try:
+            fr_ = fcr.read()
+            rows.insert(1, {'name': 'PREREG-FUNDING-CARRY (paper)', 'kind': 'dark', 'next': '20 closed or 2027-09-30 formal',
+                            'status': fcr.summary(fr_, now.strftime('%Y-%m-%d')), 'n': len(fr_['closed']),
+                            'days': len(fr_['open']), 'n_target': 20, 'days_target': 20})
+        except Exception as e:
+            print(f'carry row failed: {type(e).__name__}: {e}', file=sys.stderr)
         ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
         a_s, a_lv = amv.stats(ak), amv.stats([x for x in ak if x['symbol'] in amv.LIVE])
         rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (paper since 2026-09-25)', 'kind': 'dark', 'next': 'n>=30 revert check / n>=50 & 10d formal',

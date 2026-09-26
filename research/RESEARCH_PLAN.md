@@ -1603,3 +1603,34 @@ Source: structural-edge search (owner ask "figure out the structurally bigger ed
   holds, many concurrent longs). The size must be set for correlation: concurrent longs are close to one market bet.
 - **Surfaces:** `research/research_board.py` row "PREREG-BREAKOUT-4H (paper)". The board row for ASIA-MIDVOL was
   relabelled paper (it went back to paper 2026-09-25).
+
+### PREREG-FUNDING-CARRY (paper) — registered 2026-09-26 ~10:30Z (owner order "Both next": carry paper track)
+- **Basis:** `reports/structural_edge_2026-09-25.md`, "delta-neutral funding carry". 20 coins, 2020-01 → 2026-09,
+  rule at 0.30% round trip:
+  - CAGR +7.7% on capital; funding +52.1%, basis +2.3%, costs −4.1%
+  - by year: 2020 +11.8%, 2021 +33.9%, 2022 +0.2%, 2023 +2.8%, 2024 +7.2%, 2025 +0.1%, 2026 −0.0%
+  - Disclosed: a bull-regime premium; idle through 2026 so far (the majors sit at the 11%/yr floor)
+- **Frozen rule** (reader of record `research/funding_carry_reader.py`, docstring authoritative):
+  - long spot + short USDT-M perp, equal notional, per coin
+  - enter when trailing-24h settled funding ≥ 15%/yr; exit when < 3%/yr
+  - act at the 1h open after the settlement
+  - 0.30% round trip
+  - 20 slots, 1.25× capital per notional
+- **Forward:** signals from the 2026-09-26T16:00Z settlement.
+- **PROMOTE (ALL):**
+  - ≥ 20 closed
+  - net > 0
+  - annualized net on deployed capital ≥ 8%
+  - basis + costs ≤ 25% of funding
+- **KILL:** net < 0 at ≥ 20 closed.
+- **REVIEW:** any trade with basis < −3% (hedge failure).
+- **Formal read:** 20 closed or 2027-09-30. One extension to 2028-03-31, then park.
+- **Promotion needs:** spot trading on the API key and a unified/portfolio-margin account (owner decision).
+- **Surfaces:**
+  - risk watch Telegram CARRY lines at 01/09/17Z (paper entries/exits)
+  - Sunday weekly line with the breakout digest
+  - research board row
+- **Also tested 2026-09-26, not registered:** weekly cross-coin momentum (long top 4 / short bottom 4)
+  - 28-day ranking: +14%/yr, t 1.0, maxDD −56%
+  - 7-day ranking: +18%/yr, t 1.5, maxDD −33%; 2026 −22%
+  - both negative or decaying since 2024
