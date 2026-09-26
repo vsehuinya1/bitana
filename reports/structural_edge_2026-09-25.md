@@ -279,6 +279,23 @@ stop, 3-ATR target, 30 min, 20 bps.
 - As live, by period: 2020–21 −0.09R, 2022–24 −0.03R, 2025–26 −0.19R. The in-schedule sample is thin (11 days).
 - Row 11 (PREREG-LON-BULL-FADE) has 0 forward legs: the age cap removes the population it measures.
 
+## Tested (2026-09-26): delta-neutral funding carry, 20 coins, 2020-01 → 2026-09. It works, but only in bull regimes.
+Rule, fixed before running: long spot + short perp at equal notional. Enter when the trailing-24h funding averages
+≥ 15%/yr, exit when it falls below 3%/yr, act 1h after settlement. Costs 0.30% round trip (0.15% maker case), spot vs
+perp basis counted. Capital: 20 slots, 1.25× capital per notional.
+
+| | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 YTD | CAGR | maxDD |
+|---|---|---|---|---|---|---|---|---|---|
+| rule (0.30%) | +11.8% | +33.9% | +0.2% | +2.8% | +7.2% | +0.1% | −0.0% | **+7.7%** | −0.3%* |
+| always on | +9.9% | +35.2% | −3.1% | +4.2% | +9.2% | +1.5% | −0.2% | +7.8% | −3.9%* |
+
+- **Decomposition (rule):** funding +52.1%, basis +2.3%, costs −4.1% of capital over 6.7y. 344 trades.
+- *Drawdowns are understated: basis is booked at exit, not marked to market daily. The margin of a short perp in a
+  pump also needs managing (a unified or portfolio-margin account).
+- **Read:** it is a real premium, but a bull-market one. 2022, 2025 and 2026 earned about 0 and it was deployed
+  0–3% of the time. Right now (2026-09-26) the majors are at ≤ 11%/yr, the default floor, so there is nothing to
+  hold. High-funding names (+70–180%/yr) are illiquid small caps with pump and basis risk.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -294,4 +311,5 @@ stop, 3-ATR target, 30 min, 20 bps.
 | Risk Lab HTF: sweep & reclaim (4h/1D), 0.777 limit pullback (4h/1D) | no timing edge; 4h loses every period, 1D weak/concentrated or negative |
 | NY with engine filters + lattice (6.7y, Tardis) | no edge: gross −0.11R/leg, net −0.19R; lattice worse than raw |
 | London as live (6.7y, Tardis) | no gross edge (+0.01R); net −0.08R, thin in-schedule sample |
+| Funding carry (delta-neutral, 20 coins) | works: CAGR +7.7%, tiny DD, but ~0 in 2022/2025/2026; idle now |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
