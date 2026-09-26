@@ -267,6 +267,18 @@ replayed with the live BTC regime classifier. Exit: NY (5/5/10 ATR, 1h, 20 bps).
 - **Caveats:** 81 sample days; the stream before 2021-04 is complete, later it is Binance's 1-per-second snapshot
   (same as live); only 35 lattice days.
 
+## Tested (2026-09-26): London's exact live rule on the same 6.7 years. No gross edge.
+The live SessionBurstRule is loaded from the yaml (hour gate, bull/bear regimes, weekdays, age cap 17). Exit: 6-ATR
+stop, 3-ATR target, 30 min, 20 bps.
+
+| population | legs | days | net | gross |
+|---|---|---|---|---|
+| raw trigger with the London exit | 5,899 | 80 | −0.102R (t −7.9) | +0.007R |
+| **London as live** (engine gates + schedule) | 80 | 11 | −0.084R | +0.010R |
+
+- As live, by period: 2020–21 −0.09R, 2022–24 −0.03R, 2025–26 −0.19R. The in-schedule sample is thin (11 days).
+- Row 11 (PREREG-LON-BULL-FADE) has 0 forward legs: the age cap removes the population it measures.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -281,4 +293,5 @@ replayed with the live BTC regime classifier. Exit: NY (5/5/10 ATR, 1h, 20 bps).
 | Risk Lab order-flow cards (extreme buying / selling / absorbed, 30m) | lose after costs every period (−0.02 to −0.16R); beat a cost-sunk control only |
 | Risk Lab HTF: sweep & reclaim (4h/1D), 0.777 limit pullback (4h/1D) | no timing edge; 4h loses every period, 1D weak/concentrated or negative |
 | NY with engine filters + lattice (6.7y, Tardis) | no edge: gross −0.11R/leg, net −0.19R; lattice worse than raw |
+| London as live (6.7y, Tardis) | no gross edge (+0.01R); net −0.08R, thin in-schedule sample |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
