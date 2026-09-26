@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#070a12">
+<title>Paper Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+<!-- 2026-09-26: Paper Lab tab (owner request) — the three paper systems, separate from the live Bitana dashboard.
+     Data: /api/paper (dashboard/paper_lab.json, rebuilt hourly by research/paper_lab_build.py). Self-contained. -->
+<style>
+:root{--bg:#070a12;--card:#0e1420;--hover:#151d2e;--inset:#0a0f1a;--border:#1c2637;--border-hi:#2f3e57;
+--text:#f1f5f9;--text-2:#94a3b8;--text-3:#5c6b82;--green:#22d67b;--green-bg:rgba(34,214,123,.12);--red:#f4506a;
+--red-bg:rgba(244,80,106,.12);--amber:#f5b840;--amber-bg:rgba(245,184,64,.12);--blue:#4d9fff;--blue-bg:rgba(77,159,255,.12);
+--r:14px;--rs:9px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+--mono:'SF Mono',SFMono-Regular,'Cascadia Code','Fira Code',Consolas,monospace}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.45;min-height:100vh;font-size:14px}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.brand{font-weight:800;letter-spacing:.14em;font-size:15px}
+.tabs{display:flex;gap:6px;background:var(--inset);border:1px solid var(--border);border-radius:999px;padding:4px}
+.tabs a,.tabs button{border:0;background:transparent;color:var(--text-2);font:600 13px var(--font);padding:7px 14px;border-radius:999px;cursor:pointer;text-decoration:none}
+.tabs .on{background:var(--hover);color:var(--text);box-shadow:inset 0 0 0 1px var(--border-hi)}
+.meta{color:var(--text-3);font-size:12px}
+.sys-tabs{margin:4px 0 14px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.sys-tabs button{flex:0 0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h2{font-size:16px;font-weight:700}
+.card h3{font-size:13px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.rule{color:var(--text-2);font-size:13px;margin-top:6px}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--blue-bg);color:var(--blue)}
+.pill.good{background:var(--green-bg);color:var(--green)}.pill.bad{background:var(--red-bg);color:var(--red)}.pill.warn{background:var(--amber-bg);color:var(--amber)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:var(--inset);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px}
+.kpi .l{color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.kpi .v{font:700 20px var(--mono);margin-top:2px}
+.kpi .s{color:var(--text-3);font-size:11.5px;margin-top:2px}
+.pos{color:var(--green)}.neg{color:var(--red)}.mut{color:var(--text-3)}
+.tbl{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--text-3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);white-space:nowrap}
+tr:hover td{background:var(--hover)}
+.empty{color:var(--text-3);font-size:13px;padding:10px 0}
+.bar{position:relative;height:8px;background:var(--inset);border-radius:4px;min-width:90px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--blue)}
+.bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--amber)}
+svg text{fill:var(--text-3);font:10px var(--mono)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}.wrap{padding:12px}}
+.err{background:var(--red-bg);color:var(--red);border-radius:var(--rs);padding:10px;margin-bottom:12px;font-size:13px}
+.note{color:var(--text-3);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="brand">PAPER LAB</div>
+      <nav class="tabs"><a id="lnk-live" href="#">Bitana (live)</a><a class="on" href="#">Paper Lab</a></nav>
+    </div>
+    <div class="meta" id="built">loading…</div>
+  </div>
+  <nav class="tabs sys-tabs" id="systabs">
+    <button data-k="overview" class="on">Overview</button><button data-k="capitulation">Capitulation</button>
+    <button data-k="breakout">4h Breakout</button><button data-k="carry">Funding carry</button>
+  </nav>
+  <div id="errors"></div>
+  <div id="view"></div>
+</div>
+<script>
+const TK = new URLSearchParams(location.search).get('token') || '';
+document.getElementById('lnk-live').href = '/?token=' + encodeURIComponent(TK);
+let DATA = null, TAB = 'overview';
+try { TAB = localStorage.getItem('paperTab') || 'overview'; } catch (e) {}
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = (x, d = 2) => x == null ? '—' : (x >= 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
+const rr = (x, d = 2) => x == null ? '—' : (x >= 0 ? '+' : '') + Number(x).toFixed(d) + 'R';
+const cls = x => x == null ? 'mut' : (x > 0 ? 'pos' : x < 0 ? 'neg' : 'mut');
+const px = x => x == null ? '—' : (x >= 100 ? x.toFixed(2) : x >= 1 ? x.toFixed(4) : x.toPrecision(5));
+const dt = s => { if (!s) return '—'; const d = new Date(s); return d.toISOString().slice(5, 16).replace('T', ' ') + 'Z'; };
+const ago = s => { const m = (Date.now() - new Date(s)) / 60000; return m < 90 ? Math.round(m) + ' min ago' : (m / 60).toFixed(1) + ' h ago'; };
+function verdictPill(v) {
+  const k = /PROMOTE/.test(v) ? 'good' : /KILL|REVIEW/.test(v) ? 'bad' : /INCONCLUSIVE|PARK/.test(v) ? 'warn' : '';
+  return `<span class="pill ${k}">${esc(v)}</span>`;
+}
+function kpi(l, v, s = '', c = '') { return `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div><div class="s">${s}</div></div>`; }
+function table(cols, rows, empty) {
+  if (!rows.length) return `<div class="empty">${empty}</div>`;
+  return `<div class="tbl"><table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function head(s) {
+  return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+    <h2>${esc(s.name)} <span class="mut" style="font-weight:500;font-size:12px">${esc(s.prereg)}</span></h2>${verdictPill(s.verdict)}</div>
+    <div class="rule">${esc(s.rule)}</div><div class="note">Paper since ${dt(s.forward_from)}. Rules frozen at registration; the verdict comes from the reader of record.</div></div>`;
+}
+function lineChart(pts, h = 120, zero = true) {
+  if (!pts.length) return '<div class="empty">No closed trades yet — the curve starts with the first one.</div>';
+  const W = 600, P = 24, vs = pts.map(p => p.v), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), sp = (hi - lo) || 1;
+  const x = i => P + (W - 2 * P) * (pts.length === 1 ? 1 : i / (pts.length - 1)), y = v => h - 16 - (h - 28) * (v - lo) / sp;
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  const last = vs[vs.length - 1];
+  return `<svg viewBox="0 0 ${W} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Cumulative result">
+    ${zero ? `<line x1="${P}" x2="${W - P}" y1="${y(0)}" y2="${y(0)}" stroke="#2f3e57" stroke-dasharray="3 3"/>` : ''}
+    <path d="${d}" fill="none" stroke="${last >= 0 ? '#22d67b' : '#f4506a'}" stroke-width="2"/>
+    <text x="${W - P}" y="12" text-anchor="end">${rr(last)}</text></svg>`;
+}
+function breadthChart(pts, thr) {
+  if (!pts.length) return '<div class="empty">No breadth data.</div>';
+  const W = 600, H = 130, P = 22, n = pts.length, bw = (W - 2 * P) / n;
+  const y = v => H - 18 - (H - 30) * v;
+  const bars = pts.map((p, i) => `<rect x="${(P + i * bw).toFixed(1)}" y="${y(p.v).toFixed(1)}" width="${Math.max(bw - 0.6, 0.6).toFixed(1)}" height="${(H - 18 - y(p.v)).toFixed(1)}" fill="${p.v >= thr ? '#f4506a' : p.v >= 0.5 ? '#f5b840' : '#4d9fff'}" opacity=".85"><title>${dt(p.t)}: ${(p.v * 100).toFixed(0)}%</title></rect>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="Hourly breadth, last 7 days">
+    ${bars}<line x1="${P}" x2="${W - P}" y1="${y(thr)}" y2="${y(thr)}" stroke="#f4506a" stroke-dasharray="4 3"/>
+    <text x="${P}" y="${y(thr) - 3}">event line ${(thr * 100).toFixed(0)}%</text>
+    <line x1="${P}" x2="${W - P}" y1="${y(0.5)}" y2="${y(0.5)}" stroke="#f5b840" stroke-dasharray="2 4" opacity=".7"/>
+    <text x="${W - P}" y="${H - 4}" text-anchor="end">now</text><text x="${P}" y="${H - 4}">7 days ago</text></svg>`;
+}
+
+function viewCap(s) {
+  const a = s.stats_20 || {}, m = s.stats_majors || {}, open = s.trades.filter(t => !t.closed).length, lh = s.last_hour;
+  const k = `<div class="card"><div class="kpis">
+    ${kpi('Events closed', a.n || 0, open ? open + ' open (24h hold)' : 'none open')}
+    ${kpi('20-coin basket', a.n ? pct(a.mean) : '—', a.n ? `median ${pct(a.median)} · hit ${(a.hit * 100).toFixed(0)}%` : 'per event, net 20 bps', cls(a.mean))}
+    ${kpi('5 majors', m.n ? pct(m.mean) : '—', 'per event, net 15 bps', cls(m.mean))}
+    ${kpi('Worst event', a.n ? pct(a.worst, 1) : '—', 'kill line: mean < -1% at n>=12', cls(a.worst))}
+    ${kpi('Last hour breadth', lh ? (lh.v * 100).toFixed(0) + '%' : '—', lh ? dt(lh.t) + ' · event at 75%' : '', lh && lh.v >= 0.5 ? 'neg' : '')}
+  </div></div>`;
+  const tr = table(['Event hour', 'Entry', 'Exit', 'Breadth', '20-coin', '5 majors', 'BTC', 'Status'],
+    s.trades.map(t => [dt(t.event_hour), dt(t.entry), dt(t.exit), (t.breadth * 100).toFixed(0) + '%',
+      `<span class="${cls(t.basket_net)}">${pct(t.basket_net)}</span>`, `<span class="${cls(t.majors_net)}">${pct(t.majors_net)}</span>`,
+      `<span class="${cls(t.btc_net)}">${pct(t.btc_net)}</span>`, t.closed ? 'closed' : '<span class="pill warn">open</span>']),
+    'No capitulation event since paper started. Expect ~2 a month, clustered in selloffs.');
+  const nm = table(['Hour', 'Breadth', 'Needed'], s.near_misses.slice().reverse().map(n => [dt(n.t), (n.v * 100).toFixed(0) + '%', '75%']),
+    'No near-miss (≥ 50% of coins at ≤ −3σ) since paper started.');
+  return head(s) + k + `<div class="card"><h3>Paper trades</h3>${tr}</div>
+    <div class="grid2"><div class="card"><h3>Non-trades · hourly breadth, last 7 days</h3>${breadthChart(s.breadth_7d, s.threshold)}
+      <div class="note">Share of the 20 coins with an hourly move ≤ −3σ. Red dashed line = event threshold; amber = near-miss zone.</div></div>
+    <div class="card"><h3>Non-trades · near-misses</h3>${nm}</div></div>`;
+}
+
+function viewBO(s) {
+  const st = s.stats || {}, open = s.trades.filter(t => !t.closed);
+  const k = `<div class="card"><div class="kpis">
+    ${kpi('Closed trades', st.n || 0, `${open.length} open · target 150 over 16 weeks`)}
+    ${kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'net 20 bps', cls(st.E))}
+    ${kpi('Random longs', s.control_E == null ? '—' : rr(s.control_E, 3), 'same exit, every 4h bar', cls(s.control_E))}
+    ${kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', st.n ? `t(week) ${st.t == null ? '—' : st.t.toFixed(2)}` : 'promote needs ≥ +0.10R, t ≥ 1.5', cls(st.edge))}
+    ${kpi('Open positions', open.length, `marked ${rr(s.open_R)}`, cls(s.open_R))}
+    ${kpi('Top-5 weeks share', st.n && st.top5 != null ? (st.top5 * 100).toFixed(0) + '%' : '—', 'promote needs ≤ 60%')}
+  </div></div>`;
+  const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R'],
+    s.trades.map(t => [t.sym, dt(t.signal), dt(t.entry_time), px(t.entry), px(t.stop), t.closed ? dt(t.exit_time) : '—',
+      px(t.exit), t.closed ? t.reason : '<span class="pill warn">open</span>', t.bars + '/36', `<span class="${cls(t.R)}">${rr(t.R)}</span>`]),
+    'No breakout trade since paper started (2026-09-26 08:00Z).');
+  const sk = table(['Coin', 'Signal bar', 'Close', 'Why not taken'], s.skipped.map(x => [x.sym, dt(x.signal), px(x.close), esc(x.why)]),
+    'No skipped signals.');
+  const w = table(['Coin', 'Close', 'Swing-high trigger', 'Distance', 'EMA200 filter', 'State'],
+    s.watch.map(w => {
+      const d = w.to_trigger_pct, state = w.open_position ? '<span class="pill warn">in trade</span>'
+        : !w.above_ema ? '<span class="mut">below EMA200 — off</span>'
+        : d == null ? '<span class="mut">no swing high yet</span>'
+        : d > 0 ? `armed: needs a close above ${px(w.level)}` : '<span class="mut">already above — waits for a new swing high</span>';
+      return [w.sym, px(w.close), px(w.level), d == null ? '—' : (d > 0 ? '+' + d.toFixed(2) + '%' : 'above'),
+        w.above_ema ? '<span class="pos">above</span>' : '<span class="neg">below</span>', state];
+    }), 'No data.');
+  return head(s) + k + `<div class="card"><h3>Cumulative R (closed trades)</h3>${lineChart(s.curve)}</div>
+    <div class="card"><h3>Paper trades</h3>${tr}</div>
+    <div class="card"><h3>Non-trades · every coin now (last closed 4h bar)</h3>${w}
+      <div class="note">A trade fires when a 4h bar closes above the trigger while price is above its EMA200. Sorted: nearest armed triggers first.</div></div>
+    <div class="card"><h3>Non-trades · signals skipped</h3>${sk}</div>`;
+}
+
+function viewCarry(s) {
+  const open = s.trades.filter(t => !t.closed), closed = s.trades.filter(t => t.closed);
+  const top = s.watch[0];
+  const k = `<div class="card"><div class="kpis">
+    ${kpi('Open carry trades', open.length, `${closed.length} closed · target 20`)}
+    ${kpi('Net on capital', pct(s.net_on_capital, 3), '20 slots, since paper start', cls(s.net_on_capital))}
+    ${kpi('Annualized, deployed', s.ann_on_deployed == null ? '—' : pct(s.ann_on_deployed, 1), 'promote needs ≥ 8%', cls(s.ann_on_deployed))}
+    ${kpi('Basis+cost drag', s.drag_share == null ? '—' : (s.drag_share * 100).toFixed(0) + '%', 'of funding · promote ≤ 25%')}
+    ${kpi('Highest funding now', top ? pct(top.trailing_ann, 0) + '/yr' : '—', top ? top.sym + ` · entry at ${pct(s.enter, 0)}` : '')}
+  </div></div>`;
+  const w = table(['Coin', 'Trailing 24h funding', 'vs entry bar', 'Gap', 'State'],
+    s.watch.map(w => [w.sym, `<span class="${cls(w.trailing_ann)}">${pct(w.trailing_ann, 1)}/yr</span>`,
+      `<div class="bar"><i style="width:${Math.max(0, Math.min(100, w.trailing_ann / (s.enter * 2) * 100)).toFixed(1)}%"></i><b style="left:50%"></b></div>`,
+      w.gap_to_entry > 0 ? pct(w.gap_to_entry, 1) + ' short' : 'at/above',
+      w.in_position ? '<span class="pill good">in carry</span>' : w.trailing_ann >= s.enter ? '<span class="pill warn">enters next act time</span>' : '<span class="mut">idle</span>']),
+    'No funding data.');
+  const tr = table(['Coin', 'Entry', 'Exit', 'Funding', 'Basis', 'Net (of notional)', 'Status'],
+    s.trades.map(t => [t.sym, dt(t.entry), t.closed ? dt(t.exit) : '—', `<span class="${cls(t.funding)}">${pct(t.funding)}</span>`,
+      `<span class="${cls(t.basis)}">${pct(t.basis)}</span>`, `<span class="${cls(t.net)}">${pct(t.net)}</span>`,
+      t.closed ? 'closed' : '<span class="pill warn">open</span>']),
+    'No carry trade yet. Funding on the 20 majors sits near the 11%/yr floor; entries start at 15%/yr.');
+  return head(s) + k + `<div class="card"><h3>Paper trades</h3>${tr}</div>
+    <div class="card"><h3>Non-trades · every coin now</h3>${w}<div class="note">Amber tick = the 15%/yr entry bar. Exit when the trailing mean drops below ${pct(s.exit, 0)}/yr. Checked at 01, 09 and 17 UTC.</div></div>`;
+}
+
+function viewOverview(d) {
+  const S = d.systems, c = S.capitulation, b = S.breakout, f = S.carry;
+  const card = (key, name, line1, line2, v) => `<div class="card" style="cursor:pointer" onclick="go('${key}')">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><h2>${name}</h2>${verdictPill(v)}</div>
+    <div class="kpis" style="margin-top:10px">${line1}</div><div class="note">${line2}</div></div>`;
+  let h = '';
+  if (c) { const a = c.stats_20 || {}; h += card('capitulation', 'Capitulation basket',
+    kpi('Events', a.n || 0, c.trades.filter(t => !t.closed).length + ' open') + kpi('Avg 20-coin', a.n ? pct(a.mean) : '—', 'per event', cls(a.mean))
+    + kpi('Last hour breadth', c.last_hour ? (c.last_hour.v * 100).toFixed(0) + '%' : '—', 'event at 75%'),
+    'Pays in crashes. ~2 events a month.', c.verdict); }
+  if (b) { const st = b.stats || {}; h += card('breakout', '4h Breakout',
+    kpi('Closed', st.n || 0, b.trades.filter(t => !t.closed).length + ' open') + kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'net', cls(st.E))
+    + kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', '', cls(st.edge)) + kpi('Open R', rr(b.open_R), 'marked', cls(b.open_R)),
+    'Pays in trends. ~11 trades a week, in bunches.', b.verdict); }
+  if (f) { h += card('carry', 'Funding carry',
+    kpi('Open', f.trades.filter(t => !t.closed).length, f.trades.filter(t => t.closed).length + ' closed') + kpi('Net on capital', pct(f.net_on_capital, 3), '', cls(f.net_on_capital))
+    + kpi('Highest funding', f.watch[0] ? pct(f.watch[0].trailing_ann, 0) : '—', 'entry at 15%/yr'),
+    'Pays in euphoric markets. Idle while funding sits at the floor.', f.verdict); }
+  return h;
+}
+
+function go(k) { TAB = k; try { localStorage.setItem('paperTab', k); } catch (e) {} render(); }
+function render() {
+  document.querySelectorAll('#systabs button').forEach(b => b.classList.toggle('on', b.dataset.k === TAB));
+  if (!DATA) return;
+  const S = DATA.systems;
+  $('#view').innerHTML = TAB === 'overview' ? viewOverview(DATA)
+    : TAB === 'capitulation' && S.capitulation ? viewCap(S.capitulation)
+    : TAB === 'breakout' && S.breakout ? viewBO(S.breakout)
+    : TAB === 'carry' && S.carry ? viewCarry(S.carry) : '<div class="empty">No data for this system in the snapshot.</div>';
+}
+document.querySelectorAll('#systabs button').forEach(b => b.onclick = () => go(b.dataset.k));
+async function load() {
+  try {
+    const r = await fetch('/api/paper?token=' + encodeURIComponent(TK));
+    if (r.status === 403) { document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#f4506a;font-size:18px">🔒 Invalid token</div>'; return; }
+    DATA = await r.json();
+    $('#built').textContent = DATA.built ? 'snapshot ' + dt(DATA.built) + ' (' + ago(DATA.built) + ') · rebuilt hourly' : 'no snapshot yet';
+    const errs = Object.entries(DATA.errors || {});
+    $('#errors').innerHTML = errs.map(([k, v]) => `<div class="err">${esc(k)}: ${esc(v)}</div>`).join('');
+    render();
+  } catch (e) { $('#built').textContent = 'load failed: ' + e; }
+}
+load(); setInterval(load, 5 * 60 * 1000);
+</script>
+</body>
+</html>

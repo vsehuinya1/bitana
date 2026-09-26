@@ -404,6 +404,7 @@
 <header class="header">
     <div class="header-l">
         <h1>BITANA</h1>
+        <a id="lnk-paper" href="/paper" style="font-size:12px;font-weight:600;color:var(--text-2);text-decoration:none;border:1px solid var(--border);border-radius:999px;padding:4px 11px">Paper Lab →</a>
         <span class="badge b-off" id="mode">—</span>
         <span class="dot off" id="dot"></span>
     </div>
@@ -581,6 +582,7 @@
  * appended to every API call. */
 const TK = new URLSearchParams(location.search).get('token') || '';
 const API = '/api/dashboard?token=' + encodeURIComponent(TK);
+try { document.getElementById('lnk-paper').href = '/paper?token=' + encodeURIComponent(TK); } catch (e) {}
 const INT = 15000;
 let _fails = 0;
 

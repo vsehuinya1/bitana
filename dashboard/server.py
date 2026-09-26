@@ -175,6 +175,8 @@ def create_app(db: DashboardDB, token: str, bot_url: str) -> web.Application:
 
     app.router.add_get("/", _handle_index)
     app.router.add_get("/api/dashboard", _handle_dashboard)
+    app.router.add_get("/paper", _handle_paper_page)       # Paper Lab tab (2026-09-26): the three paper systems
+    app.router.add_get("/api/paper", _handle_paper_api)
     app.on_shutdown.append(_on_shutdown)
     return app
 
@@ -202,6 +204,21 @@ async def _handle_index(request: web.Request) -> web.Response:
     if not html_path.exists():
         return web.Response(text="Dashboard template not found", status=500)
     return web.FileResponse(html_path, headers={"Content-Type": "text/html"})
+
+
+async def _handle_paper_page(request: web.Request) -> web.Response:
+    html_path = TEMPLATE_DIR / "paper_lab.html"
+    if not html_path.exists():
+        return web.Response(text="Paper Lab template not found", status=500)
+    return web.FileResponse(html_path, headers={"Content-Type": "text/html"})
+
+
+async def _handle_paper_api(request: web.Request) -> web.Response:
+    """Serve the hourly snapshot built by research/paper_lab_build.py (never computed on request)."""
+    path = Path(__file__).resolve().parent / "paper_lab.json"
+    if not path.exists():
+        return web.json_response({"built": None, "systems": {}, "errors": {"snapshot": "not built yet"}})
+    return web.Response(body=path.read_bytes(), content_type="application/json")
 
 
 async def _handle_dashboard(request: web.Request) -> web.Response:

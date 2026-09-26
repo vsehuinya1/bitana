@@ -435,6 +435,16 @@ def tick(mode='loop'):
             ST['fc_summary'] = fcr.summary(r, day)
         except Exception as e:
             print(f'carry check failed: {type(e).__name__}', file=sys.stderr, flush=True)
+    # Paper Lab snapshot (dashboard /paper tab): hourly at :07, fire-and-forget so the tick never blocks
+    if now.minute >= 7 and ST.get('pl_hour') != H:
+        ST['pl_hour'] = H
+        try:
+            import subprocess
+            subprocess.Popen(['nice', '-n', '19', sys.executable, f'{ROOT}/research/paper_lab_build.py'],
+                             stdout=subprocess.DEVNULL, stderr=open(f'{ROOT}/logs/paper_lab_build.err', 'a'),
+                             start_new_session=True)
+        except Exception as e:
+            print(f'paper lab build spawn failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # ops
     O = v.get('ops') or {}
     bad = ST.setdefault('unit_bad', {})

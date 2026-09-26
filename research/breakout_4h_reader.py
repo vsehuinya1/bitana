@@ -124,14 +124,18 @@ def signals(df):
     return sig, atr
 
 
-def run(df, entries_from=None, every_bar=False):
-    """Trades (entry_time, R, closed). every_bar=True -> the control (overlap allowed)."""
+def run(df, entries_from=None, every_bar=False, detail=False):
+    """Trades (entry_time, R, closed). every_bar=True -> the control (overlap allowed).
+    detail=True -> dicts with prices/exit reason, plus skipped signals (a position was already open) as kind='skipped'."""
     o, h, l, c = df.o.values, df.h.values, df.l.values, df.c.values
     sig, atr = signals(df)
     n, out, busy = len(df), [], -1
     cand = np.where(np.isfinite(atr))[0] if every_bar else np.where(sig)[0]
     for s in cand:
         e = s + 1
+        if detail and not every_bar and e < n and e <= busy and (entries_from is None or df.index[e] >= entries_from):
+            out.append({'kind': 'skipped', 'signal': df.index[s], 'close': float(c[s]), 'why': 'position already open'})
+            continue
         if e >= n or (not every_bar and e <= busy) or not np.isfinite(atr[s]):
             continue
         if entries_from is not None and df.index[e] < entries_from:
@@ -148,14 +152,39 @@ def run(df, entries_from=None, every_bar=False):
             if l[j] <= stop:
                 x = stop
                 break
+        hit = x is not None
         closed = x is not None or e + HOLD <= n
         if x is None:
             j = min(n, e + HOLD) - 1
             x = c[j]
-        out.append((df.index[e], (x / ent - 1 - COST) / ((ent - stop) / ent), closed))
+        R = (x / ent - 1 - COST) / ((ent - stop) / ent)
+        if detail:
+            reason = 'stop' if hit else ('time' if closed else 'open')
+            out.append({'kind': 'trade', 'signal': df.index[s], 'entry_time': df.index[e], 'entry': float(ent),
+                        'stop': float(stop), 'exit_time': df.index[j] + pd.Timedelta(hours=4) if closed else None,
+                        'exit': float(x), 'R': float(R), 'closed': bool(closed), 'reason': reason,
+                        'bars': int(j - e + 1), 'level_atr': float(atr[s])})
+        else:
+            out.append((df.index[e], R, closed))
         if not every_bar:
             busy = j
     return out
+
+
+def watch(df):
+    """Per-coin 'non-trade' state at the last closed bar: distance to the trigger and the EMA filter."""
+    if len(df) < EMA_SPAN + 10:
+        return None
+    h, c = df.h.values, df.c.values
+    last = np.nan
+    for i in range(2 * PIVOT, len(df)):
+        j = i - PIVOT
+        if h[j] == h[j - PIVOT:j + PIVOT + 1].max():
+            last = h[j]
+    ema = df.c.ewm(span=EMA_SPAN, adjust=False).mean().values[-1]
+    return {'close': float(c[-1]), 'level': float(last), 'ema200': float(ema), 'above_ema': bool(c[-1] > ema),
+            'to_trigger_pct': float((last / c[-1] - 1) * 100) if np.isfinite(last) else None,
+            'bar': df.index[-1] + pd.Timedelta(hours=4)}
 
 
 def summarize(tr, ctrl_E, a, b):
