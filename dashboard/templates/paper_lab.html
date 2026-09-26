@@ -145,7 +145,7 @@ function viewCap(s) {
 function viewBO(s) {
   const st = s.stats || {}, open = s.trades.filter(t => !t.closed);
   const k = `<div class="card"><div class="kpis">
-    ${kpi('Closed trades', st.n || 0, `${open.length} open · target 150 over 16 weeks`)}
+    ${kpi('Closed trades', st.n || 0, `${open.length} open · target ${s.vol ? 100 : 150} over 16 weeks`)}
     ${kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'net 20 bps', cls(st.E))}
     ${kpi('Random longs', s.control_E == null ? '—' : rr(s.control_E, 3), 'same exit, every 4h bar', cls(s.control_E))}
     ${kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', st.n ? `t(week) ${st.t == null ? '—' : st.t.toFixed(2)}` : 'promote needs ≥ +0.10R, t ≥ 1.5', cls(st.edge))}
@@ -156,7 +156,7 @@ function viewBO(s) {
   const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R'],
     s.trades.map(t => [t.sym, dt(t.signal), dt(t.entry_time), px(t.entry), px(t.stop), t.closed ? dt(t.exit_time) : '—',
       px(t.exit), t.closed ? t.reason : '<span class="pill warn">open</span>', t.bars + '/36', `<span class="${cls(t.R)}">${rr(t.R)}</span>`]),
-    'No breakout trade since paper started (2026-09-26 08:00Z).');
+    `No breakout trade since paper started (${dt(s.forward_from)}).`);
   const sk = table(['Coin', 'Signal bar', 'Close', 'Why not taken'], s.skipped.map(x => [x.sym, dt(x.signal), px(x.close), esc(x.why)]),
     'No skipped signals.');
   const w = table(['Coin', 'Close', 'Swing-high trigger', 'Distance', 'EMA200 filter'].concat(s.vol ? ['Last bar volume'] : []).concat(['State']),
