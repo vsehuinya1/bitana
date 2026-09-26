@@ -150,6 +150,28 @@ z ≤ −3 (≥ 16 coins from 2022, ≥ 8 in 2020–21).
 - **Verdict:** no NY wait gate. On a day like Sep 23 the 60-min cascade cap blocks the same re-entries. On average those
   legs are about −0.03R, so the cap is a cheap exposure limit, not an edge filter. Keep it.
 
+## Tested (2026-09-26): NY flush-buy mechanism on 6.7 years of liquidations. No gross edge.
+Data: the free first-of-month days on Tardis.dev (Binance USDT-M liquidations), 2020-01 → 2026-09. That is 81 days and
+1,537 symbol-days on the 20-coin universe, with 5m OHLC from the Binance archive.
+
+Trigger, fixed before running: NY live floors (30m liquidation notional ≥ $20k, ≥ 3 events) plus long-liquidation
+imbalance ≥ +0.5, then go LONG at the next 5m open, one leg per symbol. Exit as NY: 5 × ATR(14, 5m) intrabar stop, 1h
+time exit, 20 bps. Control: the same exit from every 15 minutes of the same days and coins. The engine's vol_z,
+n_confirms and decile gates are not replicated (5m volume and the aggression score were not in this data).
+
+| population | legs | net R | gross R | cost R | t (days) |
+|---|---|---|---|---|---|
+| control (buy every 15 min) | 146,858 | −0.154 | +0.012 | 0.166 | −11.8 |
+| trigger, all hours | 4,233 | −0.124 | +0.009 | 0.133 | −6.2 |
+| trigger, 14–20 UTC Tue–Fri | 878 | −0.101 | +0.005 | 0.106 | −2.9 |
+
+- **Broad vs narrow:** broad flushes (≥ 5 of 20 coins in the same 15m) −0.100 vs narrow −0.133.
+- **By period:** negative in every one: 2020–21 −0.053, 2022–24 −0.146, 2025–26 −0.158.
+- **Read:** the trigger's gross return equals buying at random. It only looks better than the control because it
+  enters when volatility is high, so the fixed 20 bps is a smaller share of the stop. Any NY profit therefore has to
+  come from the unreplicated gates (fitted on about 5 weeks) or from the recent market. This matches live since
+  Jul-22: −0.028 R/leg.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -158,4 +180,5 @@ z ≤ −3 (≥ 16 coins from 2022, ≥ 8 in 2020–21).
 | Funding extremes | no independent edge (crowded longs = momentum; crowded-shorts buy overlaps capitulation) |
 | OI flushes | no edge; adds nothing to capitulation |
 | Weekend-gap reversion | no edge (sign flips by period) |
+| NY flush-buy mechanism, 6.7y liquidations (raw trigger) | no gross edge (+0.005–0.009R, same as random; −0.10 to −0.12R after costs) |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
