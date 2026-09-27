@@ -331,7 +331,9 @@ burst_follow:
         neutral: 5.0
         # PREREG-BEAR-NY: static 10-ATR stop in bear (per registration).
         bear: 10.0
-      allowed_btc_regimes: ["neutral", "bull", "bear"]
+      # 2026-09-27 owner order ("Disable NY neutral"): neutral removed. Live-only basis: NY neutral n=28 / 9 days
+      # E -0.166R, payoff 0.34, PF 0.40, t(day) -1.21 (1h era n=4 -0.106R). REVERT: add "neutral" back.
+      allowed_btc_regimes: ["bull", "bear"]
       stop_atr: 10.0
       tp_atr: 999.0
       # 2026-09-06 owner order ("Wire"): exit horizon 4h -> 1h (time_bars 48 -> 12)

@@ -1667,3 +1667,15 @@ Source: structural-edge search (owner ask "figure out the structurally bigger ed
   - Paper Lab tab "Breakout + volume", with an A/B tile against the plain rule
   - the risk-watch Sunday weekly line
   - research board row
+
+### Deploy log 2026-09-27 06:18Z: NY neutral disabled (owner order "Disable NY neutral")
+- `config/live_burst_ny_asia.yaml`, NY `allowed_btc_regimes`: ["neutral", "bull", "bear"] → ["bull", "bear"].
+  Backup: `config/live_burst_ny_asia.yaml.pre_ny_no_neutral_20260927`.
+- **Basis (live trades only):**
+  - NY neutral: n=28 over 9 days, E −0.166R, payoff 0.34, PF 0.40, t(day) −1.21
+  - since the 1h profile (Sep 6): n=4, −0.106R
+- **Deploy:** safe window (Sunday, 0 open positions, no arm armed). bitana-live-burst-follow restarted 06:18Z on
+  config checksum b149bc986317, then bitana-v5-paper (the WLA mirror rebinds `allowed_regimes`). Health: bot online,
+  ws connected, not paused, no unhealthy tasks.
+- **Readers:** PREREG-NY-BREADTH/KNIFE (Rows 12/13) are bull-only and unaffected. The NY neutral cell was report-only
+  in them.
