@@ -359,6 +359,48 @@ Signals are the registered rule's. Costs: market entry 0.10%, maker 0.02%, exit 
 - **Quirk (not actionable):** the NY-hours baseline in 2025–26 is gross +0.132 (t 3.15) but net +0.011 after
   20 bps, on 11 days.
 
+## Tested (2026-09-27): five ideas from public trader sources (owner order "Scour the internet… get a few we can test")
+Sources and mechanisms are in the owner summary (chat, 2026-09-27). Rules were fixed before each run. 20 coins,
+2020-01 → 2026-09, costs included.
+
+**#1 Wick catcher: PASS.**
+- Rule: resting limit buy at close(H) − k × ATR1h, live for hour H+1; maker entry; 0.12% round trip.
+- **k=5**, sell back at the pre-wick close else 24h, strict fills (price trades ≥ 0.1 ATR through the level):
+  - by period: +4.82% (394 fills, t 2.4) / +1.77% (844, t 3.5) / +0.73% (284, t 1.6)
+  - every year positive: 2020 +1.2%, 2021 +9.3%, 2022 +1.5%, 2023 +1.2%, 2024 +3.1%, 2025 +0.8%, 2026 +0.7%
+  - ex-top-5-days: +1.87 / +1.08 / +0.08%
+- **k=8**, 4h hold:
+  - by period: +8.15% (117, t 3.2) / +2.62% (260, t 4.3) / +3.85% (61, t 2.3)
+  - every year positive
+- **Survivorship:** + 12 collapsed/delisted coins (LUNA, FTT, SRM, RAY, ANC, LUNA2, WAVES, BTS, HNT, TOMO, CVC, OMG),
+  data cut at delisting, open trades marked at the last price. Dead-coin fills average +3.8% / +4.4% (worst −73.6%).
+  The results are unchanged.
+- **Portfolio** (2% notional per fill, ≤ 10 open): k=5 CAGR +8.5% (+10.3% with the dead coins), maxDD −3.4%, 74% of
+  months positive; k=8 +4.8%, maxDD −0.7%.
+- **Caveats:** 2025–26 depends on a few crash days. The short mirror (fading squeeze wicks) loses.
+
+**#4 Perp below spot: PASS (directional).**
+- Rule: basis ≤ −30 bps at a 5m close → buy the perp; exit on convergence (median 30 min) or 24h. 6,583
+  dislocations, 100% converged within 24h.
+- By period: +0.41% (t 2.9) / +0.60% (t 3.2) / +1.05% (t 1.2).
+- With a 5-min entry delay: +0.32 / +0.26 / +0.71%.
+- 4h exit: +0.95 / +1.09 / +1.86%.
+- −50 bps: +1.25 / +2.50 / +6.13%.
+- −20 bps fails.
+- **Caveats:** 2026 ≈ 0; 2025–26 ex-top-5-days is negative. The hedged arb (long perp / short spot) loses −0.10% after
+  4 legs of costs, so the profit is the bounce, not the convergence.
+
+**#3 Single-coin capitulation candle: weak.**
+- Market entry loses (−0.04 to −0.12R).
+- A limit at the lower third beats the control (+0.10 / +0.29 / +0.26R), but E is −0.055R in 2020–21.
+
+**#5 Quarter-hour opening imbalance: FAIL.** About −0.2%/trade (costs); on-clock ≈ off-clock.
+
+**#2 OI flush + funding reset:** pending the metrics download.
+
+**Read:** the two passes are the same mechanism — providing liquidity to forced perp sellers with patient (limit or
+dislocation-triggered) entries. Every market-order "buy the flush" version lost.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -378,4 +420,7 @@ Signals are the registered rule's. Costs: market entry 0.10%, maker 0.02%, exit 
 | Breakout-4H variants (market / squeeze / volume / caps) | procedure's pick (market filter) failed 2020 holdout; volume filter passed both holdouts (runner-up, disclosed peek) |
 | Breakout-4H limit entry | retest limit loses the runners (reject); limit at close ≈ +0.02R/trade (execution detail) |
 | NY live W/L candidates (shallow dip, green bar, confirmation, BTC strong) | all fail on 6.7y; dropped legs pay more (live pattern = day effect) |
+| Wick catcher (limit bids −5/−8 ATR1h) | PASS all periods & years, survives strict fills + dead coins; paper candidate |
+| Perp-below-spot buy (basis ≤ −30 bps) | PASS all periods (2026 ≈ 0); paper candidate |
+| Coin capitulation candle / quarter-hour flow | weak / fail |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
