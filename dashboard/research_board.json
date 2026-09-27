@@ -1,5 +1,5 @@
 {
- "built": "2026-09-27T06:32:10+00:00",
+ "built": "2026-09-27T08:31:00+00:00",
  "rows": [
   {
    "name": "PREREG-ASIA-MIDVOL (paper since 2026-09-25)",
@@ -9,6 +9,26 @@
    "n": 0,
    "days": 0,
    "n_target": 50,
+   "days_target": 10
+  },
+  {
+   "name": "PREREG-WICK-CATCHER (paper)",
+   "kind": "dark",
+   "next": "60 fills over 10 days or 2027-06-30",
+   "status": "n=0 (open 0) | COUNTS-ONLY (formal at 60 fills over 10 days or 2027-06-30)",
+   "n": 0,
+   "days": 0,
+   "n_target": 60,
+   "days_target": 10
+  },
+  {
+   "name": "PREREG-PERP-DISCOUNT (paper)",
+   "kind": "dark",
+   "next": "80 trades over 10 days or 2027-06-30",
+   "status": "n=0 (open 0) | COUNTS-ONLY (formal at 80 trades over 10 days or 2027-06-30)",
+   "n": 0,
+   "days": 0,
+   "n_target": 80,
    "days_target": 10
   },
   {
@@ -25,7 +45,7 @@
    "name": "PREREG-FUNDING-CARRY (paper)",
    "kind": "dark",
    "next": "20 closed or 2027-09-30 formal",
-   "status": "closed 0 | open 0 (none) | net on capital +0.000% | top trailing funding: DOT +11% LTC +11% FIL +11% XLM +11% AAVE +11% (enter >= 15%) | COUNTS-ONLY (0 closed; formal at 20 closed or 2027-09-30)",
+   "status": "closed 0 | open 0 (none) | net on capital +0.000% | top trailing funding: DOT +11% UNI +11% XLM +11% AAVE +11% ETC +11% (enter >= 15%) | COUNTS-ONLY (0 closed; formal at 20 closed or 2027-09-30)",
    "n": 0,
    "days": 0,
    "n_target": 20,

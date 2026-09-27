@@ -42,6 +42,8 @@ import capitulation_reader as capr  # noqa: E402  (PREREG-CAPITULATION-BASKET pa
 import breakout_4h_reader as bo4  # noqa: E402  (PREREG-BREAKOUT-4H weekly update)
 import funding_carry_reader as fcr  # noqa: E402  (PREREG-FUNDING-CARRY paper track)
 import breakout_4h_vol_reader as bov  # noqa: E402  (PREREG-BREAKOUT-4H-VOL weekly line)
+import wick_catcher_reader as wcr  # noqa: E402  (PREREG-WICK-CATCHER paper track)
+import perp_discount_reader as pdr  # noqa: E402  (PREREG-PERP-DISCOUNT paper track)
 
 LOG = f'{ROOT}/logs/risk_watch_alerts.log'
 STATE = f'{ROOT}/logs/risk_watch_state.json'
@@ -419,6 +421,8 @@ def tick(mode='loop'):
             vs, vp = bov.read()
             emit(f'BO4VW:{wk_key}', 'BREAKOUT', 'PREREG-BREAKOUT-4H-VOL weekly | ' + bo4.fmt(vs)
                  + f" | plain rule same window: {bo4.fmt(vp)} | {bov.decide(vs, vp, day)}")
+            if ST.get('wd_summary'):
+                emit(f'WDW:{wk_key}', 'PAPER', 'weekly | ' + ST['wd_summary'])
             if ST.get('fc_summary'):
                 emit(f'FCW:{wk_key}', 'CARRY', 'PREREG-FUNDING-CARRY weekly | ' + ST['fc_summary'])
         except Exception as e:
@@ -449,6 +453,29 @@ def tick(mode='loop'):
                              start_new_session=True)
         except Exception as e:
             print(f'paper lab build spawn failed: {type(e).__name__}', file=sys.stderr, flush=True)
+    # PREREG-WICK-CATCHER / PREREG-PERP-DISCOUNT: hourly at :09, paper fills and exits (cached 5m klines, cheap)
+    if now.minute >= 9 and ST.get('wd_hour') != H:
+        ST['wd_hour'] = H
+        try:
+            wr, _, frames = wcr.read()
+            for r in wr:
+                emit(f"WCIN:{r['sym']}:{r['t'].isoformat()}", 'WICK',
+                     f"paper fill {r['sym'][:-4]} at {r['fill']:.6g} ({100 * r['depth_pct']:+.1f}% below the pre-wick close, "
+                     f"{r['t']:%d %b %H:%M}Z) - PREREG-WICK-CATCHER")
+                if r['closed']:
+                    emit(f"WCOUT:{r['sym']}:{r['t'].isoformat()}", 'WICK',
+                         f"paper exit {r['sym'][:-4]} ({r['why']}) {r['exit_t']:%d %b %H:%M}Z: {100 * r['net']:+.2f}% net")
+            dr, _, _ = pdr.read(perp_frames=frames)
+            for r in dr:
+                emit(f"PDIN:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
+                     f"paper buy {r['sym'][:-4]} perp {100 * r['basis']:+.2f}% below spot ({r['t']:%d %b %H:%M}Z) - PREREG-PERP-DISCOUNT")
+                if r['closed']:
+                    emit(f"PDOUT:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
+                         f"paper exit {r['sym'][:-4]} {r['exit_t']:%d %b %H:%M}Z (4h): {100 * r['net']:+.2f}% net")
+            ST['wd_summary'] = (f"WICK {wcr.fmt(wcr.stats(wr))} | {wcr.decide(wcr.stats(wr), day)} || "
+                                f"DISCOUNT {wcr.fmt(wcr.stats(dr))} | {pdr.decide(wcr.stats(dr), day)}")
+        except Exception as e:
+            print(f'wick/discount check failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # ops
     O = v.get('ops') or {}
     bad = ST.setdefault('unit_bad', {})

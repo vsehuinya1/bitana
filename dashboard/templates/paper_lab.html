@@ -65,7 +65,7 @@ svg text{fill:var(--text-3);font:10px var(--mono)}
   </div>
   <nav class="tabs sys-tabs" id="systabs">
     <button data-k="overview" class="on">Overview</button><button data-k="capitulation">Capitulation</button>
-    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button>
+    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button><button data-k="wick">Wick catcher</button><button data-k="discount">Perp below spot</button>
   </nav>
   <div id="errors"></div>
   <div id="view"></div>
@@ -201,6 +201,46 @@ function viewCarry(s) {
     <div class="card"><h3>Non-trades · every coin now</h3>${w}<div class="note">Amber tick = the 15%/yr entry bar. Exit when the trailing mean drops below ${pct(s.exit, 0)}/yr. Checked at 01, 09 and 17 UTC.</div></div>`;
 }
 
+function pctKpis(st, extra) {
+  return `<div class="card"><div class="kpis">
+    ${kpi('Closed', st.n || 0, `${st.open || 0} open`)}
+    ${kpi('Average per trade', st.n ? pct(st.mean) : '—', 'net of costs', cls(st.mean))}
+    ${kpi('Median / hit rate', st.n ? pct(st.median) : '—', st.n ? `${(st.hit * 100).toFixed(0)}% winners` : '')}
+    ${kpi('t (by day)', st.n && st.t != null ? st.t.toFixed(2) : '—', 'promote needs ≥ 1.5')}
+    ${kpi('Positive months', st.n ? st.pos_months : '—', 'promote needs ≥ 3')}
+    ${kpi('Worst trade', st.n ? pct(st.worst, 1) : '—', '', cls(st.worst))}${extra || ''}
+  </div></div>`;
+}
+function tradeRows(rows, extraCol) {
+  return rows.map(t => [t.sym, dt(t.t), px(t.fill)].concat(extraCol ? [extraCol(t)] : []).concat([t.closed ? dt(t.exit_t) : '—', px(t.exit),
+    t.closed ? t.why : '<span class="pill warn">open</span>', `<span class="${cls(t.net)}">${pct(t.net)}</span>`]));
+}
+function viewWick(s) {
+  const st = s.stats || {}, s2 = s.stats2 || {};
+  const tr = table(['Coin', 'Filled', 'Fill', 'Depth vs pre-wick', 'Exit', 'Exit px', 'How', 'Net'],
+    tradeRows(s.trades, t => pct(t.depth_pct, 1)), 'No wick fill yet. Expect roughly 150–300 fills a year across 20 coins, clustered in selloffs.');
+  const tr2 = table(['Coin', 'Filled', 'Fill', 'Depth', 'Exit', 'Exit px', 'How', 'Net'], tradeRows(s.trades2, t => pct(t.depth_pct, 1)), 'No fill in the −8 ATR book yet.');
+  const w = table(['Coin', 'Last close', 'ATR (1h)', 'Resting bid (−5 ATR)', 'Distance', '−8 ATR level'],
+    s.watch.map(x => [x.sym, px(x.close), x.atr_pct.toFixed(2) + '%', px(x.level), `<span class="neg">${x.dist_pct.toFixed(1)}%</span>`, px(x.level8)]), 'No data.');
+  const nr = table(['Hour', 'Coin', 'Low vs bid'], s.near.map(x => [dt(x.hour), x.sym, x.gap_atr <= 0 ? '<span class="pos">reached</span>' : `${x.gap_atr.toFixed(2)} ATR above`]),
+    'No coin came within 1 ATR of its bid in the last 24h.');
+  return head(s) + pctKpis(st) + `<div class="card"><h3>Paper fills (−5 ATR, sell back at the pre-wick price)</h3>${tr}</div>
+    <div class="grid2"><div class="card"><h3>Non-trades · every coin's resting bid now</h3>${w}<div class="note">Bids are refreshed every hour from the last hourly close. A fill needs price to trade 0.1 ATR through the bid.</div></div>
+    <div class="card"><h3>Non-trades · near-misses, last 24h</h3>${nr}</div></div>
+    <div class="card"><h3>Report-only book: −8 ATR, 4h hold · ${s2.n ? 'n=' + s2.n + ', avg ' + pct(s2.mean) : 'no closed fills yet'}</h3>${tr2}</div>`;
+}
+function viewDisc(s) {
+  const st = s.stats || {}, s2 = s.stats2 || {};
+  const tr = table(['Coin', 'Entered', 'Entry', 'Gap at signal', 'Exit', 'Exit px', 'How', 'Net'],
+    tradeRows(s.trades, t => `<span class="neg">${pct(t.basis)}</span>`), 'No dislocation since paper started. Expect a few hundred a year, most inside selloffs.');
+  const tr2 = table(['Coin', 'Entered', 'Entry', 'Gap', 'Exit', 'Exit px', 'How', 'Net'], tradeRows(s.trades2, t => pct(t.basis)), 'No trade in the convergence-exit book yet.');
+  const w = table(['Coin', 'Perp vs spot now', 'Lowest in 24h', 'State'],
+    s.watch.map(x => [x.sym, `<span class="${x.basis_now <= s.threshold ? 'neg' : 'mut'}">${pct(x.basis_now, 3)}</span>`, pct(x.min_24h, 3),
+      x.basis_now <= s.threshold ? '<span class="pill warn">below trigger</span>' : '<span class="mut">normal</span>']), 'No data.');
+  return head(s) + pctKpis(st) + `<div class="card"><h3>Paper trades (4h hold)</h3>${tr}</div>
+    <div class="card"><h3>Non-trades · perp-to-spot gap on every coin now</h3>${w}<div class="note">A trade fires when a 5m bar closes with the perp at least ${pct(-s.threshold, 2)} below spot.</div></div>
+    <div class="card"><h3>Report-only book: exit when the gap closes · ${s2.n ? 'n=' + s2.n + ', avg ' + pct(s2.mean) : 'no closed trades yet'}</h3>${tr2}</div>`;
+}
 function viewOverview(d) {
   const S = d.systems, c = S.capitulation, b = S.breakout, f = S.carry;
   const card = (key, name, line1, line2, v) => `<div class="card" style="cursor:pointer" onclick="go('${key}')">
@@ -220,6 +260,15 @@ function viewOverview(d) {
     kpi('Closed', st.n || 0, bv.trades.filter(t => !t.closed).length + ' open') + kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', '', cls(st.edge))
     + kpi('Plain rule, same window', pl.n ? rr(pl.edge, 3) : '—', 'volume must add ≥ +0.05R', cls(pl.edge)) + kpi('Open R', rr(bv.open_R), 'marked', cls(bv.open_R)),
     'Same breakout, only on volume-confirmed bars. Answers: does volume add edge?', bv.verdict); }
+  const wk = S.wick, dc = S.discount;
+  if (wk) { const st = wk.stats || {}; h += card('wick', 'Wick catcher',
+    kpi('Closed fills', st.n || 0, (st.open || 0) + ' open') + kpi('Avg per fill', st.n ? pct(st.mean) : '—', 'net', cls(st.mean))
+    + kpi('Nearest bid', wk.watch.length ? Math.max(...wk.watch.map(x => x.dist_pct)).toFixed(1) + '%' : '—', 'below price'),
+    'Resting bids deep in liquidation wicks. Pays in crashes, at maker fees.', wk.verdict); }
+  if (dc) { const st = dc.stats || {}; h += card('discount', 'Perp below spot',
+    kpi('Closed', st.n || 0, (st.open || 0) + ' open') + kpi('Avg per trade', st.n ? pct(st.mean) : '—', 'net', cls(st.mean))
+    + kpi('Lowest gap now', dc.watch.length ? pct(dc.watch[0].basis_now, 3) : '—', 'trigger −0.30%'),
+    'Buys the perp when forced selling pushes it below spot.', dc.verdict); }
   if (f) { h += card('carry', 'Funding carry',
     kpi('Open', f.trades.filter(t => !t.closed).length, f.trades.filter(t => t.closed).length + ' closed') + kpi('Net on capital', pct(f.net_on_capital, 3), '', cls(f.net_on_capital))
     + kpi('Highest funding', f.watch[0] ? pct(f.watch[0].trailing_ann, 0) : '—', 'entry at 15%/yr'),
@@ -236,7 +285,9 @@ function render() {
     : TAB === 'capitulation' && S.capitulation ? viewCap(S.capitulation)
     : TAB === 'breakout' && S.breakout ? viewBO(S.breakout)
     : TAB === 'breakout_vol' && S.breakout_vol ? viewBO(S.breakout_vol)
-    : TAB === 'carry' && S.carry ? viewCarry(S.carry) : '<div class="empty">No data for this system in the snapshot.</div>';
+    : TAB === 'carry' && S.carry ? viewCarry(S.carry)
+    : TAB === 'wick' && S.wick ? viewWick(S.wick)
+    : TAB === 'discount' && S.discount ? viewDisc(S.discount) : '<div class="empty">No data for this system in the snapshot.</div>';
 }
 document.querySelectorAll('#systabs button').forEach(b => b.onclick = () => go(b.dataset.k));
 async function load() {

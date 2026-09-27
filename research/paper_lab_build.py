@@ -25,6 +25,8 @@ import capitulation_reader as capr  # noqa: E402
 import breakout_4h_reader as bo4  # noqa: E402
 import funding_carry_reader as fcr  # noqa: E402
 import breakout_4h_vol_reader as bov  # noqa: E402
+import wick_catcher_reader as wcr  # noqa: E402
+import perp_discount_reader as pdr  # noqa: E402
 
 OUT = '/root/bitana/dashboard/paper_lab.json'
 
@@ -140,11 +142,63 @@ def carry(today):
             'trades': [row(t) for t in r['open'] + r['closed']], 'watch': watch}
 
 
+_PERP = {}
+
+
+def wick(today):
+    rows, rows2, frames = wcr.read()
+    _PERP.update(frames)
+    st, st2 = wcr.stats(rows), wcr.stats(rows2)
+    watch, near = [], []
+    for sym, df in frames.items():
+        if len(df) < 400:
+            continue
+        H = df.resample('h').agg({'h': 'max', 'l': 'min', 'c': 'last'}).dropna()
+        tr = np.maximum(H.h, H.c.shift(1)) - np.minimum(H.l, H.c.shift(1)); atr = tr.rolling(14).mean()
+        a_, c_ = atr.iloc[-1], H.c.iloc[-1]
+        lvl = c_ - wcr.K * a_
+        watch.append({'sym': sym.replace('USDT', ''), 'close': float(c_), 'atr_pct': float(a_ / c_ * 100), 'level': float(lvl),
+                      'dist_pct': float(lvl / c_ - 1) * 100, 'level8': float(c_ - wcr.K2 * a_), 'bar': H.index[-1] + pd.Timedelta(hours=1)})
+        for i in range(max(15, len(H) - 25), len(H) - 1):                  # last 24h: closest approach to the level, in ATR
+            L = H.c.iloc[i] - wcr.K * atr.iloc[i]
+            gap = (H.l.iloc[i + 1] - L) / atr.iloc[i]
+            if np.isfinite(gap) and gap <= 1.0:
+                near.append({'sym': sym.replace('USDT', ''), 'hour': H.index[i + 1], 'gap_atr': float(gap)})
+    watch.sort(key=lambda w: w['atr_pct'], reverse=True)
+    def row(r):
+        return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'ref': r.get('ref'), 'depth_pct': r.get('depth_pct'),
+                'exit_t': r['exit_t'], 'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed']}
+    return {'name': 'Wick catcher', 'prereg': 'PREREG-WICK-CATCHER', 'forward_from': wcr.FORWARD_FROM,
+            'rule': ('Every hour, on each of the 20 coins: a resting limit buy at the last hourly close minus 5 x ATR(1h), live '
+                     'for the next hour. Filled only if price trades 0.1 ATR through it. Sell back at the pre-wick price, else '
+                     'after 24h. 0.12% round trip (maker entry). Report-only second book: -8 ATR, 4h hold.'),
+            'verdict': wcr.decide(st, today), 'stats': st, 'stats2': st2,
+            'trades': sorted([row(r) for r in rows], key=lambda r: r['t'], reverse=True),
+            'trades2': sorted([row(r) for r in rows2], key=lambda r: r['t'], reverse=True),
+            'watch': watch, 'near': sorted(near, key=lambda x: x['hour'], reverse=True)[:40]}
+
+
+def discount(today):
+    rows, rows2, cur = pdr.read(perp_frames=_PERP or None)
+    st, st2 = wcr.stats(rows), wcr.stats(rows2)
+    watch = sorted([{'sym': k.replace('USDT', ''), **v} for k, v in cur.items()], key=lambda w: w['basis_now'])
+    def row(r):
+        return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'basis': r['basis'], 'exit_t': r['exit_t'],
+                'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed']}
+    return {'name': 'Perp below spot', 'prereg': 'PREREG-PERP-DISCOUNT', 'forward_from': pdr.FORWARD_FROM,
+            'rule': ('When a coin\'s perp closes a 5m bar 0.30% or more below its spot price (forced perp selling), buy the '
+                     'perp at the next 5m open and hold 4h. 0.20% round trip. Report-only second book: exit when the gap '
+                     'closes (>= -0.05%), else 24h.'),
+            'verdict': pdr.decide(st, today), 'stats': st, 'stats2': st2, 'threshold': pdr.THR,
+            'trades': sorted([row(r) for r in rows], key=lambda r: r['t'], reverse=True),
+            'trades2': sorted([row(r) for r in rows2], key=lambda r: r['t'], reverse=True), 'watch': watch}
+
+
 def main():
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     out = {'built': datetime.now(timezone.utc).isoformat(timespec='seconds'), 'systems': {}, 'errors': {}}
     for key, fn in (('capitulation', capitulation), ('breakout', breakout), ('breakout_vol', lambda d: breakout(d, vol=True)),
-                    ('carry', carry)):
+                    ('carry', carry), ('wick', wick), ('discount', discount)):
         try:
             out['systems'][key] = fn(today)
         except Exception as e:

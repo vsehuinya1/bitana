@@ -1714,3 +1714,44 @@ Parity era = entries ≥ 2026-09-23T12:36:54Z (mirror vol_z cut-over 13:21:26Z).
 - **Counts-only (board 06:32Z):** 0 forward legs/events in capitulation, breakout (plain + vol), carry, Row 11,
   Rows 12/13, LATE-BULL-FLUSH, ASIA-MIDVOL.
 - **Changes shipped:** none from this loop. The NY-neutral disable was a separate owner order today, logged above.
+
+### PREREG-WICK-CATCHER and PREREG-PERP-DISCOUNT (paper) — registered 2026-09-27 ~08:30Z (owner order "Register")
+Origin: owner order to find how others trade liquidation cascades online. Five public-source ideas were tested
+(reports/structural_edge_2026-09-25.md, "five ideas from public trader sources"). Two passed, and they share one
+mechanism: patient liquidity provision to forced perp sellers.
+- **PREREG-WICK-CATCHER** (reader `research/wick_catcher_reader.py`, docstring authoritative):
+  - Rule: per coin (20), every hour: resting limit buy at close(H) − 5 × ATR1h, live for H+1.
+  - Fill: strict (0.1 ATR through the level).
+  - Exit: sell back at the pre-wick close, else 24h.
+  - Cost: 0.12% (maker entry).
+  - Report-only second book: −8 ATR, 4h hold.
+  - Research basis: positive in every year 2020–2026; survives strict fills and 12 collapsed/delisted coins.
+    Portfolio at 2%/fill (≤ 10 open): CAGR +8.5%, maxDD −3.4%.
+  - `--validate` basis (2024): n=233 over 46 days, +3.11%/fill, hit 70%, t 2.02, top-5 days 88%, worst −15.7%.
+  - PROMOTE: mean ≥ +0.5%, t ≥ 1.5, ≥ 3 positive months, no fill < −40%.
+  - KILL: mean < −1% at n ≥ 30, or < 0 at the formal read.
+  - Formal read: 60 fills over 10 days, or 2027-06-30 (extension 2027-12-31).
+- **PREREG-PERP-DISCOUNT** (reader `research/perp_discount_reader.py`):
+  - Rule: perp 5m close ≥ 0.30% below spot (crossing) → buy the perp at the next open, hold 4h.
+  - Cost: 0.20%.
+  - Report-only second book: exit on convergence (≥ −0.05%) else 24h.
+  - Research basis: positive in all periods, robust to a 5-min entry delay; 2026 ≈ 0.
+  - `--validate` basis (2024): n=143 over 44 days, +4.15%/trade, hit 78%, t 2.19, top-5 days 93%, worst −5.6%.
+  - PROMOTE: mean ≥ +0.3%, t ≥ 1.5, ≥ 3 positive months.
+  - KILL: mean < −0.5% at n ≥ 40, or < 0 at the formal read.
+  - Formal read: 80 trades over 10 days, or 2027-06-30 (extension 2027-12-31).
+- **Disclosed:** the concentration bar ("≥ 3 positive calendar months" instead of a top-5-day cap) was set after
+  seeing the 2024 basis and before any forward data. Both bases have top-5 days ≥ 88%: these pay in crash bursts.
+- **Forward:** from 2026-09-27T10:00Z. Simulation only, on public 5m klines (incremental cache `logs/paper_cache/`).
+  No orders are placed.
+- **Promotion** is an owner decision on a new execution design: resting maker bids on the exchange refreshed hourly,
+  margin reserved, small per-fill size. The tail is a collapsing coin: worst research fill −74%.
+- **Surfaces:**
+  - Paper Lab tabs "Wick catcher" / "Perp below spot" (trades, resting bids, near-misses, live perp-spot gaps)
+  - Telegram WICK/DISCOUNT fill/exit lines (hourly at :09) and the Sunday weekly line
+  - research board rows
+- **Also tested, not registered:**
+  - #2 OI flush (+funding reset / OI rebuild): weak. Plain 4h +0.38/+0.52/+0.28%; the funding and rebuild variants
+    fail. A look-ahead bug in the first run was fixed; the result is logged.
+  - #3 single-coin capitulation candle: weak.
+  - #5 quarter-hour order imbalance: fails after costs.

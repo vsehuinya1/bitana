@@ -22,6 +22,8 @@ import asia_midvol_reader as amv  # noqa: E402
 import breakout_4h_reader as bo4  # noqa: E402
 import funding_carry_reader as fcr  # noqa: E402
 import breakout_4h_vol_reader as bov  # noqa: E402
+import wick_catcher_reader as wcr  # noqa: E402
+import perp_discount_reader as pdr  # noqa: E402
 import capitulation_reader as capr  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
@@ -105,6 +107,17 @@ def main():
                             'days': len(fr_['open']), 'n_target': 20, 'days_target': 20})
         except Exception as e:
             print(f'carry row failed: {type(e).__name__}: {e}', file=sys.stderr)
+        try:
+            wr, _, frames = wcr.read(); ws_ = wcr.stats(wr)
+            rows.insert(0, {'name': 'PREREG-WICK-CATCHER (paper)', 'kind': 'dark', 'next': '60 fills over 10 days or 2027-06-30',
+                            'status': wcr.fmt(ws_) + ' | ' + wcr.decide(ws_, now.strftime('%Y-%m-%d')),
+                            'n': ws_.get('n', 0), 'days': ws_.get('days', 0), 'n_target': 60, 'days_target': 10})
+            dr, _, _ = pdr.read(perp_frames=frames); ds_ = wcr.stats(dr)
+            rows.insert(1, {'name': 'PREREG-PERP-DISCOUNT (paper)', 'kind': 'dark', 'next': '80 trades over 10 days or 2027-06-30',
+                            'status': wcr.fmt(ds_) + ' | ' + pdr.decide(ds_, now.strftime('%Y-%m-%d')),
+                            'n': ds_.get('n', 0), 'days': ds_.get('days', 0), 'n_target': 80, 'days_target': 10})
+        except Exception as e:
+            print(f'wick/discount rows failed: {type(e).__name__}: {e}', file=sys.stderr)
         ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
         a_s, a_lv = amv.stats(ak), amv.stats([x for x in ak if x['symbol'] in amv.LIVE])
         rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (paper since 2026-09-25)', 'kind': 'dark', 'next': 'n>=30 revert check / n>=50 & 10d formal',
