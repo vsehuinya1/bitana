@@ -332,6 +332,33 @@ Signals are the registered rule's. Costs: market entry 0.10%, maker 0.02%, exit 
 - **Read:** execution is worth about +0.02R per trade: a live implementation detail (post at the close, fall back to
   market if unfilled), not an edge lever.
 
+## Tested (2026-09-27): NY bull live winners vs losers → candidate filters on 6.7 years. All fail.
+**Live read** (73 NY bull live legs over 12 days, 60 pre-entry features):
+- 37% of R variance is between days.
+- Only the coin's distance from its 24h high survives FDR (rho +0.36, q 0.08). The sign pattern is "strong coin /
+  strong day wins" (green signal bar, taker-buy share, BTC near its 24h high).
+- Within-day correlations are about 0, so this is a day effect.
+- Every leg traded below its entry within 5 minutes.
+
+**Test** (Tardis 81 days × 20 coins, NY trigger + engine gates, NY exit, 20 bps; rules fixed from the live read; pass
+= gross above baseline in all three periods on the NY-hours population):
+
+| NY hours, gross R/leg | 2020–21 | 2022–24 | 2025–26 |
+|---|---|---|---|
+| baseline | +0.017 | −0.057 | +0.132 (t 3.15, 11 days) |
+| A coin within 5% of its 24h high | −0.081 | −0.092 | +0.122 |
+| B1 green signal bar | −0.039 | −0.136 | +0.068 |
+| B2 wait for a green close (≤ 3 bars) | −0.009 | −0.095 | +0.066 |
+| C BTC within 2.5% of its 24h high | −0.041 | −0.154 | +0.104 |
+
+- **All fail, and all are worse than the baseline.** The legs they drop (deep dips, selloff days) pay more before
+  costs: dropped by A +0.055, dropped by C +0.052 vs kept −0.018 / −0.020. That is consistent with the capitulation
+  mechanism.
+- The live "strong day wins" pattern is a small-sample day effect: Sep-23 alone was 20 of the 73 legs.
+- **NY bull as live on history:** 130 legs over 12 days, gross −0.152, net −0.235.
+- **Quirk (not actionable):** the NY-hours baseline in 2025–26 is gross +0.132 (t 3.15) but net +0.011 after
+  20 bps, on 11 days.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -350,4 +377,5 @@ Signals are the registered rule's. Costs: market entry 0.10%, maker 0.02%, exit 
 | Funding carry (delta-neutral, 20 coins) | works: CAGR +7.7%, tiny DD, but ~0 in 2022/2025/2026; idle now |
 | Breakout-4H variants (market / squeeze / volume / caps) | procedure's pick (market filter) failed 2020 holdout; volume filter passed both holdouts (runner-up, disclosed peek) |
 | Breakout-4H limit entry | retest limit loses the runners (reject); limit at close ≈ +0.02R/trade (execution detail) |
+| NY live W/L candidates (shallow dip, green bar, confirmation, BTC strong) | all fail on 6.7y; dropped legs pay more (live pattern = day effect) |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
