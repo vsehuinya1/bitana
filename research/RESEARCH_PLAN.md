@@ -1679,3 +1679,38 @@ Source: structural-edge search (owner ask "figure out the structurally bigger ed
   ws connected, not paused, no unhealthy tasks.
 - **Readers:** PREREG-NY-BREADTH/KNIFE (Rows 12/13) are bull-only and unaffected. The NY neutral cell was report-only
   in them.
+
+## 2026-09-27 ~07:00Z — Sunday loop Sep-27 verdict batch (owner order "finish the Sunday read")
+Parity era = entries ≥ 2026-09-23T12:36:54Z (mirror vol_z cut-over 13:21:26Z). It covers only 3 trading days
+(Sep 23 pm, 24, 25), so most ≥ 5-day floors are unmet by construction. Shadow reads used /tmp backup copies.
+- **Integrity:** writer fresh (last entry 06:24Z today), 87,827 rows, 0 open rows older than 3 days.
+- **NY-VOLZ-OFF:**
+  - NY population without the vol_z gate, since the mirror cut-over: vol_z<0 n=13 over 3d, E −0.065R (bull-only
+    n=12, −0.053R); vol_z≥0 n=156, −0.034R.
+  - Kill bar (vol_z<0 E < +0.02 at n≥40 / ≥5d) not reached on n.
+  - **INCONCLUSIVE. Gate stays at `min_vol_z: 0.0` (no change).** Early data does not support dropping it.
+- **NEUT-STOP (Row 4):**
+  - Live NY since the Sep-6 tighten: n=56, E +0.048R.
+  - Paired shadow twins 32/56: live +0.060R vs SL10 book baseline +0.044R (live − SL10 = +0.016R/leg).
+  - Stop-out days > 3: only Sep-23 (the registration day), so no second one.
+  - **NO REVERT.**
+  - Disclosed: on the shadow twins SL5 − SL10 = −0.045R/leg, just inside the 0.05 bar.
+  - The neutral cell is moot since 2026-09-27 06:18Z (NY neutral disabled). The bull 5-ATR stop keeps its own read.
+- **FK1:** blocked bucket (rv < 0.07) n=0 in the parity era (high-vol week). Nothing to read; stays dark.
+- **FK2:** marginal blocked rows n=15, E +0.053R, top-day 211%. The bar needs E ≤ 0 at n ≥ 20. Not yet (it leans
+  toward a kill). Stays dark.
+- **FK3:** counter hits n=48 over 3d, E −0.094R vs kept −0.034R. The promotion bar needs kept ≥ +0.085, which fails.
+  The dependency (NY-VOLZ-OFF) has landed (inconclusive). Observe only.
+- **PREREG-OIGATE:**
+  - oi > 1.0 n=61 over 4d, E −0.016R (re-arm bar: E < −0.02 at n ≥ 100 / ≥ 5d) → not met.
+  - oi > 0.5 −0.011R vs pass +0.017R at n=114 (stay-dark-permanently needs oi > 0.5 ≥ pass at n ≥ 150) → not met.
+  - **Stays dark, INCONCLUSIVE.**
+- **Row 8 LON-BULL-NARROW:** cut-lanes h9–10 n=72 over 2d, E −0.048R; kept h11–13 n=58, +0.040R (top 40%). The
+  cut needs ≥ 5d and kept ≥ +0.085. **No cut, watch continues.** (h9 is already blocked live; only h10 is live in
+  bull.)
+- **LON-TAIL:** n=10 over 2d (floor 30 / 5d). Not yet. WLA read on live symbols only (WLA-SYMBOLS fix 2026-09-26).
+- **TUEASIA (first R-read; formal Oct 4):** n=9 over 2 Tuesdays, E +0.305R, top-day 58%. Floors (n ≥ 12, ≥ 4
+  Tuesdays, top ≤ 40%) unmet. The Asia arm is on paper, so any promote still needs the three owner gates.
+- **Counts-only (board 06:32Z):** 0 forward legs/events in capitulation, breakout (plain + vol), carry, Row 11,
+  Rows 12/13, LATE-BULL-FLUSH, ASIA-MIDVOL.
+- **Changes shipped:** none from this loop. The NY-neutral disable was a separate owner order today, logged above.
