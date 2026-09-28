@@ -401,6 +401,39 @@ Sources and mechanisms are in the owner summary (chat, 2026-09-27). Rules were f
 **Read:** the two passes are the same mechanism — providing liquidity to forced perp sellers with patient (limit or
 dislocation-triggered) entries. Every market-order "buy the flush" version lost.
 
+## Tested (2026-09-27): wick-catcher risk rules for a live design. Stops hurt; the hourly cap helps.
+Registered rule (−5 ATR, strict, sell at the pre-wick close else 24h), 20 coins + 12 collapsed coins (delisting
+handled), portfolio 2%/fill, ≤ 10 open.
+
+**In R** (1R = 3 ATR1h):
+- no stop: +0.49 / +0.33 / +0.16R per fill, win rate 73 / 66 / 56%
+- 3-ATR stop: +0.06 / +0.05 / +0.11R, half the fills stopped
+- 5-ATR stop: +0.09 / +0.05 / +0.04R
+
+**Catastrophe stop, per fill (2020–21 / 2022–24 / 2025–26):**
+
+| stop | 2020–21 | 2022–24 | 2025–26 | worst fill | fills stopped |
+|---|---|---|---|---|---|
+| none | +5.65% | +1.74% | +0.81% | −73.6% | 0 |
+| −15% | +1.32% | +1.40% | +0.37% | — | 162 |
+| −20% | +2.24% | +1.60% | +0.36% | — | 89 |
+| −25% | +3.00% | +1.73% | +0.23% | — | 54 |
+
+- Portfolio maxDD gets **worse** with a stop: −3.7% none vs −6.5 / −7.3 / −7.6%. Liquidation wicks overshoot past −25%
+  and recover, so the stop sells the print.
+
+**Hourly cap on new fills, no stop:**
+
+| cap | CAGR | maxDD | positive months |
+|---|---|---|---|
+| none | +11.0% | −3.7% | — |
+| 5/hour | +8.6% | −2.1% | 75% |
+| 3/hour | +6.6% | −2.1% | 80% |
+
+**Read (live-design risk rules, to be frozen at promotion):** no price stop of any width; 1–2% notional per fill;
+at most 5 new fills per hour (deepest first); at most 10 open. The tail (a collapsing coin, −74%) is bounded by
+size: about −1.5% of equity per fill.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
