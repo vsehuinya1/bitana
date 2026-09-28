@@ -434,6 +434,69 @@ handled), portfolio 2%/fill, ≤ 10 open.
 at most 5 new fills per hour (deepest first); at most 10 open. The tail (a collapsing coin, −74%) is bounded by
 size: about −1.5% of equity per fill.
 
+## Wick catcher: what else marks the winners? (2026-09-28)
+Population: registered wick fills (k=5, strict, TP else 24h), 20 coins. Features and expected directions written before
+running; thresholds = discovery (2022–23) medians; selection on discovery only, then 2024–26 holdout once; 2020–21 and
+12 collapsed coins as extra checks. Scripts: scratch `wick_features2.py`, `wick_candidates.py`.
+
+**First pass withdrawn.** The first run scored fills on fill-bar data (bar close, OI, BTC, taker share). That bar closes
+up to 5 min after the limit fill, so "the fill bar closed high" (+2.9%/fill difference) was mostly the bounce already
+showing. Rerun with honest timing: (A) data known before the fill bar; (B) a second entry at the fill-bar close.
+
+**What fails:** heavy volume, deep overshoot, taker selling on the fill bar, OI flush before the fill, BTC already down
+before the fill bar, funding, 30-day-low breaks, other coins already filled. A 6-feature pre-fill score is not monotone
+on holdout.
+
+**C1: BTC dumping at the fill** (BTC ≤ −1.70% from the bid-hour close to the fill-bar close) → add a second unit at the
+fill-bar close (taker, 0.20%), same exits. Add-on net, IN vs OUT:
+
+| period | IN | OUT |
+|---|---|---|
+| 2020–21 | +6.87% (n=268, win 73%) | +0.45% |
+| 2022–23 (discovery) | +1.78% (n=293) | +0.88% |
+| 2024 | +3.73% (n=126, win 70%) | −1.81% |
+| 2025 | +4.85% (n=62) | −1.54% |
+| 2026 | +1.22% (n=62) | −1.05% |
+| 12 collapsed coins, all years | +5.75% (n=136), worst −25% | +0.93%, worst −74% |
+
+- Base fills inside C1 (2024–26): +2.78%, win 66%, day-clustered t 2.52. It is the market-wide signature measured in the
+  fill hour rather than the bid hour: 271 holdout fills vs 103 on the bid-hour tag.
+- Holdout fills the bid-hour tag calls coin-specific: IN +0.97% (n=199, t 1.17) vs OUT −1.48% (n=193).
+- The −74% collapse fills were all OUT.
+
+**Single-coin signatures, known before the fill:**
+- Low pre-fill taker selling: taker-sell share of the 3 bars before the fill bar ≤ 56.9%. The direction is the opposite
+  of my prior; it was picked on discovery.
+- Perp discount at the prior bar: basis ≤ −0.062%.
+
+The low-selling side beats the high-selling side in all 5 periods:
+- 2020–21: +6.19 vs +4.43%
+- 2022–23: +1.80 vs +0.73%
+- 2024: +3.73 vs +2.48%
+- 2025: +1.11 vs +0.52%
+- 2026: +1.33 vs +0.30%
+
+The discount side also beats the no-discount side in all 5 periods. In 2022–23 and 2026 the gap is small.
+
+Coin-specific fills by combination:
+
+| period | both | taker only | discount only | neither |
+|---|---|---|---|---|
+| 2020–21 | +2.38% (n=11) | +2.73% | +3.65% | +0.88% |
+| 2022–23 | +1.69% (n=144) | +1.41% | +0.60% | +0.41% |
+| 2024 | +3.05% (n=31, win 74%) | +2.15% | +2.85% | −0.63% |
+| 2025–26 | +1.37% (n=50, win 66%) | −0.04% | +0.10% | +0.01% |
+
+- "Neither" is the weakest or near-weakest bucket in every period.
+- In 2025–26 only "both" pays.
+- 7 of the 8 worst coin-specific fills had heavy pre-fill taker selling.
+- Inside C1 the effect compounds: both +2.69% (win 77%, n=149) vs neither +0.51%. Outside C1 both ≈ neither (+0.37 / +0.24%).
+
+**Read:** single-coin wicks pay when the perp is at a discount and the drop came without aggressive market selling.
+Aggressive one-sided selling into a lone coin looks informed and keeps going. The biggest separator is still the whole
+market (BTC) falling at the fill. The day-clustered t-stats are modest: 1.2–2.5. These are candidates for report-only
+lines or tiered sizing, not proven tiers.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -457,3 +520,4 @@ size: about −1.5% of equity per fill.
 | Perp-below-spot buy (basis ≤ −30 bps) | PASS all periods (2026 ≈ 0); paper candidate |
 | Coin capitulation candle / quarter-hour flow | weak / fail |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
+| Wick winner signatures (2026-09-28) | BTC dumping at the fill (add-on) holds all periods + dead coins; single-coin: perp discount + no aggressive pre-fill selling (all periods, modest t); fill-bar 'bought back' was a timing artifact |
