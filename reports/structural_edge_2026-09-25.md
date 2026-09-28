@@ -545,6 +545,19 @@ Weeks ≥ +100%: none in the holdout for any design; full period T1 1, T2 2.
 - Tiering beats flat sizing at equal drawdown: T1 vs O2 is +222% vs +162% at about −35%.
 - Big sizes assume maker fills of 30–60% of equity in a crash wick. That is only realistic for a small account.
 
+**Follow-up T3: market 50% + BTC-dump 30% + 30% add-on, single-coin tiers skipped** (POST-HOC: chosen after the table
+above, owner order "Yes"):
+
+| design | holdout CAGR | holdout maxDD | 2024 / 2025 / 2026 | full CAGR | full maxDD |
+|---|---|---|---|---|---|
+| T3 | +200% | −34% (worst day −34%) | +675 / +91 / +38% | +395% | −48% |
+
+- T3 has the same drawdown as T1, with about 22 pts/yr less return. Dropping the single-coin tiers removes return, not risk.
+- The −34% day is 2025-10-10. Five BTC-dump fills at 20:55Z, in the first minutes of the crash, lost 13–25% per unit,
+  doubled by the add-on. The bid-hour market-wide tag missed that hour, because 19:00 was not a selloff hour.
+- Read: the BTC-dump tier carries the tail. Its base mean is +1.8% vs +6.6% for market-wide; its worst fill is −25%.
+  Large size belongs on market-wide fills only. The BTC-dump tier and its add-on belong at small size.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
