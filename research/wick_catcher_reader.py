@@ -16,6 +16,14 @@ Report-only MARKET-WIDE line (amendment 2026-09-28, owner order "Yes"; verdict u
   bid hour H was a market-wide selloff hour (>= 50% of the 20 coins at hourly z <= -2, z = log return / trailing
   720-bar sd shifted by 1, >= 16 coins valid). Research basis (6.7y, 20 + 12 collapsed coins): 305 fills / 49 days,
   +9.4%/fill, win 87%, worst fill -18.5% (vs coin-specific fills +1.2%, win 62%, worst -73.6%).
+Report-only SIGNATURE lines (amendment 2026-09-28, owner order "Add"; verdict unchanged; thresholds = 2022-23 discovery
+  medians, reports/structural_edge_2026-09-25.md "what else marks the winners"):
+  btc_dump  BTC 5m close at the fill bar / BTC close at the bid-hour close - 1 <= -1.70% (known at the fill-bar close).
+  low_sell  taker-sell share of the 3 5m bars before the fill bar <= 56.87% (known at the fill).
+  discount  perp/spot - 1 at the 5m bar before the fill <= -0.062% (known at the fill).
+  tier      market (bid-hour market-wide) > btc (btc_dump) > both (low_sell and discount) > one > neither.
+  ADD-ON book: every btc_dump fill buys a second unit at the fill-bar close (taker, 0.20% round trip), same exit; skipped
+  when the exit printed inside the fill bar. Research: add-on +3.4%/trade 2024-26 vs -1.5% for non-dump fills.
 PROMOTE (ALL, formal read): mean net >= +0.5%/fill; day-clustered t >= 1.5; net positive in >= 3 distinct calendar
   months; no single fill below -40%. (Concentration bar set after seeing the 2024 basis, before any forward data: the
   basis has top-5 fill-days = 88% of net, so a top-5 cap would fail a known-good year; the month-spread bar still rules
@@ -42,6 +50,8 @@ K, K2, COST, STRICT = 5.0, 8.0, 0.0012, 0.1
 FORWARD_FROM = pd.Timestamp('2026-09-27T10:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-06-30', '2027-12-31'
 BASIS = {'n': 233, 'mean': 0.0311}   # frozen 2026-09-27 from --validate (2024 fills)
+BTC_DUMP, LOW_SELL, DISCOUNT, ADD_COST = -0.0170, 0.5687, -0.00062, 0.0020   # signature lines (2026-09-28)
+TIERS = ['market', 'btc', 'both', 'one', 'neither']
 
 
 def simulate(df, frm, k=K, exit_mode='tp', now=None):
@@ -136,6 +146,39 @@ def tag_market(rows, sell_hours):
     return rows
 
 
+def tag_signatures(rows, frames, spot):
+    """Report-only signature flags, the tier and the add-on leg (amendment 2026-09-28). Needs rows tagged by tag_market."""
+    btc = frames['BTCUSDT'].c; m5 = pd.Timedelta(minutes=5)
+    for r in rows:
+        df, sp, tf = frames[r['sym']], spot.get(r['sym']), r['t']; hc = tf.floor('h') - m5
+        b1, b0 = btc.get(tf), btc.get(hc)
+        r['btc_move'] = float(b1 / b0 - 1) if b1 is not None and b0 is not None and tf + m5 <= btc.index[-1] + m5 else None
+        pre = df.loc[tf - 3 * m5: tf - m5]
+        r['taker_sell'] = float(1 - pre.tb.sum() / pre.v.sum()) if 'tb' in df and len(pre) == 3 and pre.v.sum() > 0 else None
+        pc, sc = df.c.get(tf - m5), (sp.c.get(tf - m5) if sp is not None and len(sp) else None)
+        r['basis_pre'] = float(pc / sc - 1) if pc is not None and sc is not None and sc > 0 else None
+        r['btc_dump'] = r['btc_move'] is not None and r['btc_move'] <= BTC_DUMP
+        ls = None if r['taker_sell'] is None else r['taker_sell'] <= LOW_SELL
+        dc = None if r['basis_pre'] is None else r['basis_pre'] <= DISCOUNT
+        r['low_sell'], r['discount'] = ls, dc
+        r['tier'] = ('market' if r.get('mkt') else 'btc' if r['btc_dump'] else 'both' if ls and dc
+                     else 'neither' if ls is False and dc is False else 'one')
+        cf = df.c.get(tf)
+        r['addon'] = None
+        if r['btc_dump'] and cf is not None and r['exit_t'] > tf:
+            r['addon'] = {'t': tf + m5, 'fill': float(cf), 'exit_t': r['exit_t'], 'exit': r['exit'], 'closed': r['closed'],
+                          'why': r['why'], 'net': float(r['exit'] / cf - 1 - ADD_COST), 'sym': r['sym']}
+    return rows
+
+
+def signature_lines(rows):
+    """{name: stats} for the report-only lines."""
+    out = {'addon': stats([r['addon'] for r in rows if r.get('addon')])}
+    for t in TIERS:
+        out[t] = stats([r for r in rows if r.get('tier') == t])
+    return out
+
+
 def read(now=None, frames=None):
     frames = frames or {s: pk.live(s, 'perp', FORWARD_FROM - pd.Timedelta(days=2)) for s in UNIVERSE}
     rows, rows2 = [], []
@@ -165,11 +208,16 @@ def main():
         ok = bool(BASIS) and st.get('n') == BASIS['n'] and abs(st['mean'] - BASIS['mean']) < 5e-4
         print('VALIDATION', ('PASS' if ok else 'FAIL') if BASIS else 'BASIS NOT FROZEN')
         sys.exit(0 if ok else 1)
-    rows, rows2, _ = read()
+    rows, rows2, frames = read()
     tag_market(rows, market_selloff_hours())
     s, s2 = stats(rows), stats(rows2)
     print(f'PREREG-WICK-CATCHER forward read ({today}), fills from {FORWARD_FROM.isoformat()}: {fmt(s)}')
     print(f'  report-only market-wide line: {fmt(stats([r for r in rows if r["mkt"]]))} | coin-specific: {fmt(stats([r for r in rows if not r["mkt"]]))}')
+    spot = {sym: pk.live(sym, 'spot', FORWARD_FROM - pd.Timedelta(days=2)) for sym in UNIVERSE}
+    sl = signature_lines(tag_signatures(rows, frames, spot))
+    print(f'  report-only BTC-dump add-on book: {fmt(sl["addon"])}')
+    for t in TIERS:
+        print(f'  report-only tier {t:<8}: {fmt(sl[t])}')
     print(f'  report-only k=8 / 4h book: {fmt(s2)}')
     print('VERDICT:', decide(s, today))
 

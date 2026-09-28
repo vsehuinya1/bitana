@@ -1770,3 +1770,20 @@ mechanism: patient liquidity provision to forced perp sellers.
   Tiered sizing on history: 30% per market-wide fill / 2% otherwise gives CAGR +88%, maxDD −10%.
 - **Purpose:** test forward whether the market-wide tier keeps its win rate before any tiered sizing is designed.
   The market-selloff condition was pre-specified as variant M in the first wick test.
+
+### Amendment 2026-09-28 — PREREG-WICK-CATCHER: report-only SIGNATURE tiers + BTC-dump add-on book (owner order "Add")
+- **What it adds** (reader of record `research/wick_catcher_reader.py`, `tag_signatures` / `signature_lines`): each
+  primary-book fill is tagged with the first tier that fits:
+  - `market`: the market-wide line above.
+  - `btc`: BTC ≤ −1.70% from the bid-hour close to the fill-bar close.
+  - `both`: taker-sell share of the 3 bars before the fill ≤ 56.87% AND perp/spot before the fill ≤ −0.062%.
+  - `one`: exactly one of the two coin signs.
+  - `neither`: neither coin sign.
+
+  A report-only ADD-ON book buys a second unit at the fill-bar close on every BTC-dump fill (0.20% round trip,
+  same exit). Thresholds are the 2022–23 discovery medians. The verdict stays on all fills (unchanged).
+- **Research basis:** `reports/structural_edge_2026-09-25.md`, "what else marks the winners". Add-on IN vs OUT is
+  positive in all 5 periods and on the collapsed coins. Coin-specific "both" beats "neither" in every period; in 2025–26
+  only "both" pays. Modest t (1.2–2.5).
+- **Purpose:** forward evidence on the tiers before any tiered live sizing. Kline cache moved to `_v2` files with taker-buy
+  volume (the running risk watch keeps the old files until its next restart).

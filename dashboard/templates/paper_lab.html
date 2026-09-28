@@ -217,9 +217,26 @@ function tradeRows(rows, extraCol) {
 }
 function viewWick(s) {
   const st = s.stats || {}, s2 = s.stats2 || {};
-  const tr = table(['Coin', 'Filled', 'Fill', 'Depth vs pre-wick', 'Exit', 'Exit px', 'How', 'Net', 'Market-wide?'],
-    tradeRows(s.trades, t => pct(t.depth_pct, 1)).map((r, i) => r.concat([s.trades[i].mkt ? '<span class="pill good">market-wide</span>' : '<span class="mut">coin-specific</span>'])),
+  const TIER = {market: ['good', 'market-wide'], btc: ['good', 'BTC dumping'], both: ['good', 'coin: both signs'], one: ['warn', 'coin: one sign'], neither: ['bad', 'coin: neither']};
+  const tierPill = t => t.tier && TIER[t.tier] ? `<span class="pill ${TIER[t.tier][0]}">${TIER[t.tier][1]}</span>` : (t.mkt ? '<span class="pill good">market-wide</span>' : '<span class="mut">coin-specific</span>');
+  const f2 = (v, d) => v == null ? '—' : pct(v, d);
+  const tr = table(['Coin', 'Filled', 'Fill', 'Depth vs pre-wick', 'Exit', 'Exit px', 'How', 'Net', 'Tier', 'BTC since bid', 'Taker sell (15m before)', 'Perp vs spot (before)'],
+    tradeRows(s.trades, t => pct(t.depth_pct, 1)).map((r, i) => { const t = s.trades[i];
+      return r.concat([tierPill(t), f2(t.btc_move, 2), t.taker_sell == null ? '—' : (t.taker_sell * 100).toFixed(0) + '%', f2(t.basis_pre, 3)]); }),
     'No wick fill yet. Expect roughly 150–300 fills a year across 20 coins, clustered in selloffs.');
+  const sg = s.sig || {}, th = s.sig_thr || {};
+  const tk = (k, lab, res) => { const x = sg[k] || {}; return kpi(lab, x.n || 0, x.n ? `avg ${pct(x.mean)} · win ${(x.hit * 100).toFixed(0)}%` : res, cls(x.mean)); };
+  const tiers = sg.market ? `<div class="card"><h3>Report-only signature tiers (added 2026-09-28)</h3><div class="kpis">
+    ${tk('market', 'Market-wide', 'research 2024–26: +9%/fill')}
+    ${tk('btc', 'BTC dumping at the fill', 'research 2024–26: +2.8%/fill')}
+    ${tk('both', 'Coin: both signs', 'research 2024: +3.1% · 2025–26: +1.4%')}
+    ${tk('one', 'Coin: one sign', 'research 2025–26: ≈ 0%')}
+    ${tk('neither', 'Coin: neither sign', 'research 2025–26: 0.0%, 45% win')}
+    ${tk('addon', 'BTC-dump add-on (2nd unit)', 'research 2024–26: +3.4%/trade')}
+  </div><div class="note">Each fill gets the first tier that fits. <b>Market-wide</b> = the bid hour had ≥ 50% of coins at ≤ −2σ. <b>BTC dumping</b> = BTC ${th.btc_dump != null ? pct(th.btc_dump, 1) : '−1.7%'} or lower from the bid-hour close to the fill-bar close. Coin signs: <b>low selling</b> = taker-sell share of the 15 min before the fill ≤ ${th.low_sell != null ? (th.low_sell * 100).toFixed(1) : '56.9'}%; <b>discount</b> = perp ≤ ${th.discount != null ? pct(th.discount, 3) : '−0.062%'} vs spot just before the fill. <b>Add-on</b> = a second unit bought at the fill-bar close when BTC is dumping (0.20% cost), same exit. The verdict stays on all fills.</div></div>` : '';
+  const trA = table(['Coin', 'Bought', 'Price', 'Exit', 'Exit px', 'How', 'Net'],
+    (s.addons || []).map(t => [t.sym, dt(t.t), px(t.fill), t.closed ? dt(t.exit_t) : '—', px(t.exit), t.closed ? t.why : '<span class="pill warn">open</span>', `<span class="${cls(t.net)}">${pct(t.net)}</span>`]),
+    'No BTC-dump add-on yet.');
   const sm = s.stats_mkt || {}, sc = s.stats_coin || {};
   const split = `<div class="card"><h3>Report-only split: market-wide selloff vs coin-specific wicks</h3><div class="kpis">
     ${kpi('Market-wide fills', sm.n || 0, sm.n ? `avg ${pct(sm.mean)} · win ${(sm.hit * 100).toFixed(0)}%` : 'research: +9.4%/fill, 87% win', cls(sm.mean))}
@@ -230,7 +247,8 @@ function viewWick(s) {
     s.watch.map(x => [x.sym, px(x.close), x.atr_pct.toFixed(2) + '%', px(x.level), `<span class="neg">${x.dist_pct.toFixed(1)}%</span>`, px(x.level8)]), 'No data.');
   const nr = table(['Hour', 'Coin', 'Low vs bid'], s.near.map(x => [dt(x.hour), x.sym, x.gap_atr <= 0 ? '<span class="pos">reached</span>' : `${x.gap_atr.toFixed(2)} ATR above`]),
     'No coin came within 1 ATR of its bid in the last 24h.');
-  return head(s) + pctKpis(st) + split + `<div class="card"><h3>Paper fills (−5 ATR, sell back at the pre-wick price)</h3>${tr}</div>
+  return head(s) + pctKpis(st) + split + tiers + `<div class="card"><h3>Paper fills (−5 ATR, sell back at the pre-wick price)</h3>${tr}</div>
+    <div class="card"><h3>Report-only book: BTC-dump add-on (2nd unit at the fill-bar close)</h3>${trA}</div>
     <div class="grid2"><div class="card"><h3>Non-trades · every coin's resting bid now</h3>${w}<div class="note">Bids are refreshed every hour from the last hourly close. A fill needs price to trade 0.1 ATR through the bid.</div></div>
     <div class="card"><h3>Non-trades · near-misses, last 24h</h3>${nr}</div></div>
     <div class="card"><h3>Report-only book: −8 ATR, 4h hold · ${s2.n ? 'n=' + s2.n + ', avg ' + pct(s2.mean) : 'no closed fills yet'}</h3>${tr2}</div>`;

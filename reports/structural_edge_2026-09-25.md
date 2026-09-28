@@ -497,6 +497,54 @@ Aggressive one-sided selling into a lone coin looks informed and keeps going. Th
 market (BTC) falling at the fill. The day-clustered t-stats are modest: 1.2–2.5. These are candidates for report-only
 lines or tiered sizing, not proven tiers.
 
+## Wick catcher: tiered sizing vs the original (2026-09-28)
+Setup:
+- Script: scratch `wick_tier_sizing.py`. Designs fixed before running.
+- Fills: 20 coins + 12 collapsed coins. Collapsed coins have no taker/spot data, so their signs count as "one".
+- Sizing: size = % of realized equity per fill; P&L is realized at exit.
+- Limits: at most 10 open positions and 5 new fills per hour. No exchange leverage cap is modelled; "max gross" = peak
+  open notional ÷ equity.
+
+Tier results (base fill):
+
+| tier | 2020–23 | 2024–26 |
+|---|---|---|
+| market | +11.1% (n=186, win 90%) | +6.6% (n=119, win 83%) |
+| btc | +1.5% (n=616) | +1.8% (n=225) |
+| both | +0.7% (n=52) | +0.9% (n=27) |
+| one | +1.4% (n=269), worst −74% (dead coin) | 0.0% (n=116) |
+| neither | +1.0% (n=123) | −0.8% (n=82, win 39%) |
+
+**Holdout 2024-01 → 2026-09** (tiers fitted on 2022–23):
+
+| design | per fill (market / btc+add / both / one / neither) | CAGR | maxDD | worst day | best week | 2024 / 2025 / 2026 | max gross |
+|---|---|---|---|---|---|---|---|
+| O1 original | 2% flat | +5.5% | −1.9% | −1.4% | +2% | +10 / +3 / +2% | 0.2× |
+| O2 original aggressive | 40% flat | +162% | −36% | −24% | +54% | +429 / +71 / +55% | 3.6× |
+| O3 market only | 50 / 0 / 0 / 0 / 0 | +130% | −3.6% | −3.6% | +42% | +318 / +114 / +9% | 2.5× |
+| T0 tiered small | 10 / 6+6 / 4 / 2 / 0 | +29% | −8.1% | −8.1% | +12% | +59 / +16 / +10% | 0.9× |
+| T1 tiered medium | 50 / 30+30 / 20 / 10 / 0 | +222% | −34% | −34% | +62% | +716 / +93 / +57% | 4.6× |
+| T2 tiered high | 60 / 40+40 / 30 / 15 / 0 | +309% | −43% | −43% | +78% | +1167 / +108 / +79% | 6.0× |
+
+**Full 2020-01 → 2026-09** (partly in-sample):
+
+| design | CAGR | maxDD |
+|---|---|---|
+| O1 | +8.5% | −2.1% |
+| O2 | +331% | −38% |
+| O3 | +142% | −14% |
+| T0 | +47% | −9.8% |
+| T1 | +431% | −48%, worst day −45% |
+| T2 | +655% | −64% |
+
+Weeks ≥ +100%: none in the holdout for any design; full period T1 1, T2 2.
+
+**Read:**
+- The market-wide tier carries the risk-adjusted value: O3 gives +130%/yr at −3.6% DD.
+- The lower tiers add return but multiply drawdown about 10×. T1 over O3: +92 pts/yr for −30 pts DD.
+- Tiering beats flat sizing at equal drawdown: T1 vs O2 is +222% vs +162% at about −35%.
+- Big sizes assume maker fills of 30–60% of equity in a crash wick. That is only realistic for a small account.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
