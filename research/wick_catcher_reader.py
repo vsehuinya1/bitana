@@ -12,6 +12,10 @@ Frozen rule (each of the 20 coins of capitulation_reader.UNIVERSE independently;
   COST: 0.12% round trip (maker entry 0.02%, exit 0.05% + 0.05% slippage).  R/return = exit/fill - 1 - 0.12%.
 Report-only second book: k = 8, exit = 4h hold (same fill rule).
 Forward window: fills from 2026-09-27T10:00Z.
+Report-only MARKET-WIDE line (amendment 2026-09-28, owner order "Yes"; verdict unchanged): primary-book fills whose
+  bid hour H was a market-wide selloff hour (>= 50% of the 20 coins at hourly z <= -2, z = log return / trailing
+  720-bar sd shifted by 1, >= 16 coins valid). Research basis (6.7y, 20 + 12 collapsed coins): 305 fills / 49 days,
+  +9.4%/fill, win 87%, worst fill -18.5% (vs coin-specific fills +1.2%, win 62%, worst -73.6%).
 PROMOTE (ALL, formal read): mean net >= +0.5%/fill; day-clustered t >= 1.5; net positive in >= 3 distinct calendar
   months; no single fill below -40%. (Concentration bar set after seeing the 2024 basis, before any forward data: the
   basis has top-5 fill-days = 88% of net, so a top-5 cap would fail a known-good year; the month-spread bar still rules
@@ -116,6 +120,22 @@ def decide(s, today):
     return 'PARK (extension exhausted)' if today >= EXTENSION_DATE else 'INCONCLUSIVE -> one extension to ' + EXTENSION_DATE
 
 
+def market_selloff_hours(now=None):
+    """Set of hour-start timestamps H whose hour was a market-wide selloff (>= 50% of coins at hourly z <= -2)."""
+    now = now or pd.Timestamp.now(tz='UTC')
+    _, C = capr.fetch(min(FORWARD_FROM, now) - pd.Timedelta(days=40))
+    r = np.log(C / C.shift(1)); z = r / r.rolling(720, min_periods=500).std().shift(1)
+    valid = z.notna().sum(1)
+    br = ((z <= -2).sum(1) / valid).where(valid >= 16)
+    return set(br.index[br >= 0.5])
+
+
+def tag_market(rows, sell_hours):
+    for r in rows:
+        r['mkt'] = (r['t'].floor('h') - pd.Timedelta(hours=1)) in sell_hours     # bid hour H = the hour before the fill hour
+    return rows
+
+
 def read(now=None, frames=None):
     frames = frames or {s: pk.live(s, 'perp', FORWARD_FROM - pd.Timedelta(days=2)) for s in UNIVERSE}
     rows, rows2 = [], []
@@ -146,8 +166,10 @@ def main():
         print('VALIDATION', ('PASS' if ok else 'FAIL') if BASIS else 'BASIS NOT FROZEN')
         sys.exit(0 if ok else 1)
     rows, rows2, _ = read()
+    tag_market(rows, market_selloff_hours())
     s, s2 = stats(rows), stats(rows2)
     print(f'PREREG-WICK-CATCHER forward read ({today}), fills from {FORWARD_FROM.isoformat()}: {fmt(s)}')
+    print(f'  report-only market-wide line: {fmt(stats([r for r in rows if r["mkt"]]))} | coin-specific: {fmt(stats([r for r in rows if not r["mkt"]]))}')
     print(f'  report-only k=8 / 4h book: {fmt(s2)}')
     print('VERDICT:', decide(s, today))
 

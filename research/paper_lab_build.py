@@ -148,7 +148,9 @@ _PERP = {}
 def wick(today):
     rows, rows2, frames = wcr.read()
     _PERP.update(frames)
+    wcr.tag_market(rows, wcr.market_selloff_hours())
     st, st2 = wcr.stats(rows), wcr.stats(rows2)
+    st_m, st_c = wcr.stats([r for r in rows if r['mkt']]), wcr.stats([r for r in rows if not r['mkt']])
     watch, near = [], []
     for sym, df in frames.items():
         if len(df) < 400:
@@ -167,12 +169,12 @@ def wick(today):
     watch.sort(key=lambda w: w['atr_pct'], reverse=True)
     def row(r):
         return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'ref': r.get('ref'), 'depth_pct': r.get('depth_pct'),
-                'exit_t': r['exit_t'], 'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed']}
+                'exit_t': r['exit_t'], 'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed'], 'mkt': r.get('mkt', False)}
     return {'name': 'Wick catcher', 'prereg': 'PREREG-WICK-CATCHER', 'forward_from': wcr.FORWARD_FROM,
             'rule': ('Every hour, on each of the 20 coins: a resting limit buy at the last hourly close minus 5 x ATR(1h), live '
                      'for the next hour. Filled only if price trades 0.1 ATR through it. Sell back at the pre-wick price, else '
                      'after 24h. 0.12% round trip (maker entry). Report-only second book: -8 ATR, 4h hold.'),
-            'verdict': wcr.decide(st, today), 'stats': st, 'stats2': st2,
+            'verdict': wcr.decide(st, today), 'stats': st, 'stats2': st2, 'stats_mkt': st_m, 'stats_coin': st_c,
             'trades': sorted([row(r) for r in rows], key=lambda r: r['t'], reverse=True),
             'trades2': sorted([row(r) for r in rows2], key=lambda r: r['t'], reverse=True),
             'watch': watch, 'near': sorted(near, key=lambda x: x['hour'], reverse=True)[:40]}

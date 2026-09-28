@@ -217,14 +217,20 @@ function tradeRows(rows, extraCol) {
 }
 function viewWick(s) {
   const st = s.stats || {}, s2 = s.stats2 || {};
-  const tr = table(['Coin', 'Filled', 'Fill', 'Depth vs pre-wick', 'Exit', 'Exit px', 'How', 'Net'],
-    tradeRows(s.trades, t => pct(t.depth_pct, 1)), 'No wick fill yet. Expect roughly 150–300 fills a year across 20 coins, clustered in selloffs.');
+  const tr = table(['Coin', 'Filled', 'Fill', 'Depth vs pre-wick', 'Exit', 'Exit px', 'How', 'Net', 'Market-wide?'],
+    tradeRows(s.trades, t => pct(t.depth_pct, 1)).map((r, i) => r.concat([s.trades[i].mkt ? '<span class="pill good">market-wide</span>' : '<span class="mut">coin-specific</span>'])),
+    'No wick fill yet. Expect roughly 150–300 fills a year across 20 coins, clustered in selloffs.');
+  const sm = s.stats_mkt || {}, sc = s.stats_coin || {};
+  const split = `<div class="card"><h3>Report-only split: market-wide selloff vs coin-specific wicks</h3><div class="kpis">
+    ${kpi('Market-wide fills', sm.n || 0, sm.n ? `avg ${pct(sm.mean)} · win ${(sm.hit * 100).toFixed(0)}%` : 'research: +9.4%/fill, 87% win', cls(sm.mean))}
+    ${kpi('Coin-specific fills', sc.n || 0, sc.n ? `avg ${pct(sc.mean)} · win ${(sc.hit * 100).toFixed(0)}%` : 'research: +1.2%/fill, 62% win', cls(sc.mean))}
+  </div><div class="note">Market-wide = the bid hour had ≥ 50% of the 20 coins at an hourly move ≤ −2σ. Tracked to test the tiered-sizing idea; the verdict stays on all fills.</div></div>`;
   const tr2 = table(['Coin', 'Filled', 'Fill', 'Depth', 'Exit', 'Exit px', 'How', 'Net'], tradeRows(s.trades2, t => pct(t.depth_pct, 1)), 'No fill in the −8 ATR book yet.');
   const w = table(['Coin', 'Last close', 'ATR (1h)', 'Resting bid (−5 ATR)', 'Distance', '−8 ATR level'],
     s.watch.map(x => [x.sym, px(x.close), x.atr_pct.toFixed(2) + '%', px(x.level), `<span class="neg">${x.dist_pct.toFixed(1)}%</span>`, px(x.level8)]), 'No data.');
   const nr = table(['Hour', 'Coin', 'Low vs bid'], s.near.map(x => [dt(x.hour), x.sym, x.gap_atr <= 0 ? '<span class="pos">reached</span>' : `${x.gap_atr.toFixed(2)} ATR above`]),
     'No coin came within 1 ATR of its bid in the last 24h.');
-  return head(s) + pctKpis(st) + `<div class="card"><h3>Paper fills (−5 ATR, sell back at the pre-wick price)</h3>${tr}</div>
+  return head(s) + pctKpis(st) + split + `<div class="card"><h3>Paper fills (−5 ATR, sell back at the pre-wick price)</h3>${tr}</div>
     <div class="grid2"><div class="card"><h3>Non-trades · every coin's resting bid now</h3>${w}<div class="note">Bids are refreshed every hour from the last hourly close. A fill needs price to trade 0.1 ATR through the bid.</div></div>
     <div class="card"><h3>Non-trades · near-misses, last 24h</h3>${nr}</div></div>
     <div class="card"><h3>Report-only book: −8 ATR, 4h hold · ${s2.n ? 'n=' + s2.n + ', avg ' + pct(s2.mean) : 'no closed fills yet'}</h3>${tr2}</div>`;

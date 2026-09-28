@@ -1755,3 +1755,18 @@ mechanism: patient liquidity provision to forced perp sellers.
     fail. A look-ahead bug in the first run was fixed; the result is logged.
   - #3 single-coin capitulation candle: weak.
   - #5 quarter-hour order imbalance: fails after costs.
+
+### Amendment 2026-09-28 — PREREG-WICK-CATCHER: report-only MARKET-WIDE line (owner order "Yes")
+- **What it adds:** primary-book fills are tagged market-wide when their bid hour had ≥ 50% of the 20 coins at an
+  hourly z ≤ −2. Market-wide and coin-specific fills are reported separately in the reader, the Paper Lab and the
+  weekly line. The verdict stays on all fills (unchanged).
+- **Research basis** (6.7y, survivors + 12 collapsed coins):
+
+  | fills | n / days | mean | win | worst |
+  |---|---|---|---|---|
+  | market-wide | 305 / 49 | +9.4% | 87% | −18.5% |
+  | coin-specific | 1,510 / 365 | +1.2% | 62% | −73.6% |
+
+  Tiered sizing on history: 30% per market-wide fill / 2% otherwise gives CAGR +88%, maxDD −10%.
+- **Purpose:** test forward whether the market-wide tier keeps its win rate before any tiered sizing is designed.
+  The market-selloff condition was pre-specified as variant M in the first wick test.
