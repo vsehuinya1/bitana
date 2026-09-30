@@ -689,6 +689,18 @@ timeframe changes: entry at the next 5m / 15m / 1h bar, stop 5 ATR of that timef
 - Read: the problem is the signal, not the timeframe. The hourly edges that do hold (capitulation basket, wick
   catcher's market-wide tier) need a far more extreme, market-wide trigger than a $20k liquidation cluster.
 
+**Follow-up: 1m (owner question).** Same trigger, now evaluated at every 1m close. Data: Binance 1m archive for the
+same 81 days × 20 coins. Script (scratch): `ny_1m.py`.
+
+| variant | net R | gross R | cost R | edge vs random (t) |
+|---|---|---|---|---|
+| A 1m trade (stop 5 ATR of 1m, 12-min exit) | −0.302 | +0.004 | 0.306 | −0.004R (−0.47) |
+| B fast entry (next 1m open), live 5m stop, 60-min exit | −0.130 | +0.008 | 0.139 | −0.002R (−0.13) |
+| C live (next 5m open), same stop/exit | −0.130 | +0.003 | 0.133 | −0.007R (−0.45) |
+
+- 1m more than doubles the cost drag (0.31R per trade) with no gain in gross.
+- Entering up to 4 minutes earlier doesn't help: there is no bounce in the first minutes for the 5m entry to miss.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -720,3 +732,4 @@ timeframe changes: entry at the next 5m / 15m / 1h bar, stop 5 ATR of that timef
 | Carry with Hyperliquid (2026-09-30) | perp-perp spread fails; better-venue carry 2.5x Binance-only but fails the 2026 bar |
 | Wick catcher x order-book depth (2026-09-30) | thin/pulled bid book before the fill PASSES (2023 -> 2024-26); works inside the BTC-dump tier, not for pure single-coin wicks; 2025 reversed |
 | Bitana NY rule on 15m / 1h (2026-09-30) | costs fall, but the trigger = random entries at every timeframe; no edge |
+| Bitana NY rule on 1m / faster entry (2026-09-30) | 1m: cost 0.31R/trade, net -0.30R; entering 1-4 min earlier = same as live |
