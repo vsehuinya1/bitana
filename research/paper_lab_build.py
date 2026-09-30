@@ -102,7 +102,12 @@ def breakout(today, vol=False):
             w['open_position'] = any(t['sym'] == w['sym'] and not t['closed'] for t in trades)
             watch.append(w)
     ctrl_E = float(np.mean([x[1] for x in ctrl])) if ctrl else None
+    if trades:
+        bo4.tag_funding(trades)
     closed = [t for t in trades if t['closed']]
+    fc = [t for t in closed if t.get('fund') is not None and t['fund'] <= bo4.FUND_LINE_MAX]
+    fund_line = bo4.summarize([(t['entry_time'], t['R'], True) for t in fc], ctrl_E if ctrl_E is not None else float('nan'),
+                              ff, now.normalize() + pd.Timedelta(days=1)) if fc else {'n': 0}
     st = bo4.summarize([(t['entry_time'], t['R'], True) for t in closed], ctrl_E if ctrl_E is not None else float('nan'),
                        ff, now.normalize() + pd.Timedelta(days=1)) if closed else {'n': 0}
     curve, cum = [], 0.0
@@ -120,7 +125,7 @@ def breakout(today, vol=False):
         plain, verdict = None, bo4.decide(st, today)
     return {'name': '4h breakout + volume' if vol else '4h breakout', 'prereg': 'PREREG-BREAKOUT-4H-VOL' if vol else 'PREREG-BREAKOUT-4H',
             'forward_from': ff, 'vol': vol, 'plain_same_window': plain,
-            'rule': rule, 'verdict': verdict, 'stats': st, 'control_E': ctrl_E,
+            'rule': rule, 'verdict': verdict, 'stats': st, 'control_E': ctrl_E, 'fund_line': fund_line,
             'open_R': sum(t['R'] for t in trades if not t['closed']),
             'trades': sorted(trades, key=lambda t: t['entry_time'], reverse=True), 'skipped': skipped,
             'watch': watch, 'curve': curve}
@@ -130,7 +135,9 @@ def carry(today):
     r = fcr.read()
     cur = sorted(r['current'].items(), key=lambda x: -x[1])
     open_syms = {t['sym'] for t in r['open']}
-    watch = [{'sym': s.replace('USDT', ''), 'trailing_ann': v, 'gap_to_entry': fcr.ENTER - v, 'in_position': s in open_syms}
+    vopen = {t['sym'] for t in r['venue']['open']}
+    watch = [{'sym': s.replace('USDT', ''), 'trailing_ann': v, 'gap_to_entry': fcr.ENTER - v, 'in_position': s in open_syms,
+              'hl_trailing_ann': r['current_hl'].get(s), 'in_venue_book': s in vopen}
              for s, v in cur]
     def row(t):
         return {'sym': t['sym'].replace('USDT', ''), 'entry': t['entry'], 'exit': t['exit'], 'funding': t['funding'],
@@ -140,7 +147,12 @@ def carry(today):
                      'Act 1h after the settlement. 0.30% round trip. 20 slots, 1.25x capital per notional.'),
             'verdict': fcr.decide(r, today), 'enter': fcr.ENTER, 'exit': fcr.EXIT,
             'net_on_capital': r['net_on_capital'], 'ann_on_deployed': r['ann_on_deployed'], 'drag_share': r['drag_share'],
-            'trades': [row(t) for t in r['open'] + r['closed']], 'watch': watch}
+            'trades': [row(t) for t in r['open'] + r['closed']], 'watch': watch,
+            'venue': {'net_on_capital': r['venue']['net_on_capital'], 'hl_trades': r['venue']['hl_trades'],
+                      'funding_only_net': r['funding_only_net'],
+                      'trades': [{'sym': t['sym'].replace('USDT', ''), 'venue': t['venue'], 'entry': t['entry'], 'exit': t['exit'],
+                                  'funding': t['funding'], 'net': t['net'], 'closed': t['exit'] is not None}
+                                 for t in r['venue']['open'] + r['venue']['closed']]}}
 
 
 _PERP, _SPOT = {}, {}
@@ -188,17 +200,22 @@ def wick(today):
 
 
 def discount(today):
-    rows, rows2, cur = pdr.read(perp_frames=_PERP or None)
+    pf = _PERP or {s: pk.live(s, 'perp', pdr.FORWARD_FROM - pd.Timedelta(days=2)) for s in pdr.UNIVERSE}
+    rows, rows2, cur = pdr.read(perp_frames=pf)
+    pdr.tag_btc(rows, pf)
     st, st2 = wcr.stats(rows), wcr.stats(rows2)
+    st_f, st_n = wcr.stats([r for r in rows if r['btc_fall']]), wcr.stats([r for r in rows if not r['btc_fall']])
     watch = sorted([{'sym': k.replace('USDT', ''), **v} for k, v in cur.items()], key=lambda w: w['basis_now'])
     def row(r):
         return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'basis': r['basis'], 'exit_t': r['exit_t'],
-                'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed']}
+                'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed'], 'btc1h': r.get('btc1h'),
+                'btc_fall': r.get('btc_fall')}
     return {'name': 'Perp below spot', 'prereg': 'PREREG-PERP-DISCOUNT', 'forward_from': pdr.FORWARD_FROM,
             'rule': ('When a coin\'s perp closes a 5m bar 0.30% or more below its spot price (forced perp selling), buy the '
                      'perp at the next 5m open and hold 4h. 0.20% round trip. Report-only second book: exit when the gap '
                      'closes (>= -0.05%), else 24h.'),
             'verdict': pdr.decide(st, today), 'stats': st, 'stats2': st2, 'threshold': pdr.THR,
+            'stats_btc_fall': st_f, 'stats_btc_not': st_n, 'btc_fall_thr': pdr.BTC_FALL,
             'trades': sorted([row(r) for r in rows], key=lambda r: r['t'], reverse=True),
             'trades2': sorted([row(r) for r in rows2], key=lambda r: r['t'], reverse=True), 'watch': watch}
 

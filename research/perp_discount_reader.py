@@ -8,6 +8,9 @@ Frozen rule (each of the 20 coins of capitulation_reader.UNIVERSE; one position 
   ENTRY: buy the perp at the next 5m open. EXIT: the perp 5m open 4h after entry. COST: 0.20% round trip (taker).
 Report-only second book: exit at the next open after basis >= -5 bps (convergence), else 24h.
 Forward window: signals from 2026-09-27T10:00Z.
+Report-only BTC-FALLING line (amendment 2026-09-30, owner order "Add"; verdict unchanged): trades whose signal bar had
+  BTC perp 5m close / BTC close 60 min earlier - 1 <= -1.0%. Research (reports/structural_edge_2026-09-25.md, test #8):
+  IN vs OUT 2020-21 +3.02% vs +0.23%, 2022-23 +1.44% vs +0.29%, 2024-26 +7.68% vs -0.00% (2026 YTD IN +0.59%, n=33).
 PROMOTE (ALL, formal read): mean net >= +0.3%/trade; day-clustered t >= 1.5; net positive in >= 3 distinct calendar
   months. (Month-spread bar instead of a top-5-day cap, set before any forward data: the 2024 basis has top-5 days = 93%.)
 KILL (ANY): mean < -0.5% at n >= 40; mean < 0 at the formal read.
@@ -32,6 +35,7 @@ THR, CONV, COST, HOLD = -0.003, -0.0005, 0.002, pd.Timedelta(hours=4)
 FORWARD_FROM = pd.Timestamp('2026-09-27T10:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-06-30', '2027-12-31'
 BASIS = {'n': 143, 'mean': 0.0415}   # frozen 2026-09-27 from --validate (2024 trades)
+BTC_FALL = -0.01                     # report-only BTC-falling line (amendment 2026-09-30)
 
 
 def simulate(perp, spot, frm, exit_mode='4h'):
@@ -56,6 +60,17 @@ def simulate(perp, spot, frm, exit_mode='4h'):
                     'net': float(x / o[e] - 1 - COST), 'closed': bool(closed), 'why': exit_mode if closed else 'open'})
         busy = tx if closed else pd.Timestamp.max.tz_localize('UTC')
     return out
+
+
+def tag_btc(rows, perp_frames):
+    """Report-only BTC-falling tag (amendment 2026-09-30): BTC 1h move to the signal-bar close (entry bar - 5 min)."""
+    btc = perp_frames['BTCUSDT'].c; m5 = pd.Timedelta(minutes=5)
+    for r in rows:
+        ts = r['t'] - m5
+        b1, b0 = btc.get(ts), btc.get(ts - pd.Timedelta(minutes=60))
+        r['btc1h'] = float(b1 / b0 - 1) if b1 is not None and b0 is not None and b0 > 0 else None
+        r['btc_fall'] = r['btc1h'] is not None and r['btc1h'] <= BTC_FALL
+    return rows
 
 
 def read(now=None, perp_frames=None):
@@ -97,17 +112,26 @@ def main():
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     if a.validate:
         months = [str(m) for m in pd.period_range('2024-01', '2024-12', freq='M')]
-        rows = []
+        rows, pf = [], {}
         for s in UNIVERSE:
-            rows += simulate(pk.archive(s, 'perp', months), pk.archive(s, 'spot', months), pd.Timestamp('2024-01-01', tz='UTC'))
+            pf[s] = pk.archive(s, 'perp', months)
+            for r in simulate(pf[s], pk.archive(s, 'spot', months), pd.Timestamp('2024-01-01', tz='UTC')):
+                r['sym'] = s; rows.append(r)
         st = wc.stats(rows)
         print('VALIDATE 2024 (primary book):', wc.fmt(st))
+        tag_btc(rows, pf)
+        print('  2024 BTC-falling line (research 2024: IN 99 / +6.00%, OUT 43 / +0.04%):',
+              'IN', wc.fmt(wc.stats([r for r in rows if r['btc_fall']])), '| OUT', wc.fmt(wc.stats([r for r in rows if not r['btc_fall']])))
         ok = bool(BASIS) and st.get('n') == BASIS['n'] and abs(st['mean'] - BASIS['mean']) < 5e-4
         print('VALIDATION', ('PASS' if ok else 'FAIL') if BASIS else 'BASIS NOT FROZEN')
         sys.exit(0 if ok else 1)
-    rows, rows2, cur = read()
+    perp = {sym: pk.live(sym, 'perp', FORWARD_FROM - pd.Timedelta(days=2)) for sym in UNIVERSE}
+    rows, rows2, cur = read(perp_frames=perp)
+    tag_btc(rows, perp)
     s, s2 = wc.stats(rows), wc.stats(rows2)
     print(f'PREREG-PERP-DISCOUNT forward read ({today}), signals from {FORWARD_FROM.isoformat()}: {wc.fmt(s)}')
+    print(f'  report-only BTC-falling line: {wc.fmt(wc.stats([r for r in rows if r["btc_fall"]]))} | '
+          f'not falling: {wc.fmt(wc.stats([r for r in rows if not r["btc_fall"]]))}')
     print(f'  report-only convergence-exit book: {wc.fmt(s2)}')
     deepest = sorted(cur.items(), key=lambda x: x[1]['basis_now'])[:5]
     print('  basis now (lowest 5):', ' '.join(f"{k[:-4]} {100 * v['basis_now']:+.3f}%" for k, v in deepest))

@@ -12,6 +12,10 @@ Frozen rule (each coin of capitulation_reader.UNIVERSE independently):
   P&L       funding + basis [(spot_exit/spot_entry - 1) - (perp_exit/perp_entry - 1)] - 0.30% round trip (taker).
   capital   20 equal slots; an active slot's notional = slot / 1.25 (spot + perp margin). Idle capital earns 0.
 Forward window: signals from the 2026-09-26T16:00Z settlement on.
+Report-only VENUE book (amendment 2026-09-30, owner order "Add"; verdict unchanged): same thresholds, short the perp on
+  the venue (Binance or Hyperliquid) with the higher trailing-24h funding; funding only minus costs (spot vs HL-perp
+  basis not modelled). Research (test #7b, 2023-06 -> 2026-09): +20.5% on capital vs +8.3% Binance-only; 2025 +3.8% vs
+  +0.4%; 2026 YTD +0.2% vs -0.1% (failed the fixed 2026 bar).
 Formal read: >= 20 closed trades, or 2027-09-30 (regime-dependent sleeve; one extension to 2028-03-31, then park).
 PROMOTE (ALL): >= 20 closed; net P&L > 0; annualized net return on DEPLOYED capital >= 8%; basis + costs drag <= 25% of
   funding collected. Promotion = owner decision (needs spot trading on the API key and a unified/portfolio-margin account).
@@ -36,6 +40,7 @@ ENTER, EXIT, COST, CAP_PER_NOTIONAL = 0.15, 0.03, 0.003, 1.25
 FORWARD_FROM = pd.Timestamp('2026-09-26T16:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-09-30', '2028-03-31'
 CTX = ssl.create_default_context()
+HL_URL = 'https://api.hyperliquid.xyz/info'
 
 
 def _json(url):
@@ -48,9 +53,35 @@ def _json(url):
 
 
 def funding(sym, start):
-    r = _json(f'https://fapi.binance.com/fapi/v1/fundingRate?symbol={sym}&startTime={int(start.timestamp() * 1000)}&limit=1000') or []
-    s = pd.Series({pd.Timestamp(int(x['fundingTime']), unit='ms', tz='UTC').floor('min'): float(x['fundingRate']) for x in r})
-    return s.sort_index()
+    out, t = {}, int(start.timestamp() * 1000)
+    while True:                                   # paginated (2026-09-30): a single call stops after 1000 settlements
+        r = _json(f'https://fapi.binance.com/fapi/v1/fundingRate?symbol={sym}&startTime={t}&limit=1000') or []
+        out.update({pd.Timestamp(int(x['fundingTime']), unit='ms', tz='UTC').floor('min'): float(x['fundingRate']) for x in r})
+        if len(r) < 1000:
+            break
+        t = int(r[-1]['fundingTime']) + 1
+    return pd.Series(out, dtype=float).sort_index()
+
+
+def hl_funding(sym, start):
+    """Hyperliquid settled hourly funding (public info endpoint), report-only venue line (amendment 2026-09-30)."""
+    out, t = {}, int(start.timestamp() * 1000)
+    while True:
+        r = None
+        for a in range(3):
+            try:
+                req = urllib.request.Request(HL_URL, data=json.dumps({'type': 'fundingHistory', 'coin': sym[:-4], 'startTime': t}).encode(),
+                                             headers={'Content-Type': 'application/json'})
+                r = json.load(urllib.request.urlopen(req, context=CTX, timeout=30)); break
+            except Exception:
+                time.sleep(1 + a)
+        if not r:
+            break
+        out.update({pd.Timestamp(int(x['time']), unit='ms', tz='UTC').floor('min'): float(x['fundingRate']) for x in r})
+        if len(r) < 500:
+            break
+        t = int(r[-1]['time']) + 1
+    return pd.Series(out, dtype=float).sort_index()
 
 
 def price(sym, t, spot):
@@ -93,6 +124,39 @@ def replay(sym, now):
     return trades, float(trail.iloc[-1])
 
 
+def replay_venue(sym, now):
+    """Report-only VENUE book (amendment 2026-09-30): same thresholds, short perp on the venue (Binance or Hyperliquid)
+    with the higher trailing-24h funding at each Binance settlement; exit when that venue's trailing funding < EXIT.
+    Funding only minus costs (spot-vs-HL-perp basis not modelled). Returns (trades, current HL trailing annualized)."""
+    fr = funding(sym, FORWARD_FROM - pd.Timedelta(days=2))
+    hl = hl_funding(sym, FORWARD_FROM - pd.Timedelta(days=2))
+    if fr.empty:
+        return [], None
+    iv = fr.index.to_series().diff().dt.total_seconds().div(3600).fillna(8.0).clip(lower=1.0)
+    trail = (fr * (24 * 365 / iv)).rolling('24h').mean()
+    hl_tr = lambda t: float(hl[(hl.index > t - pd.Timedelta(hours=24)) & (hl.index <= t)].sum() * 365) if len(hl) else float('nan')
+    trades, pos = [], None
+    for t, m in trail.items():
+        if t < FORWARD_FROM:
+            continue
+        act = t + pd.Timedelta(hours=1)
+        if act > now:
+            break
+        h = hl_tr(t)
+        if pos is None and max(m, h if h == h else -1) >= ENTER:
+            pos = dict(sym=sym, entry=act, venue='HL' if h == h and h >= m else 'BN', exit=None)
+        elif pos is not None and ((h if pos['venue'] == 'HL' else m) < EXIT):
+            pos['exit'] = act; trades.append(pos); pos = None
+    if pos is not None:
+        trades.append(pos)
+    for tr in trades:
+        src = hl if tr['venue'] == 'HL' else fr
+        end = tr['exit'] or now
+        tr['funding'] = float(src[(src.index > tr['entry']) & (src.index <= end)].sum())
+        tr['net'] = tr['funding'] - (COST if tr['exit'] else COST / 2)
+    return trades, hl_tr(now.floor('h'))
+
+
 def read(now=None):
     now = now or pd.Timestamp.now(tz='UTC')
     allt, cur = [], {}
@@ -102,6 +166,12 @@ def read(now=None):
         if last is not None:
             cur[s] = last
         time.sleep(0.2)
+    vt, cur_hl = [], {}
+    for s in UNIVERSE:
+        tr, h = replay_venue(s, now)
+        vt += tr
+        if h is not None:
+            cur_hl[s] = h
     closed = [t for t in allt if t['exit'] is not None]
     opened = [t for t in allt if t['exit'] is None]
     w = 1 / len(UNIVERSE) / CAP_PER_NOTIONAL
@@ -111,7 +181,12 @@ def read(now=None):
     drag = -(sum(t['basis'] for t in allt) - COST * len(closed) - COST / 2 * len(opened))
     return dict(closed=closed, open=opened, current=cur, net_on_capital=net, deployed_slot_days=dep_days,
                 ann_on_deployed=(net / (dep_days / 365) if dep_days > 0 else None),
-                drag_share=(drag / fund if fund > 0 else None), worst_basis=min([t['basis'] for t in allt], default=None))
+                drag_share=(drag / fund if fund > 0 else None), worst_basis=min([t['basis'] for t in allt], default=None),
+                venue=dict(closed=[t for t in vt if t['exit']], open=[t for t in vt if not t['exit']],
+                           net_on_capital=sum(t['net'] for t in vt) * w,
+                           hl_trades=sum(1 for t in vt if t['venue'] == 'HL')),
+                funding_only_net=sum(t['funding'] - (COST if t['exit'] else COST / 2) for t in allt) * w,
+                current_hl=cur_hl)
 
 
 def decide(r, today):
@@ -142,6 +217,11 @@ def main():
     r = read()
     print(f'PREREG-FUNDING-CARRY forward read ({today}), signals from {FORWARD_FROM.isoformat()}')
     print(' ', summary(r, today))
+    v = r['venue']
+    print(f"  report-only venue book (Binance or Hyperliquid, funding only): closed {len(v['closed'])} | open {len(v['open'])} "
+          f"({v['hl_trades']} on HL) | net on capital {v['net_on_capital'] * 100:+.3f}% vs registered funding-only "
+          f"{r['funding_only_net'] * 100:+.3f}% | top HL trailing: "
+          + ' '.join(f'{k[:-4]} {x:+.0%}' for k, x in sorted(r['current_hl'].items(), key=lambda z: -z[1])[:5]))
     for t in r['closed']:
         print(f"  closed {t['sym']} {t['entry']:%m-%d %H}h -> {t['exit']:%m-%d %H}h funding {t['funding'] * 100:+.2f}% "
               f"basis {t['basis'] * 100:+.2f}% net {t['net'] * 100:+.2f}%")

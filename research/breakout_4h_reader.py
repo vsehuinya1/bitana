@@ -17,6 +17,10 @@ Control (the drift a long earns without the trigger): a long at EVERY 4h open of
   empty weeks included.
 Universe: the 20 coins of PREREG-CAPITULATION-BASKET (capitulation_reader.UNIVERSE).
 Forward window: entries >= 2026-09-26T08:00Z (first bar that closed after registration).
+Report-only FUNDING line (amendment 2026-09-30, owner order "Add"; verdict unchanged; chosen after seeing research
+  results, disclosed): closed trades whose last settled Binance funding at or before the signal-bar close was <= 0.
+  Research (test #4): edge vs random longs 2020 +0.273R (plain +0.023), 2021-24 +0.282R (+0.207), 2025-26 +0.412R
+  (+0.087) on 13% of the trades; failed the fixed selection rule (discovery t 1.45 vs 1.92).
 PROMOTE (ALL, forward, formal read): E >= +0.10R; edge vs control >= +0.10R; week-clustered t(edge) >= 1.5;
   top-5 weeks <= 60% of net.
 KILL (ANY): E < 0 at n >= 100; at the formal read edge <= 0.
@@ -52,6 +56,7 @@ FORWARD_FROM = pd.Timestamp('2026-09-26T08:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-03-31', '2027-06-30'
 PERIODS = [('2020', '2020-01-01', '2021-01-01'), ('2021-01 .. 2025-01', '2021-01-01', '2025-02-01'),
            ('2025-02 .. 2026-08', '2025-02-01', '2026-09-01')]
+FUND_LINE_MAX = 0.0   # report-only funding line (amendment 2026-09-30)
 BASIS = {'2020': (408, 0.310), '2021-01 .. 2025-01': (2336, 0.276), '2025-02 .. 2026-08': (769, 0.055)}  # frozen 2026-09-26
 CTX = ssl.create_default_context()
 
@@ -221,6 +226,37 @@ def pooled(frames, a, b, entries_from=None, vol_mult=None):
     return summarize(tr, ctrl_E, pd.Timestamp(a, tz='UTC'), pd.Timestamp(b, tz='UTC'))
 
 
+def tag_funding(trades, start=pd.Timestamp('2026-09-24T00:00:00Z')):
+    """Report-only funding tag (amendment 2026-09-30): detail trades (dicts with 'sym', 'signal') get 'fund' = the last
+    settled Binance funding rate at or before the signal-bar close (signal open + 4h). Public endpoint, one call per coin."""
+    import funding_carry_reader as fcr
+    cache = {}
+    for x in trades:
+        sym = x['sym'] if x['sym'].endswith('USDT') else x['sym'] + 'USDT'
+        if sym not in cache:
+            cache[sym] = fcr.funding(sym, start)
+        fr = cache[sym]
+        f = fr[fr.index <= x['signal'] + pd.Timedelta(hours=4)] if len(fr) else fr
+        x['fund'] = float(f.iloc[-1]) if len(f) else None
+    return trades
+
+
+def funding_line(frames, entries_from, end, vol_mult=None):
+    """Report-only: closed trades with signal-bar funding <= FUND_LINE_MAX, against the same random-long control."""
+    tr, ct = [], []
+    for sym, df in frames.items():
+        if len(df) < EMA_SPAN + 50:
+            continue
+        for x in run(df, entries_from, detail=True, vol_mult=vol_mult):
+            if x['kind'] == 'trade' and x['closed']:
+                x['sym'] = sym; tr.append(x)
+        ct += [x for x in run(df, entries_from, every_bar=True) if x[2]]
+    tag_funding(tr)
+    ctrl_E = float(np.mean([x[1] for x in ct])) if ct else float('nan')
+    sel = [(x['entry_time'], x['R'], True) for x in tr if x.get('fund') is not None and x['fund'] <= FUND_LINE_MAX]
+    return summarize(sel, ctrl_E, pd.Timestamp(entries_from), pd.Timestamp(end))
+
+
 def decide(s, today):
     n = s.get('n', 0)
     if n >= 100 and s['E'] < 0:
@@ -277,6 +313,8 @@ def main():
     frames = {s: api_4h(s, FORWARD_FROM - pd.Timedelta(days=150)) for s in UNIVERSE}
     s = pooled(frames, str(FORWARD_FROM), str(pd.Timestamp.now(tz='UTC').normalize() + pd.Timedelta(days=1)), entries_from=FORWARD_FROM)
     print(f'PREREG-BREAKOUT-4H forward read ({today}), entries from {FORWARD_FROM.isoformat()}: {fmt(s)}')
+    end = pd.Timestamp.now(tz='UTC').normalize() + pd.Timedelta(days=1)
+    print(f'  report-only funding <= 0 line: {fmt(funding_line(frames, FORWARD_FROM, end))}')
     print('VERDICT:', decide(s, today))
 
 

@@ -19,6 +19,8 @@ Formal read: n >= 100 closed over >= 16 weeks, or 2027-03-31; one extension to 2
   2020 n=286 E +0.346R edge +0.055R t +0.24 [n=408 edge +0.019R]
   2021-01 .. 2025-01 n=1561 E +0.328R edge +0.257R t +2.06 [n=2336 edge +0.205R t +1.93]
   2025-02 .. 2026-08 n=472 E +0.264R edge +0.316R t +1.02 top-5 weeks 211% [n=769 edge +0.108R t +0.50]
+Report-only FUNDING line (amendment 2026-09-30, owner order "Add"; verdict unchanged): as PREREG-BREAKOUT-4H's line,
+  restricted to this rule's trades (signal-bar funding <= 0).
 Public data only; no account calls.
 """
 import argparse
@@ -78,9 +80,12 @@ def main():
                 ok &= s.get('n') == bn and abs(s['E'] - bE) < 1e-3
         print('VALIDATION', ('PASS' if ok else 'FAIL') if BASIS else 'BASIS NOT FROZEN')
         sys.exit(0 if (ok and BASIS) else 1)
-    s, plain = read()
+    frames = {sym: bo4.api_4h(sym, FORWARD_FROM - pd.Timedelta(days=150)) for sym in bo4.UNIVERSE}
+    s, plain = read(frames)
     print(f'PREREG-BREAKOUT-4H-VOL forward read ({today}), entries from {FORWARD_FROM.isoformat()}: {bo4.fmt(s)}')
     print(f'  plain rule, same window: {bo4.fmt(plain)}')
+    end = pd.Timestamp.now(tz='UTC').normalize() + pd.Timedelta(days=1)
+    print(f'  report-only funding <= 0 line (amendment 2026-09-30): {bo4.fmt(bo4.funding_line(frames, FORWARD_FROM, end, vol_mult=VOL_MULT))}')
     print('VERDICT:', decide(s, plain, today))
 
 

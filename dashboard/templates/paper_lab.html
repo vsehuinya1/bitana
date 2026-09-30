@@ -153,9 +153,16 @@ function viewBO(s) {
     ${kpi('Top-5 weeks share', st.n && st.top5 != null ? (st.top5 * 100).toFixed(0) + '%' : '—', 'promote needs ≤ 60%')}
     ${s.vol ? kpi('Plain rule, same window', s.plain_same_window && s.plain_same_window.n ? rr(s.plain_same_window.edge, 3) : '—', 'edge vs random · volume must add ≥ +0.05R', cls(s.plain_same_window && s.plain_same_window.edge)) : ''}
   </div></div>`;
-  const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R'],
+  const fl = s.fund_line || {};
+  const fk = `<div class="card"><h3>Report-only line: funding ≤ 0 at the signal (added 2026-09-30)</h3><div class="kpis">
+    ${kpi('Closed trades', fl.n || 0, 'signal-bar funding ≤ 0')}
+    ${kpi('Avg per trade', fl.n ? rr(fl.E, 3) : '—', fl.n ? '' : 'research 2025–26: +0.36R', cls(fl.E))}
+    ${kpi('Edge vs random', fl.n ? rr(fl.edge, 3) : '—', fl.n ? `t(week) ${fl.t == null ? '—' : fl.t.toFixed(2)}` : 'research: +0.27 / +0.28 / +0.41R', cls(fl.edge))}
+  </div><div class="note">Short-squeeze setup: a breakout while shorts are paying. Research beat the plain rule in all three periods on 13% of its trades, but failed the fixed selection rule, so it's tracked forward only. The verdict stays on all trades.</div></div>`;
+  const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R', 'Funding at signal'],
     s.trades.map(t => [t.sym, dt(t.signal), dt(t.entry_time), px(t.entry), px(t.stop), t.closed ? dt(t.exit_time) : '—',
-      px(t.exit), t.closed ? t.reason : '<span class="pill warn">open</span>', t.bars + '/36', `<span class="${cls(t.R)}">${rr(t.R)}</span>`]),
+      px(t.exit), t.closed ? t.reason : '<span class="pill warn">open</span>', t.bars + '/36', `<span class="${cls(t.R)}">${rr(t.R)}</span>`,
+      t.fund == null ? '—' : (t.fund <= 0 ? `<span class="pill good">${(t.fund * 100).toFixed(4)}%</span>` : `<span class="mut">${(t.fund * 100).toFixed(4)}%</span>`)]),
     `No breakout trade since paper started (${dt(s.forward_from)}).`);
   const sk = table(['Coin', 'Signal bar', 'Close', 'Why not taken'], s.skipped.map(x => [x.sym, dt(x.signal), px(x.close), esc(x.why)]),
     'No skipped signals.');
@@ -169,7 +176,7 @@ function viewBO(s) {
         w.above_ema ? '<span class="pos">above</span>' : '<span class="neg">below</span>']
         .concat(s.vol ? [w.vol_ratio == null ? '—' : `<span class="${w.vol_ratio >= 1.5 ? 'pos' : 'mut'}">${w.vol_ratio.toFixed(2)}× avg</span>`] : []).concat([state]);
     }), 'No data.');
-  return head(s) + k + `<div class="card"><h3>Cumulative R (closed trades)</h3>${lineChart(s.curve)}</div>
+  return head(s) + k + fk + `<div class="card"><h3>Cumulative R (closed trades)</h3>${lineChart(s.curve)}</div>
     <div class="card"><h3>Paper trades</h3>${tr}</div>
     <div class="card"><h3>Non-trades · every coin now (last closed 4h bar)</h3>${w}
       <div class="note">A trade fires when a 4h bar closes above the trigger while price is above its EMA200${s.vol ? ' and that bar\'s volume is at least 1.5× its 20-bar average' : ''}. Sorted: nearest armed triggers first.</div></div>
@@ -186,8 +193,19 @@ function viewCarry(s) {
     ${kpi('Basis+cost drag', s.drag_share == null ? '—' : (s.drag_share * 100).toFixed(0) + '%', 'of funding · promote ≤ 25%')}
     ${kpi('Highest funding now', top ? pct(top.trailing_ann, 0) + '/yr' : '—', top ? top.sym + ` · entry at ${pct(s.enter, 0)}` : '')}
   </div></div>`;
-  const w = table(['Coin', 'Trailing 24h funding', 'vs entry bar', 'Gap', 'State'],
+  const v = s.venue || {};
+  const vk = `<div class="card"><h3>Report-only book: short on Binance or Hyperliquid, whichever pays more (added 2026-09-30)</h3><div class="kpis">
+    ${kpi('Trades', (v.trades || []).length, `${v.hl_trades || 0} on Hyperliquid`)}
+    ${kpi('Net on capital', pct(v.net_on_capital, 3), 'funding only, after costs', cls(v.net_on_capital))}
+    ${kpi('Registered, funding only', pct(v.funding_only_net, 3), 'same basis for comparison', cls(v.funding_only_net))}
+  </div><div class="note">Same 15% / 3% thresholds; the short leg goes on the venue with the higher trailing-24h funding. Hyperliquid pays hourly and rests near 11%/yr, like Binance. The spot-vs-Hyperliquid price gap and USDC margin are not modelled. Research 2023-06 → 2026-09: +20.5% on capital vs +8.3% Binance-only. The verdict stays on the registered rule.</div></div>`;
+  const vt = table(['Coin', 'Venue', 'Entry', 'Exit', 'Funding', 'Net', 'Status'],
+    (v.trades || []).map(t => [t.sym, t.venue === 'HL' ? '<span class="pill">Hyperliquid</span>' : 'Binance', dt(t.entry), t.closed ? dt(t.exit) : '—',
+      `<span class="${cls(t.funding)}">${pct(t.funding, 3)}</span>`, `<span class="${cls(t.net)}">${pct(t.net, 3)}</span>`,
+      t.closed ? 'closed' : '<span class="pill warn">open</span>']), 'No venue-book trade yet.');
+  const w = table(['Coin', 'Trailing 24h funding', 'Hyperliquid 24h', 'vs entry bar', 'Gap', 'State'],
     s.watch.map(w => [w.sym, `<span class="${cls(w.trailing_ann)}">${pct(w.trailing_ann, 1)}/yr</span>`,
+      w.hl_trailing_ann == null ? '—' : `<span class="${w.hl_trailing_ann >= s.enter ? 'pos' : 'mut'}">${pct(w.hl_trailing_ann, 1)}/yr</span>${w.in_venue_book ? ' <span class="pill">venue book</span>' : ''}`,
       `<div class="bar"><i style="width:${Math.max(0, Math.min(100, w.trailing_ann / (s.enter * 2) * 100)).toFixed(1)}%"></i><b style="left:50%"></b></div>`,
       w.gap_to_entry > 0 ? pct(w.gap_to_entry, 1) + ' short' : 'at/above',
       w.in_position ? '<span class="pill good">in carry</span>' : w.trailing_ann >= s.enter ? '<span class="pill warn">enters next act time</span>' : '<span class="mut">idle</span>']),
@@ -197,7 +215,7 @@ function viewCarry(s) {
       `<span class="${cls(t.basis)}">${pct(t.basis)}</span>`, `<span class="${cls(t.net)}">${pct(t.net)}</span>`,
       t.closed ? 'closed' : '<span class="pill warn">open</span>']),
     'No carry trade yet. Funding on the 20 majors sits near the 11%/yr floor; entries start at 15%/yr.');
-  return head(s) + k + `<div class="card"><h3>Paper trades</h3>${tr}</div>
+  return head(s) + k + `<div class="card"><h3>Paper trades</h3>${tr}</div>` + vk + `<div class="card"><h3>Report-only venue book trades</h3>${vt}</div>
     <div class="card"><h3>Non-trades · every coin now</h3>${w}<div class="note">Amber tick = the 15%/yr entry bar. Exit when the trailing mean drops below ${pct(s.exit, 0)}/yr. Checked at 01, 09 and 17 UTC.</div></div>`;
 }
 
@@ -255,13 +273,20 @@ function viewWick(s) {
 }
 function viewDisc(s) {
   const st = s.stats || {}, s2 = s.stats2 || {};
-  const tr = table(['Coin', 'Entered', 'Entry', 'Gap at signal', 'Exit', 'Exit px', 'How', 'Net'],
-    tradeRows(s.trades, t => `<span class="neg">${pct(t.basis)}</span>`), 'No dislocation since paper started. Expect a few hundred a year, most inside selloffs.');
+  const tr = table(['Coin', 'Entered', 'Entry', 'Gap at signal', 'Exit', 'Exit px', 'How', 'Net', 'BTC last hour'],
+    tradeRows(s.trades, t => `<span class="neg">${pct(t.basis)}</span>`).map((r, i) => { const t = s.trades[i];
+      return r.concat([t.btc1h == null ? '—' : (t.btc_fall ? `<span class="pill good">${pct(t.btc1h)}</span>` : `<span class="mut">${pct(t.btc1h)}</span>`)]); }),
+    'No dislocation since paper started. Expect a few hundred a year, most inside selloffs.');
+  const bf = s.stats_btc_fall || {}, bn = s.stats_btc_not || {};
+  const bk = `<div class="card"><h3>Report-only line: BTC falling at the signal (added 2026-09-30)</h3><div class="kpis">
+    ${kpi('BTC falling', bf.n || 0, bf.n ? `avg ${pct(bf.mean)} · win ${(bf.hit * 100).toFixed(0)}%` : 'research 2024–26: +7.7%/trade', cls(bf.mean))}
+    ${kpi('BTC not falling', bn.n || 0, bn.n ? `avg ${pct(bn.mean)} · win ${(bn.hit * 100).toFixed(0)}%` : 'research 2024–26: 0.0%/trade', cls(bn.mean))}
+  </div><div class="note">BTC falling = BTC down ${s.btc_fall_thr != null ? pct(-s.btc_fall_thr, 1) : '1.0%'} or more over the hour to the signal bar. Research: the whole edge sits in market-wide forced selling; coin-specific discounts earned about 0 in every holdout. 2026 so far was flat even when BTC was falling. The verdict stays on all trades.</div></div>`;
   const tr2 = table(['Coin', 'Entered', 'Entry', 'Gap', 'Exit', 'Exit px', 'How', 'Net'], tradeRows(s.trades2, t => pct(t.basis)), 'No trade in the convergence-exit book yet.');
   const w = table(['Coin', 'Perp vs spot now', 'Lowest in 24h', 'State'],
     s.watch.map(x => [x.sym, `<span class="${x.basis_now <= s.threshold ? 'neg' : 'mut'}">${pct(x.basis_now, 3)}</span>`, pct(x.min_24h, 3),
       x.basis_now <= s.threshold ? '<span class="pill warn">below trigger</span>' : '<span class="mut">normal</span>']), 'No data.');
-  return head(s) + pctKpis(st) + `<div class="card"><h3>Paper trades (4h hold)</h3>${tr}</div>
+  return head(s) + pctKpis(st) + bk + `<div class="card"><h3>Paper trades (4h hold)</h3>${tr}</div>
     <div class="card"><h3>Non-trades · perp-to-spot gap on every coin now</h3>${w}<div class="note">A trade fires when a 5m bar closes with the perp at least ${pct(-s.threshold, 2)} below spot.</div></div>
     <div class="card"><h3>Report-only book: exit when the gap closes · ${s2.n ? 'n=' + s2.n + ', avg ' + pct(s2.mean) : 'no closed trades yet'}</h3>${tr2}</div>`;
 }

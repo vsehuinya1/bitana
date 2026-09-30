@@ -1787,3 +1787,22 @@ mechanism: patient liquidity provision to forced perp sellers.
   only "both" pays. Modest t (1.2–2.5).
 - **Purpose:** forward evidence on the tiers before any tiered live sizing. Kline cache moved to `_v2` files with taker-buy
   volume (the running risk watch keeps the old files until its next restart).
+
+### Amendment 2026-09-30 — three report-only lines on existing paper tracks (owner order "Add")
+Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced improvements for the other tracks"
+(8 tests). No verdict, threshold or formal-read rule changes.
+- **PREREG-PERP-DISCOUNT: BTC-falling line.** Trades whose signal bar had BTC perp down ≥ 1.0% over the prior 60 min
+  (`perp_discount_reader.tag_btc`, `BTC_FALL = -0.01`), with the complement.
+  - Research IN vs OUT: 2020–21 +3.02% vs +0.23%; 2022–23 +1.44% vs +0.29%; 2024–26 +7.68% vs −0.00%.
+  - Passed its fixed test; 2026 YTD is flat.
+- **PREREG-BREAKOUT-4H and -VOL: funding ≤ 0 line.** Closed trades whose last settled Binance funding at or before the
+  signal-bar close was ≤ 0 (`breakout_4h_reader.tag_funding` / `funding_line`), against the same random-long control.
+  - Chosen after seeing research results (disclosed). It failed the fixed selection rule (discovery t 1.45 vs 1.92) but
+    beat the plain rule's edge in all three periods.
+- **PREREG-FUNDING-CARRY: venue book.** Same 15% / 3% thresholds; the short perp goes on Binance or Hyperliquid,
+  whichever has the higher trailing-24h funding (`funding_carry_reader.replay_venue`, Hyperliquid public
+  `fundingHistory`).
+  - Funding only minus 0.30%; the spot vs HL-perp basis is not modelled.
+  - Research 2023-06 → 2026-09: +20.5% on capital vs +8.3% Binance-only. It failed the fixed 2026 bar.
+- **Data fix (no rule change):** `funding_carry_reader.funding()` now paginates. A single call stopped after 1,000
+  settlements, which on 4h-interval coins is about 166 days: before the formal read.
