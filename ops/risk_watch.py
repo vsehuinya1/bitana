@@ -17,6 +17,10 @@ Telegram chat with the bot's token. TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are pa
   OPS       dashboard/bot unreachable, unit/pm2 down, stale feed, bot paused, reduced mode, critical task unhealthy
   EOD       21:05 UTC Mon-Fri: day summary
   CAPITULATION  hourly paper tracker for PREREG-CAPITULATION-BASKET: event alert + 24h exit result
+IDLE DAYS (2026-09-30, owner: stop monitoring in a neutral regime): when no arm can trade today, none is armed and no
+Bitana leg is open, BRIEF / EOD / TAPE / BOOK / the daily reduced-mode note are written to the log but NOT sent.
+Still sent: OPS failures, paused, stale feed, drawdown crossings, regime changes and provisional flips, paper tracks.
+The owner's manual positions/trades (externally managed, EXT_ ids) are never counted as Bitana legs.
 Usage: venv/bin/python -u ops/risk_watch.py [--dry] [--once] [--test]
   --dry   print instead of sending   --once  one START summary, then exit   --test  send a delivery test, exit
 Service: deploy/bitana-risk-watch.service
@@ -104,8 +108,8 @@ def save():
     os.replace(tmp, STATE)
 
 
-def emit(key, kind, msg):
-    """Record an alert once per key; it is sent at the end of the tick."""
+def emit(key, kind, msg, send=True):
+    """Record an alert once per key; it is sent at the end of the tick (send=False: log only, idle-day chatter)."""
     if key in ST['fired']:
         return
     now = datetime.now(timezone.utc)
@@ -115,8 +119,9 @@ def emit(key, kind, msg):
     line = f'{now:%a %H:%M}Z {kind} | {msg}'
     print(line, flush=True)
     with open(LOG, 'a') as f:
-        f.write(line.replace('\n', ' / ') + '\n')
-    OUT.append(f'{kind}: {msg}')
+        f.write(line.replace('\n', ' / ') + ('' if send else ' [idle day: not sent]') + '\n')
+    if send:
+        OUT.append(f'{kind}: {msg}')
 
 
 def tg_send(text):
@@ -242,14 +247,18 @@ def tick(mode='loop'):
     except Exception:
         b = None
     P = v.get('performance') or {}
-    ad = arm_day(d.get('trades') or [], P.get('trade_meta') or {}, day)
-    bk = book(v.get('positions'))
+    # the owner's manual trades (externally managed positions, EXT_ trade ids) are not Bitana legs
+    ad = arm_day([t for t in d.get('trades') or [] if not str(t.get('trade_uuid') or '').startswith('EXT_')],
+                 P.get('trade_meta') or {}, day)
+    bot_pos = [p for p in (v.get('positions') if isinstance(v.get('positions'), list) else []) if not p.get('externally_managed')]
+    bk = book(bot_pos)
     # an arm whose allowed regimes exclude the current state is off, whatever its base hours say
     age = rh.get('age_bars')
     today_hours = {k: (a.get('hours_by_weekday', {}).get(wd, [])
                        if (not a.get('regimes') or state in a['regimes'])
                        and (k not in AGE_CAPS or (age is not None and age <= AGE_CAPS[k])) else [])
                    for k, a in arms.items()}
+    idle = not any(today_hours.values()) and not bot_pos and not any(a.get('armed_now') for a in arms.values())
     # drawdown vs the equity pause, in $ and in R at the active risk per leg
     rk, rc = d.get('risk') or {}, v.get('risk_context') or {}
     eq, peak = rk.get('current_equity') or m.get('equity'), rk.get('peak_equity')
@@ -303,7 +312,7 @@ def tick(mode='loop'):
             ST['fired'].setdefault(f'OPS:reduced:{day}', stamp)
         if m.get('paused'):
             ST['fired'].setdefault(f'OPS:paused:{day}', stamp)
-        if not quiet:
+        if not quiet and not idle:
             emit(f'START:{now:%Y-%m-%dT%H:%M}', 'ONLINE', 'risk watch started\n' + summary(next_close=True))
         return
     # regime state change (persisted across restarts)
@@ -314,12 +323,13 @@ def tick(mode='loop'):
         ST['regime'] = state
     # briefs before London and NY
     if now.weekday() < 5 and now.hour in (8, 13) and 40 <= now.minute < 50:
-        emit(f'BRIEF:{day}:{now.hour}', 'BRIEF', ('Pre-London\n' if now.hour == 8 else 'Pre-NY\n') + summary(next_close=True))
+        emit(f'BRIEF:{day}:{now.hour}', 'BRIEF', ('Pre-London\n' if now.hour == 8 else 'Pre-NY\n') + summary(next_close=True),
+             send=not idle)
     # end-of-day summary
     if now.weekday() < 5 and now.hour == 21 and 5 <= now.minute < 15:
         n_alerts = sum(1 for v_ in ST['fired'].values() if v_.startswith(day))
         legs = '; '.join(f"{k} {x['r']:+.2f}R/{x['n']} legs (${x['usd']:+.2f})" for k, x in ad.items()) or 'no legs'
-        emit(f'EOD:{day}', 'EOD', f"Day close: {legs}\n{dd_txt}\nAlerts today: {n_alerts}")
+        emit(f'EOD:{day}', 'EOD', f"Day close: {legs}\n{dd_txt}\nAlerts today: {n_alerts}", send=not idle)
     # pre-hour go/no-go, only when a flag is up
     for arm, hs in today_hours.items():
         for h in hs:
@@ -343,7 +353,7 @@ def tick(mode='loop'):
                          + '; '.join(flags) + note)
     # tape against the side actually at risk: long arms/legs fear drops, short arms/legs (asia) fear rips
     if b:
-        pos = v.get('positions') if isinstance(v.get('positions'), list) else []
+        pos = bot_pos
         long_live = any(a.get('armed_now') for k, a in arms.items() if k not in SHORT_ARMS) or any(p.get('side') == 'LONG' for p in pos)
         short_live = any(a.get('armed_now') for k, a in arms.items() if k in SHORT_ARMS) or any(p.get('side') == 'SHORT' for p in pos)
         adverse = ((long_live and (b['m60'] <= -0.8 or b['m15'] <= -0.5))
@@ -351,11 +361,11 @@ def tick(mode='loop'):
         if adverse:
             emit(f'TAPE:{H}', 'TAPE', f"BTC 15m {b['m15']:+.2f}%, 1h {b['m60']:+.2f}% at {b['px']:.0f}. Armed: "
                  + (', '.join(k for k, a in arms.items() if a.get('armed_now')) or 'none')
-                 + f". Open legs {sum(x['n'] for x in bk.values())} ({sum(x['u'] for x in bk.values()):+.2f}R)")
+                 + f". Open legs {sum(x['n'] for x in bk.values())} ({sum(x['u'] for x in bk.values()):+.2f}R)", send=not idle)
     # open book
     for arm, x in bk.items():
         if (x['n'] >= 3 and x['red'] == x['n'] and x['u'] <= -0.5) or x['u'] <= -0.8:
-            emit(f'BOOK:{arm}:{H}', 'BOOK', f"{arm}: {x['red']}/{x['n']} open legs red, unrealized {x['u']:+.2f}R")
+            emit(f'BOOK:{arm}:{H}', 'BOOK', f"{arm}: {x['red']}/{x['n']} open legs red, unrealized {x['u']:+.2f}R", send=not idle)
     # day R per arm
     for arm, x in ad.items():
         for thr in (-1.0, -2.0, -3.0):
@@ -504,7 +514,7 @@ def tick(mode='loop'):
     if m.get('paused'):
         emit(f'OPS:paused:{day}', 'OPS', 'bot reports paused (no new entries)')
     if rc.get('reduced_mode'):
-        emit(f'OPS:reduced:{day}', 'OPS', f'bot in reduced-risk mode ({risk_pct:g}%/leg)')
+        emit(f'OPS:reduced:{day}', 'OPS', f'bot in reduced-risk mode ({risk_pct:g}%/leg)', send=not idle)
     for name, t in (m.get('task_health') or {}).items():
         if isinstance(t, dict) and t.get('critical') and not t.get('healthy'):
             emit(f'OPS:task:{name}:{H}', 'OPS', f'critical task {name} unhealthy')
