@@ -671,6 +671,24 @@ Fills: the registered wick rule. Design:
 - **Availability:** the archive is published daily, so a paper reader can tag fills a day later. Live use needs our own
   depth stream (Binance websocket, free).
 
+## Tested (2026-09-30): Bitana's NY rule on 15m and 1h (owner question)
+Same raw NY trigger (30m liquidation cluster, long imbalance ≥ +0.5), same 81 Tardis days × 20 coins. Only the trade's
+timeframe changes: entry at the next 5m / 15m / 1h bar, stop 5 ATR of that timeframe, exit after 12 of its bars
+(1h / 3h / 12h), 20 bps. The control is random entries with the same exit. Script (scratch): `ny_timeframes.py`.
+
+| trade TF | net R | gross R | cost R | random entries net | edge vs random (t) |
+|---|---|---|---|---|---|
+| 5m (live) | −0.124 | +0.009 | 0.133 | −0.154 | −0.003R (−0.18) |
+| 15m | −0.053 | +0.024 | 0.076 | −0.062 | −0.003R (−0.12) |
+| 1h | +0.007 | +0.044 | 0.037 | +0.007 | −0.004R (−0.11) |
+
+- A higher timeframe cuts the cost drag (wider stops, so 20 bps is a smaller share of R). The trigger still adds nothing
+  over random entries at any timeframe.
+- At 1h the rule earns exactly what random longs earn (+0.007R), which is just the sample's drift.
+- NY hours at 1h: −0.058R. Broad clusters (≥ 5 coins) are negative at every timeframe.
+- Read: the problem is the signal, not the timeframe. The hourly edges that do hold (capitulation basket, wick
+  catcher's market-wide tier) need a far more extreme, market-wide trigger than a $20k liquidation cluster.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -701,3 +719,4 @@ Fills: the registered wick rule. Design:
 | Perp discount only when BTC is falling (2026-09-30) | **PASS** all periods; coin-specific discounts ~0; 2026 YTD flat |
 | Carry with Hyperliquid (2026-09-30) | perp-perp spread fails; better-venue carry 2.5x Binance-only but fails the 2026 bar |
 | Wick catcher x order-book depth (2026-09-30) | thin/pulled bid book before the fill PASSES (2023 -> 2024-26); works inside the BTC-dump tier, not for pure single-coin wicks; 2025 reversed |
+| Bitana NY rule on 15m / 1h (2026-09-30) | costs fall, but the trigger = random entries at every timeframe; no edge |
