@@ -558,6 +558,86 @@ above, owner order "Yes"):
 - Read: the BTC-dump tier carries the tail. Its base mean is +1.8% vs +6.6% for market-wide; its worst fill is −25%.
   Large size belongs on market-wide fills only. The BTC-dump tier and its add-on belong at small size.
 
+## Tested (2026-09-30): internet-sourced improvements for the other tracks (owner order "1,3,6 and 8 first … Go")
+Sources:
+- Zarattini/Pagani/Barbon 2025, "Catching Crypto Trends": trailing stop at the channel midpoint, multi-lookback ensemble,
+  volatility targeting.
+- Chandelier exit.
+- AdaptiveTrend 2026: long/short.
+- arXiv 2601.06084: funding aligned with the 4h context.
+- K33 / short-squeeze setups: negative funding.
+- Pendle/Boros and OneKey: Hyperliquid vs Binance funding.
+
+Every rule was fixed before running. Selection used discovery only (breakout 2021–24; capitulation 2022–24; discount
+2022–23), and each holdout was checked once. Scripts (scratch): `bo4_exits_shorts.py`, `bo4_context.py`,
+`capit_variants.py`, `discount_btc.py`, `carry_hl.py`.
+
+**#1 Breakout trailing exit: FAIL.** Registered entries; control = random longs with the same exit.
+
+| exit | 2020 edge / total | 2021–24 edge (t) / total | 2025–26 edge (t) / total / maxDD | hold |
+|---|---|---|---|---|
+| X0 registered (36 bars) | +0.023R / +127R | +0.207R (1.92) / +665R | +0.087R (0.45) / +29R / −152R | 22 bars |
+| X1 chandelier 3 ATR (≤ 180 bars) | +0.067R / +76R | +0.130R (1.99) / +302R | +0.098R (0.67) / +20R / −131R | 15 |
+| X2 channel midpoint 20 bars (≤ 180) | +0.108R / +62R | +0.113R (2.11) / +310R | +0.106R (0.88) / +59R / −116R | 10 |
+
+- On 4h bars both trails are tighter than the 6-day time exit, so they cut winners and halve total R.
+- X2 has the higher t in every period and a smaller 2025–26 drawdown. The fixed rule required total R ≥ baseline, so it
+  is not adopted. The paper's trail works on daily bars with long lookbacks; a 4h version is a different thing.
+
+**#3 Short mirror (break below a swing low, close < EMA200): FAIL.**
+- Discovery t is +1.10 for all signals and +1.23 for BTC < EMA200 only; the bar was 1.5.
+- It pays only in 2022 (+251R). 2023–25 lose (−41 / −23 / −47R).
+- Long + short: total R +821 → +972R, but maxDD −152 → −180R and 2025 turns negative. Funding adds almost nothing.
+
+**#6 Capitulation basket variants: FAIL; the registered basket stays best.**
+- Discovery 2022–24 (79 events): registered +1.01% (t 1.57).
+  - most-sold half +0.85%; z-weighted +0.99%
+  - recover-or-48h +0.04%; 48h hold +0.60%
+  - limit bid at −1 ATR: +0.15% on committed capital, 31% fill rate (+1.39% per filled coin)
+- Holdouts:
+  - 48h is better only in 2025–26 (+1.14% vs +0.72%) and worse in 2020–21 (+1.88% vs +2.75%).
+  - Limit fills pay more per coin (+5.55% in 2020–21), but about 70% of coins never fill.
+
+**#8 Perp discount only when BTC is falling: PASS (all three conditions).**
+
+| IN vs OUT (mean per trade, 4h exit) | 2020–21 | 2022–23 (discovery) | 2024–26 |
+|---|---|---|---|
+| BTC 1h ≤ −0.37% (discovery median) | +2.15% vs +0.16% | +1.12% vs +0.25% | +5.64% vs −0.03% |
+| BTC 1h ≤ −1.0% (fixed) | +3.02% vs +0.23% | +1.44% vs +0.29% | +7.68% (n=167, t 1.80) vs −0.00% |
+| last hour market-wide selloff | +5.65% vs +0.51% | +1.34% vs +0.58% | +9.80% vs +0.15% |
+
+- Coin-specific discounts earn about 0 in every holdout. The whole edge is in forced selling across the market.
+- It also holds BTC-hedged: 2024–26 IN +4.1% vs OUT −0.04%.
+- 2025 IN is +16.8% on 41 trades (concentrated). **2026 YTD IN is +0.07% on 78 trades, flat.**
+
+**#2 Longer-timeframe confirmation: FAIL.** A 20-day or 60-day closing high raises the discovery edge (+0.38 / +0.47R) but
+keeps under 40% of the trades, and both fail the holdouts. The 60-day version loses −0.26R edge in 2025–26.
+
+**#4 Funding / OI context: FAIL by the rule. One near-miss:**
+- **Breakouts with funding ≤ 0** (F1, the short-squeeze setup) beat the plain rule's edge in all three periods:
+  - 2020: +0.273 vs +0.023R
+  - 2021–24: +0.282 vs +0.207R
+  - 2025–26: +0.412 vs +0.087R. 2025–26 total is +54R vs +29R, with maxDD −19R vs −152R.
+- It keeps only 13% of the trades and discovery t is 1.45 against a bar of > 1.92, so it is not selected.
+- Funding above the median fails 2020. OI rising or falling: no.
+
+**#5 Portfolio risk (max 6 open; volatility-target weights): FAIL.** Neither improves return/drawdown on discovery.
+Max 6 open halves the 2025–26 drawdown (−80R vs −152R) at the same total R.
+
+**#7 Hyperliquid alongside Binance (funding only, 2023-06 → 2026-09; HL public funding history, 20 coins).**
+
+| design | total on capital (3.3y) | 2023 | 2024 | 2025 | 2026 YTD | trades |
+|---|---|---|---|---|---|---|
+| 7a perp-perp spread (short the higher venue, 0.40%) | −12.6% | +2.7% | −2.4% | −7.6% | −5.4% | 2,016 |
+| 7b carry, short on the better venue (0.30%) | **+20.5%** | +1.6% | +14.9% | +3.8% | +0.2% | 312 |
+| 7b0 registered carry, Binance only | +8.3% | −0.0% | +8.0% | +0.4% | −0.1% | 117 |
+
+- **7a FAILS.** The spread captures +0.24%/trade of funding against 0.40% of costs, and spreads close within about 4 days.
+- **7b FAILS the fixed rule on 2026 only.** It beats Binance-only by +3.4 pts in 2025, but by only +0.3 pts in 2026 (bar ≥ 1 pt).
+- 7b is 2.5× the registered carry over 3.3 years; 276 of its 312 trades are shorted on Hyperliquid.
+- Nothing is earned in 2026 on either venue.
+- Not modelled: the price gap between Binance spot and the HL perp (a cross-venue hedge), and HL margin in USDC.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -582,3 +662,8 @@ above, owner order "Yes"):
 | Coin capitulation candle / quarter-hour flow | weak / fail |
 | NY crash-hour wait gate | not supported (bias-free: waiting ≈ buying at the alarm ≈ −0.03R/leg; the first cut was hindsight) |
 | Wick winner signatures (2026-09-28) | BTC dumping at the fill (add-on) holds all periods + dead coins; single-coin: perp discount + no aggressive pre-fill selling (all periods, modest t); fill-bar 'bought back' was a timing artifact |
+| Breakout trailing exit / short mirror / 20-60d confirmation / risk caps (2026-09-30) | fail the fixed rules (trails halve R on 4h; shorts pay only in 2022) |
+| Breakout with funding <= 0 (2026-09-30) | near-miss: higher edge in all 3 periods, 13% of trades, t below bar; not selected |
+| Capitulation basket variants (weights, exits, limit entry) (2026-09-30) | fail; registered basket stays best |
+| Perp discount only when BTC is falling (2026-09-30) | **PASS** all periods; coin-specific discounts ~0; 2026 YTD flat |
+| Carry with Hyperliquid (2026-09-30) | perp-perp spread fails; better-venue carry 2.5x Binance-only but fails the 2026 bar |
