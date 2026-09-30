@@ -246,17 +246,17 @@ function viewWick(s) {
   const sg = s.sig || {}, th = s.sig_thr || {};
   const tk = (k, lab, res) => { const x = sg[k] || {}; return kpi(lab, x.n || 0, x.n ? `avg ${pct(x.mean)} · win ${(x.hit * 100).toFixed(0)}%` : res, cls(x.mean)); };
   const tiers = sg.market ? `<div class="card"><h3>Report-only signature tiers (added 2026-09-28)</h3><div class="kpis">
-    ${tk('market', 'Market-wide', 'research 2024–26: +9%/fill')}
-    ${tk('btc', 'BTC dumping at the fill', 'research 2024–26: +2.8%/fill')}
-    ${tk('both', 'Coin: both signs', 'research 2024: +3.1% · 2025–26: +1.4%')}
-    ${tk('one', 'Coin: one sign', 'research 2025–26: ≈ 0%')}
-    ${tk('neither', 'Coin: neither sign', 'research 2025–26: 0.0%, 45% win')}
-    ${tk('addon', 'BTC-dump add-on (2nd unit)', 'research 2024–26: +3.4%/trade')}
+    ${tk('market', 'Market-wide', 'research 2024–26: +4.6%/fill')}
+    ${tk('btc', 'BTC dumping at the fill', 'research 2024–26: +1.7%/fill')}
+    ${tk('both', 'Coin: both signs', 'research 2024–26: +2.0%/fill')}
+    ${tk('one', 'Coin: one sign', 'research 2024–26: −0.8%/fill')}
+    ${tk('neither', 'Coin: neither sign', 'research 2024–26: −0.3%, 45% win')}
+    ${tk('addon', 'BTC-dump add-on (2nd unit)', 'research 2024–26: +3.2%/trade')}
   </div><div class="kpis" style="margin-top:10px">
-    ${tk('thin', 'Thin bid book', 'research 2024–26: +2.5%/fill')}
-    ${tk('not_thin', 'Normal bid book', 'research 2024–26: +0.8%/fill')}
+    ${tk('thin', 'Thin bid book', 'research 2024–26: +2.0%/fill')}
+    ${tk('not_thin', 'Normal bid book', 'research 2024–26: +0.4%/fill')}
     ${tk('thin_driven', 'Thin · market-driven', 'research: +1.9% (BTC-dump tier)')}
-    ${tk('not_thin_driven', 'Normal · market-driven', 'research: +0.4% (BTC-dump tier)')}
+    ${tk('not_thin_driven', 'Normal · market-driven', 'research: +0.5% (BTC-dump tier)')}
     ${kpi('Book tag pending', sg.book_pending || 0, 'waits for the daily archive')}
   </div><div class="note">Each fill gets the first tier that fits. <b>Market-wide</b> = the bid hour had ≥ 50% of coins at ≤ −2σ. <b>BTC dumping</b> = BTC ${th.btc_dump != null ? pct(th.btc_dump, 1) : '−1.7%'} or lower from the bid-hour close to the fill-bar close. Coin signs: <b>low selling</b> = taker-sell share of the 15 min before the fill ≤ ${th.low_sell != null ? (th.low_sell * 100).toFixed(1) : '56.9'}%; <b>discount</b> = perp ≤ ${th.discount != null ? pct(th.discount, 3) : '−0.062%'} vs spot just before the fill. <b>Add-on</b> = a second unit bought at the fill-bar close when BTC is dumping (0.20% cost), same exit. <b>Thin bid book</b> (added 2026-09-30) = bids within 1% of the price at or below ${th.book_thin != null ? (th.book_thin * 100).toFixed(1) : '89.5'}% of their 24h median just before the fill (a liquidity vacuum); tagged from Binance's daily depth archive, about a day late. Market-driven = market-wide or BTC dumping. The verdict stays on all fills.</div></div>` : '';
   const trA = table(['Coin', 'Bought', 'Price', 'Exit', 'Exit px', 'How', 'Net'],
@@ -264,9 +264,9 @@ function viewWick(s) {
     'No BTC-dump add-on yet.');
   const sm = s.stats_mkt || {}, sc = s.stats_coin || {};
   const split = `<div class="card"><h3>Report-only split: market-wide selloff vs coin-specific wicks</h3><div class="kpis">
-    ${kpi('Market-wide fills', sm.n || 0, sm.n ? `avg ${pct(sm.mean)} · win ${(sm.hit * 100).toFixed(0)}%` : 'research: +9.4%/fill, 87% win', cls(sm.mean))}
-    ${kpi('Coin-specific fills', sc.n || 0, sc.n ? `avg ${pct(sc.mean)} · win ${(sc.hit * 100).toFixed(0)}%` : 'research: +1.2%/fill, 62% win', cls(sc.mean))}
-  </div><div class="note">Market-wide = the bid hour had ≥ 50% of the 20 coins at an hourly move ≤ −2σ. Tracked to test the tiered-sizing idea; the verdict stays on all fills.</div></div>`;
+    ${kpi('Market-wide fills', sm.n || 0, sm.n ? `avg ${pct(sm.mean)} · win ${(sm.hit * 100).toFixed(0)}%` : 'research 2024–26: +4.1%/fill, 68% win', cls(sm.mean))}
+    ${kpi('Coin-specific fills', sc.n || 0, sc.n ? `avg ${pct(sc.mean)} · win ${(sc.hit * 100).toFixed(0)}%` : 'research 2024–26: +0.7%/fill, 56% win', cls(sc.mean))}
+  </div><div class="note">Market-wide = the bid hour had ≥ 50% of the 20 coins at an hourly move ≤ −2σ. Tracked to test the tiered-sizing idea; the verdict stays on all fills. Research numbers are 1m-corrected (2026-09-30).</div></div>`;
   const tr2 = table(['Coin', 'Filled', 'Fill', 'Depth', 'Exit', 'Exit px', 'How', 'Net'], tradeRows(s.trades2, t => pct(t.depth_pct, 1)), 'No fill in the −8 ATR book yet.');
   const w = table(['Coin', 'Last close', 'ATR (1h)', 'Resting bid (−5 ATR)', 'Distance', '−8 ATR level'],
     s.watch.map(x => [x.sym, px(x.close), x.atr_pct.toFixed(2) + '%', px(x.level), `<span class="neg">${x.dist_pct.toFixed(1)}%</span>`, px(x.level8)]), 'No data.');

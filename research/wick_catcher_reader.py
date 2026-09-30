@@ -9,13 +9,18 @@ Frozen rule (each of the 20 coins of capitulation_reader.UNIVERSE independently;
   resting LIMIT BUY at L = close(H) - 5 x ATR1h, live for hour H+1 only (cancel/replace hourly).
   FILL (strict, queue-safe): the first 5m bar in H+1 whose low <= L - 0.1 x ATR1h; fill price = min(that bar's open, L).
   EXIT: limit sell at the pre-wick price close(H) (first 5m bar whose high reaches it), else the 5m open 24h after the fill.
+    Fill-bar resolution (amendment 2026-09-30, owner order "Fix"): if the FILL bar's own high reaches close(H), the order
+    inside that bar is read from its five 1m bars: the TP counts only if a 1m bar AFTER the fill minute (first 1m low <=
+    L - 0.1 ATR) reaches it; otherwise (fill minute itself, or 1m data missing) the TP search continues from the next 5m
+    bar. Measurement fix, not a rule change: 5m OHLC cannot tell whether the high came before the fill.
   COST: 0.12% round trip (maker entry 0.02%, exit 0.05% + 0.05% slippage).  R/return = exit/fill - 1 - 0.12%.
 Report-only second book: k = 8, exit = 4h hold (same fill rule).
 Forward window: fills from 2026-09-27T10:00Z.
 Report-only MARKET-WIDE line (amendment 2026-09-28, owner order "Yes"; verdict unchanged): primary-book fills whose
   bid hour H was a market-wide selloff hour (>= 50% of the 20 coins at hourly z <= -2, z = log return / trailing
   720-bar sd shifted by 1, >= 16 coins valid). Research basis (6.7y, 20 + 12 collapsed coins): 305 fills / 49 days,
-  +9.4%/fill, win 87%, worst fill -18.5% (vs coin-specific fills +1.2%, win 62%, worst -73.6%).
+  +9.4%/fill, win 87%, worst fill -18.5% (vs coin-specific fills +1.2%, win 62%, worst -73.6%). 1m-corrected
+  (2026-09-30, 20 coins): 2024-26 market-wide +4.1%/fill (win 68%) vs coin-specific +0.7% (win 56%).
 Report-only SIGNATURE lines (amendment 2026-09-28, owner order "Add"; verdict unchanged; thresholds = 2022-23 discovery
   medians, reports/structural_edge_2026-09-25.md "what else marks the winners"):
   btc_dump  BTC 5m close at the fill bar / BTC close at the bid-hour close - 1 <= -1.70% (known at the fill-bar close).
@@ -28,7 +33,7 @@ Report-only THIN-BOOK line (amendment 2026-09-30, owner order "Add"; verdict unc
   at the last Binance bookDepth snapshot before the fill bar / its median over the 24h to the bid-hour close <= 0.895
   (2023 discovery median). Tagged from the public daily archive, so a fill's tag is pending until that day is published.
   Research (2023 -> 2024-26 holdout): thin +2.46% vs +0.81%/fill; inside the BTC-dump tier +1.88% vs +0.37%; no effect on
-  pure single-coin wicks; 2025 reversed.
+  pure single-coin wicks; 2025 reversed. 1m-corrected (2026-09-30): holdout +1.99% vs +0.40%; BTC-dump tier +1.88% vs +0.54%.
 PROMOTE (ALL, formal read): mean net >= +0.5%/fill; day-clustered t >= 1.5; net positive in >= 3 distinct calendar
   months; no single fill below -40%. (Concentration bar set after seeing the 2024 basis, before any forward data: the
   basis has top-5 fill-days = 88% of net, so a top-5 cap would fail a known-good year; the month-spread bar still rules
@@ -37,10 +42,12 @@ PROMOTE (ALL, formal read): mean net >= +0.5%/fill; day-clustered t >= 1.5; net 
 KILL (ANY): mean < -1% at n >= 30; mean < 0 at the formal read.
 Formal read: n >= 60 closed fills over >= 10 distinct fill days, or 2027-06-30; one extension to 2027-12-31, then park.
 --validate: recomputes the frozen 2024 basis from the public monthly archive (Jan-Dec 2024 fills, Dec-2023 warm-up):
-  n=233 over 46 days, mean +3.11%, median +3.22%, hit 70%, t +2.02, top-5 days 88%, worst -15.7%.
+  n=233 over 46 days, mean +2.53%, median +2.28%, hit 64%, t +1.68, top-5 days 104%, worst -15.7% (1m-resolved,
+  2026-09-30; 34 fills had the TP level inside the fill bar, 1 of them confirmed on 1m; before: +3.11%, hit 70%, t +2.02).
 """
 import argparse
 import io
+import json
 import os
 import ssl
 import sys
@@ -59,14 +66,15 @@ UNIVERSE = capr.UNIVERSE
 K, K2, COST, STRICT = 5.0, 8.0, 0.0012, 0.1
 FORWARD_FROM = pd.Timestamp('2026-09-27T10:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-06-30', '2027-12-31'
-BASIS = {'n': 233, 'mean': 0.0311}   # frozen 2026-09-27 from --validate (2024 fills)
+BASIS = {'n': 233, 'mean': 0.0253}   # re-frozen 2026-09-30 with the 1m fill-bar resolution (was n=233, +3.11% on 2026-09-27)
 BTC_DUMP, LOW_SELL, DISCOUNT, ADD_COST = -0.0170, 0.5687, -0.00062, 0.0020   # signature lines (2026-09-28)
 TIERS = ['market', 'btc', 'both', 'one', 'neither']
 BOOK_THIN, BOOK_CACHE = 0.895, '/root/bitana/logs/paper_cache/bookdepth/'   # thin-book line (2026-09-30)
 
 
-def simulate(df, frm, k=K, exit_mode='tp', now=None):
-    """Paper fills for one coin's 5m frame. Returns list of dicts; open trades marked at the last close."""
+def simulate(df, frm, k=K, exit_mode='tp', now=None, sym=None):
+    """Paper fills for one coin's 5m frame. Returns list of dicts; open trades marked at the last close.
+    sym: needed to resolve a TP inside the fill bar on 1m bars (without it that TP is never counted)."""
     if len(df) < 400:
         return []
     now = now or df.index[-1] + pd.Timedelta(minutes=5)
@@ -92,6 +100,8 @@ def simulate(df, frm, k=K, exit_mode='tp', now=None):
         x, tx, closed, why = None, None, False, 'open'
         if exit_mode == 'tp':
             hh = np.where(h[fb:j_end] >= ref)[0]
+            if len(hh) and hh[0] == 0 and not (sym and _tp_after_fill_1m(sym, tf, thr, ref)):
+                hh = hh[1:]                                   # TP inside the fill bar not confirmed on 1m
             if len(hh):
                 x, tx, closed, why = ref, t5[fb + hh[0]], True, 'tp'
         if x is None:
@@ -104,6 +114,53 @@ def simulate(df, frm, k=K, exit_mode='tp', now=None):
                     'depth_pct': float(fill / ref - 1)})
         busy_until = tx if closed else pd.Timestamp.max.tz_localize('UTC')
     return out
+
+
+K1M_CACHE = '/root/bitana/logs/paper_cache/k1m_fillbars.pkl'
+_K1M = {}
+
+
+def _k1m(sym, t5):
+    """The five 1m bars (o, h, l, c) of the 5m bar opening at t5: cache, then fapi, then the daily archive. None if absent."""
+    if not _K1M and os.path.exists(K1M_CACHE):
+        _K1M.update(pd.read_pickle(K1M_CACHE))
+    key = f'{sym}|{int(t5.timestamp())}'
+    if key in _K1M:
+        return _K1M[key]
+    ms = int(t5.timestamp() * 1000); rows = []
+    try:
+        r = json.load(urllib.request.urlopen(f'https://fapi.binance.com/fapi/v1/klines?symbol={sym}&interval=1m&startTime={ms}&limit=5',
+                                             context=ssl.create_default_context(), timeout=30))
+        rows = [[float(x) for x in k[1:5]] for k in r if ms <= int(k[0]) < ms + 300000]
+    except Exception:
+        rows = []
+    if len(rows) < 5:
+        try:
+            d = t5.strftime('%Y-%m-%d')
+            b = urllib.request.urlopen(f'https://data.binance.vision/data/futures/um/daily/klines/{sym}/1m/{sym}-1m-{d}.zip',
+                                       context=ssl.create_default_context(), timeout=60).read()
+            z = zipfile.ZipFile(io.BytesIO(b)); rows = []
+            for line in z.read(z.namelist()[0]).decode().splitlines():
+                if line and line[0].isdigit():
+                    f = line.split(','); t = int(f[0]); t = t // 1000 if t > 10 ** 14 else t
+                    if ms <= t < ms + 300000:
+                        rows.append([float(x) for x in f[1:5]])
+        except Exception:
+            rows = []
+    out = np.array(rows) if len(rows) == 5 else None
+    if out is not None:                                   # cache only complete answers (a missing bar may appear later)
+        _K1M[key] = out
+        os.makedirs(os.path.dirname(K1M_CACHE), exist_ok=True); pd.to_pickle(dict(_K1M), K1M_CACHE)
+    return out
+
+
+def _tp_after_fill_1m(sym, t5, thr, ref):
+    """True if, inside the 5m fill bar, a 1m bar AFTER the fill minute reaches ref."""
+    m = _k1m(sym, t5)
+    if m is None:
+        return False
+    fm = np.where(m[:, 2] <= thr)[0]
+    return bool(len(fm) and (m[fm[0] + 1:, 1] >= ref).any())
 
 
 def stats(rows):
@@ -240,7 +297,7 @@ def read(now=None, frames=None):
     frames = frames or {s: pk.live(s, 'perp', FORWARD_FROM - pd.Timedelta(days=2)) for s in UNIVERSE}
     rows, rows2 = [], []
     for s, df in frames.items():
-        for r in simulate(df, FORWARD_FROM):
+        for r in simulate(df, FORWARD_FROM, sym=s):
             r['sym'] = s; rows.append(r)
         for r in simulate(df, FORWARD_FROM, k=K2, exit_mode='4h'):
             r['sym'] = s; rows2.append(r)
@@ -257,7 +314,7 @@ def main():
         rows = []
         for s in UNIVERSE:
             df = pk.archive(s, 'perp', months)
-            for r in simulate(df, pd.Timestamp('2024-01-01', tz='UTC')):
+            for r in simulate(df, pd.Timestamp('2024-01-01', tz='UTC'), sym=s):
                 if r['t'] < pd.Timestamp('2025-01-01', tz='UTC'):
                     rows.append(r)
         st = stats(rows)

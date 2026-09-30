@@ -1820,3 +1820,22 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Inside the BTC-dump tier: +1.88% vs +0.37%.
   - No effect on pure single-coin wicks; 2025 reversed.
 - **Check:** the tags reproduce the research values exactly on the 34 Aug–Sep 2026 fills.
+
+### Amendment 2026-09-30 — PREREG-WICK-CATCHER: fill-bar take-profit resolved on 1m (owner order "Fix")
+- **Problem:** the reader counted the TP when the FILL bar's own 5m high reached close(H). 5m OHLC cannot tell whether
+  that high came before the fill. That booked profits before the position existed.
+- **Fix** (`wick_catcher_reader._tp_after_fill_1m`): such a TP counts only if a 1m bar AFTER the fill minute reaches
+  close(H). Otherwise the TP search continues from the next 5m bar. 1m bars come from the Binance fapi, then the daily
+  archive, cached in `logs/paper_cache/k1m_fillbars.pkl`. This is a measurement fix; the rule is unchanged.
+- **2024 basis re-frozen:** n=233, mean **+2.53%** (was +3.11%), hit 64% (was 70%), t +1.68 (was 2.02), top-5 days 104%.
+  34 fills had the TP level inside the fill bar; 1 was confirmed on 1m.
+- **Promotion and kill bars are unchanged** (mean ≥ +0.5%, t ≥ 1.5, ≥ 3 positive months, worst ≥ −40%). No forward
+  fills existed yet, so no forward result changes.
+- **Other tracks checked:** breakout (stop + time exit), discount and capitulation (opens only) have no in-bar TP.
+- **Research numbers re-run at 1m** (78 of 1,519 fills changed exit; scratch `wick_features2_1m.py`,
+  `wick_tier_sizing_1m.py`).
+  - 2024–26: market-wide +4.07%/fill (win 68%; was +6.07%) vs coin-specific +0.67%.
+  - BTC-dump add-on: +3.17% vs −0.71%. Single-coin both signs vs neither: +2.01% vs −0.31%.
+  - Thin book: +1.99% vs +0.40%. Every signature line still separates in the same direction.
+  - Sizing, 2024–26 holdout: 2% flat +3.6%/yr (DD −2.5%); market-only 50% +79%/yr (DD −10%); tiered medium +113%/yr
+    (DD −54%).

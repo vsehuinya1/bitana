@@ -760,6 +760,31 @@ The truth is between the two, since some wicks do recover inside the bar. 1m dat
 this report (tiers, sizing) carries this optimism; the market-wide tier stays strongly positive under the conservative
 bound.
 
+## Wick catcher re-run with the fill bar resolved on 1m (2026-09-30, owner order "Fix")
+The reader of record now resolves a TP inside the fill bar on 1m bars (`_tp_after_fill_1m`); the 2024 basis is
+re-frozen at +2.53%/fill (was +3.11%). In 2024, 34 fills had the TP level inside the fill bar and only 1 was confirmed
+after the fill minute: the old rule was booking almost entirely fake exits.
+
+Research re-run (20 coins; sizing also + 12 collapsed coins). 78 of 1,519 fills change exit:
+
+| 2024–26 | before | 1m-corrected |
+|---|---|---|
+| market-wide fills | +6.07%/fill, win 83% | **+4.07%, win 68%** |
+| coin-specific fills | +0.73% | +0.67% |
+| BTC-dump add-on, IN vs OUT | +3.73…+4.85% vs −1.1…−1.8% (by year) | +3.17% vs −0.71% |
+| single-coin both signs vs neither | +3.05% / +1.37% vs −0.63% / +0.01% | +2.01% vs −0.31% |
+| thin bid book vs not | +2.46% vs +0.81% | +1.99% vs +0.40% (2025 still reversed) |
+
+Every signature still separates in the same direction. Sizing at 1m (2024–26 holdout; full period in brackets):
+- 2% flat: +3.6%/yr, maxDD −2.5% (+6.9%/yr)
+- market-wide only 50%: **+79%/yr, maxDD −10%** (+100%/yr, −35%)
+- tiered small: +21%/yr, −11.5%
+- tiered medium: +113%/yr, maxDD **−54%** (+298%/yr, −54%)
+- market + BTC-dump only: +105%/yr, −54%
+
+The fake exits had hidden the 2025-10-10 crash damage. Tiered medium/high now has a −54% / −70% worst day. Market-wide
+only stays the best return per unit of drawdown.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -794,3 +819,4 @@ bound.
 | Bitana NY rule on 1m / faster entry (2026-09-30) | 1m: cost 0.31R/trade, net -0.30R; entering 1-4 min earlier = same as live |
 | Bitana trigger levers (2026-09-30) | filters add nothing; limit bid beats random bids but LOSES after costs once the fill bar is resolved on 1m (PASS withdrawn) |
 | In-bar TP correction (2026-09-30) | wick catcher optimistic by ~0.3%/fill (market-wide ~1.3 pts); to be resolved on 1m |
+| Wick catcher 1m re-run (2026-09-30) | reader fixed + basis re-frozen (+2.53%); market-wide 2024-26 +4.1% (68% win); signatures hold; big tiered sizing now -54% DD |
