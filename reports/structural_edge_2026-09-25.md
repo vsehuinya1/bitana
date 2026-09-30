@@ -638,6 +638,39 @@ Max 6 open halves the 2025–26 drawdown (−80R vs −152R) at the same total R
 - Nothing is earned in 2026 on either venue.
 - Not modelled: the price gap between Binance spot and the HL perp (a cross-venue hedge), and HL margin in USDC.
 
+## Tested (2026-09-30): wick catcher × order-book depth (owner order "Do it")
+Data:
+- Binance USDT-M `bookDepth` daily archive (public, from 2023): ~30s snapshots of cumulative notional at ±1–5% of mid.
+- 1,893 of 1,903 coin-days downloaded.
+
+Fills: the registered wick rule. Design:
+- Features read from the last snapshot before the fill bar, with expected directions written before running.
+- Selection on 2023 (451 fills). Holdout 2024-01 → 2026-09 (517 fills), tested once.
+- Script (scratch): `wick_book.py`.
+
+| feature | 2023 (all / coin-specific diff) | 2024–26 holdout (all / coin-specific diff) | verdict |
+|---|---|---|---|
+| D1 bid depth within 1% ≤ 0.895 × its 24h median (thin) | +1.37 / +1.32 pts | +1.65 / +0.92 pts | **confirms** |
+| D2 bid depth within 5%, thin | +0.60 / +0.56 | +2.10 / +0.95 | **confirms** |
+| D3 bid 1% depth down ≥ 11% over 60 min (pulled) | +0.72 / +0.89 | +0.88 / +0.52 | **confirms** (corr 0.98 with D1: the same signal) |
+| D4 bid share within 1%, higher | −0.91 / −1.07 | −1.62 / −0.87 | reversed in all four (disclosed): bid-heavy books did worse |
+| D5 asks shrinking over 60 min | +1.11 / +0.98 | +0.93 / −0.01 | fails the holdout |
+| D6 bids refill after the fill bar (add-on) | −1.45 / −1.26 | −0.67 / −0.79 | reversed (disclosed) |
+
+- **Read:** wicks into a thinned bid book (bids pulled: a liquidity vacuum) snap back. Wicks that eat through a thick,
+  bid-heavy book keep going.
+- **By year (thin vs not):**
+  - 2023: +1.85% vs +0.52%
+  - 2024: +3.96% vs +0.95%
+  - **2025: +0.18% vs +1.54% (reversed)**
+  - 2026: +1.18% vs +0.25%
+- **Where it works:** inside the BTC-dump tier (not market-wide), thin books averaged +1.88% (n=308, t 2.59) vs +0.37%
+  (n=140). Market-wide: +6.52% vs +4.83%.
+- **Where it doesn't:** pure single-coin fills (no market-wide selloff, no BTC dump): +0.27% vs +0.28%; holdout −0.37% vs
+  −0.19%. It sharpens the market-driven tiers; it does not rescue single-coin wicks.
+- **Availability:** the archive is published daily, so a paper reader can tag fills a day later. Live use needs our own
+  depth stream (Binance websocket, free).
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -667,3 +700,4 @@ Max 6 open halves the 2025–26 drawdown (−80R vs −152R) at the same total R
 | Capitulation basket variants (weights, exits, limit entry) (2026-09-30) | fail; registered basket stays best |
 | Perp discount only when BTC is falling (2026-09-30) | **PASS** all periods; coin-specific discounts ~0; 2026 YTD flat |
 | Carry with Hyperliquid (2026-09-30) | perp-perp spread fails; better-venue carry 2.5x Binance-only but fails the 2026 bar |
+| Wick catcher x order-book depth (2026-09-30) | thin/pulled bid book before the fill PASSES (2023 -> 2024-26); works inside the BTC-dump tier, not for pure single-coin wicks; 2025 reversed |
