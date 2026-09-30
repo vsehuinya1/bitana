@@ -734,6 +734,32 @@ t(day) ≥ 2, net > 0, positive in every period. About 12 variants were looked a
   - Fills assume a strict 0.1 ATR trade-through on 5m bars; queue and latency are not modelled.
   - The 3 passes are one family (limit entry). Consistent across periods, but not independent tests.
 
+## CORRECTION (2026-09-30): the fill bar's own high was counted as the take-profit
+The Bitana limit-bid lever (above) and the wick catcher both let the TP hit inside the fill bar. On 5m OHLC the order of
+the high and the low inside that bar is unknown, so this can book a profit before the position existed. Scripts
+(scratch): `tp_bar_check.py`, `ny_limit_1m.py`.
+
+**Bitana limit bid, resolved on 1m bars** (fill = first 1m bar through the bid; TP only from the next minute):
+
+| variant | fills | net R | random bids | edge (t) | 2020–21 / 2022–24 / 2025–26 net |
+|---|---|---|---|---|---|
+| bid −2 ATR | 1,066 | −0.052 | −0.114 | +0.062R (1.95) | +0.023 / −0.073 / −0.077 |
+| bid −3 ATR | 575 | −0.008 | −0.094 | +0.086R (1.81) | +0.071 / −0.005 / −0.051 |
+
+- **The "PASS" above is withdrawn.** The trigger still beats random bids in every period, but the trade loses after
+  costs from 2022 on.
+- In 21–31% of fills, the fill bar's own high had reached the TP. Not registered.
+
+**Wick catcher (registered reader has the same optimistic TP):** 8% of all fills are ambiguous; 24% of market-wide fills.
+Conservative bound (TP only from the 5m bar after the fill) vs registered:
+- all fills: +2.08% vs +2.36%/fill; 2025–26 +0.39% vs +0.73%
+- market-wide: +8.00% (win 79%) vs +9.26% (win 88%); 2024–26 +4.07% vs +6.07%
+- coin-specific: +1.02% vs +1.13%
+
+The truth is between the two, since some wicks do recover inside the bar. 1m data can resolve it. Every wick number in
+this report (tiers, sizing) carries this optimism; the market-wide tier stays strongly positive under the conservative
+bound.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -766,4 +792,5 @@ t(day) ≥ 2, net > 0, positive in every period. About 12 variants were looked a
 | Wick catcher x order-book depth (2026-09-30) | thin/pulled bid book before the fill PASSES (2023 -> 2024-26); works inside the BTC-dump tier, not for pure single-coin wicks; 2025 reversed |
 | Bitana NY rule on 15m / 1h (2026-09-30) | costs fall, but the trigger = random entries at every timeframe; no edge |
 | Bitana NY rule on 1m / faster entry (2026-09-30) | 1m: cost 0.31R/trade, net -0.30R; entering 1-4 min earlier = same as live |
-| Bitana trigger levers (2026-09-30) | filters (size, stretch, BTC, discount, thin book) add nothing; LIMIT BID 2-3 ATR below the trigger PASSES all periods (+0.07-0.10R vs random bids) |
+| Bitana trigger levers (2026-09-30) | filters add nothing; limit bid beats random bids but LOSES after costs once the fill bar is resolved on 1m (PASS withdrawn) |
+| In-bar TP correction (2026-09-30) | wick catcher optimistic by ~0.3%/fill (market-wide ~1.3 pts); to be resolved on 1m |
