@@ -24,6 +24,11 @@ Report-only SIGNATURE lines (amendment 2026-09-28, owner order "Add"; verdict un
   tier      market (bid-hour market-wide) > btc (btc_dump) > both (low_sell and discount) > one > neither.
   ADD-ON book: every btc_dump fill buys a second unit at the fill-bar close (taker, 0.20% round trip), same exit; skipped
   when the exit printed inside the fill bar. Research: add-on +3.4%/trade 2024-26 vs -1.5% for non-dump fills.
+Report-only THIN-BOOK line (amendment 2026-09-30, owner order "Add"; verdict unchanged): bid notional within 1% of mid
+  at the last Binance bookDepth snapshot before the fill bar / its median over the 24h to the bid-hour close <= 0.895
+  (2023 discovery median). Tagged from the public daily archive, so a fill's tag is pending until that day is published.
+  Research (2023 -> 2024-26 holdout): thin +2.46% vs +0.81%/fill; inside the BTC-dump tier +1.88% vs +0.37%; no effect on
+  pure single-coin wicks; 2025 reversed.
 PROMOTE (ALL, formal read): mean net >= +0.5%/fill; day-clustered t >= 1.5; net positive in >= 3 distinct calendar
   months; no single fill below -40%. (Concentration bar set after seeing the 2024 basis, before any forward data: the
   basis has top-5 fill-days = 88% of net, so a top-5 cap would fail a known-good year; the month-spread bar still rules
@@ -35,7 +40,12 @@ Formal read: n >= 60 closed fills over >= 10 distinct fill days, or 2027-06-30; 
   n=233 over 46 days, mean +3.11%, median +3.22%, hit 70%, t +2.02, top-5 days 88%, worst -15.7%.
 """
 import argparse
+import io
+import os
+import ssl
 import sys
+import urllib.request
+import zipfile
 from datetime import datetime, timezone
 
 import numpy as np
@@ -52,6 +62,7 @@ FORMAL_DATE, EXTENSION_DATE = '2027-06-30', '2027-12-31'
 BASIS = {'n': 233, 'mean': 0.0311}   # frozen 2026-09-27 from --validate (2024 fills)
 BTC_DUMP, LOW_SELL, DISCOUNT, ADD_COST = -0.0170, 0.5687, -0.00062, 0.0020   # signature lines (2026-09-28)
 TIERS = ['market', 'btc', 'both', 'one', 'neither']
+BOOK_THIN, BOOK_CACHE = 0.895, '/root/bitana/logs/paper_cache/bookdepth/'   # thin-book line (2026-09-30)
 
 
 def simulate(df, frm, k=K, exit_mode='tp', now=None):
@@ -171,11 +182,57 @@ def tag_signatures(rows, frames, spot):
     return rows
 
 
+def _book_day(sym, day):
+    """One day of Binance USDT-M bookDepth (public archive): notional at -5/-1/+1/+5 % of mid. None if not published yet."""
+    fn = f'{BOOK_CACHE}{sym}_{day}.pkl'
+    if os.path.exists(fn):
+        return pd.read_pickle(fn)
+    u = f'https://data.binance.vision/data/futures/um/daily/bookDepth/{sym}/{sym}-bookDepth-{day}.zip'
+    try:
+        b = urllib.request.urlopen(u, context=ssl.create_default_context(), timeout=60).read()
+    except Exception:
+        return None                                    # archive lags about a day (or network): the tag stays pending
+    z = zipfile.ZipFile(io.BytesIO(b)); df = pd.read_csv(z.open(z.namelist()[0]))
+    df = df[df.percentage.isin([-5, -1, 1, 5])]
+    p = df.pivot_table(index='timestamp', columns='percentage', values='notional', aggfunc='last')
+    p.index = pd.to_datetime(p.index, utc=True)
+    p = p.rename(columns={-5: 'b5', -1: 'b1', 1: 'a1', 5: 'a5'})
+    os.makedirs(BOOK_CACHE, exist_ok=True); p.to_pickle(fn)
+    return p
+
+
+def tag_book(rows):
+    """Report-only thin-book tag (amendment 2026-09-30): 'bid1_ratio' and 'book_thin' (None = archive not published yet)."""
+    for r in rows:
+        r['bid1_ratio'], r['book_thin'] = None, None
+        t = r['t']; hc = t.floor('h')
+        parts = [_book_day(r['sym'], (t.normalize() - pd.Timedelta(days=k)).strftime('%Y-%m-%d')) for k in (1, 0)]
+        if any(p is None for p in parts):
+            continue
+        B = pd.concat([p for p in parts if len(p)]).sort_index() if any(len(p) for p in parts) else None
+        if B is None:
+            continue
+        B = B[~B.index.duplicated()]
+        i = B.index.searchsorted(t) - 1
+        base = B[(B.index >= hc - pd.Timedelta(hours=24)) & (B.index < hc)]
+        if i < 0 or t - B.index[i] > pd.Timedelta(minutes=5) or len(base) <= 1000:
+            continue
+        r['bid1_ratio'] = float(B.b1.iloc[i] / base.b1.median())
+        r['book_thin'] = r['bid1_ratio'] <= BOOK_THIN
+    return rows
+
+
 def signature_lines(rows):
     """{name: stats} for the report-only lines."""
     out = {'addon': stats([r['addon'] for r in rows if r.get('addon')])}
     for t in TIERS:
         out[t] = stats([r for r in rows if r.get('tier') == t])
+    drv = lambda r: r.get('tier') in ('market', 'btc')                  # market-driven fills (research: where thin works)
+    out['thin'] = stats([r for r in rows if r.get('book_thin') is True])
+    out['not_thin'] = stats([r for r in rows if r.get('book_thin') is False])
+    out['thin_driven'] = stats([r for r in rows if r.get('book_thin') is True and drv(r)])
+    out['not_thin_driven'] = stats([r for r in rows if r.get('book_thin') is False and drv(r)])
+    out['book_pending'] = sum(1 for r in rows if 'book_thin' in r and r['book_thin'] is None)
     return out
 
 
@@ -214,10 +271,12 @@ def main():
     print(f'PREREG-WICK-CATCHER forward read ({today}), fills from {FORWARD_FROM.isoformat()}: {fmt(s)}')
     print(f'  report-only market-wide line: {fmt(stats([r for r in rows if r["mkt"]]))} | coin-specific: {fmt(stats([r for r in rows if not r["mkt"]]))}')
     spot = {sym: pk.live(sym, 'spot', FORWARD_FROM - pd.Timedelta(days=2)) for sym in UNIVERSE}
-    sl = signature_lines(tag_signatures(rows, frames, spot))
+    sl = signature_lines(tag_book(tag_signatures(rows, frames, spot)))
     print(f'  report-only BTC-dump add-on book: {fmt(sl["addon"])}')
     for t in TIERS:
         print(f'  report-only tier {t:<8}: {fmt(sl[t])}')
+    print(f'  report-only thin book: {fmt(sl["thin"])} | not thin: {fmt(sl["not_thin"])} | pending {sl["book_pending"]}')
+    print(f'    market-driven (market-wide or BTC dump): thin {fmt(sl["thin_driven"])} | not thin {fmt(sl["not_thin_driven"])}')
     print(f'  report-only k=8 / 4h book: {fmt(s2)}')
     print('VERDICT:', decide(s, today))
 

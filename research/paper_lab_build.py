@@ -166,7 +166,7 @@ def wick(today):
     st_m, st_c = wcr.stats([r for r in rows if r['mkt']]), wcr.stats([r for r in rows if not r['mkt']])
     spot = {s: pk.live(s, 'spot', wcr.FORWARD_FROM - pd.Timedelta(days=2)) for s in wcr.UNIVERSE}
     _SPOT.update(spot)
-    sig = wcr.signature_lines(wcr.tag_signatures(rows, frames, spot))
+    sig = wcr.signature_lines(wcr.tag_book(wcr.tag_signatures(rows, frames, spot)))
     addons = sorted([dict(r['addon'], sym=r['sym'].replace('USDT', '')) for r in rows if r.get('addon')], key=lambda r: r['t'], reverse=True)
     watch, near = [], []
     for sym, df in frames.items():
@@ -187,13 +187,14 @@ def wick(today):
     def row(r):
         return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'ref': r.get('ref'), 'depth_pct': r.get('depth_pct'),
                 'exit_t': r['exit_t'], 'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed'], 'mkt': r.get('mkt', False),
-                'tier': r.get('tier'), 'btc_move': r.get('btc_move'), 'taker_sell': r.get('taker_sell'), 'basis_pre': r.get('basis_pre')}
+                'tier': r.get('tier'), 'btc_move': r.get('btc_move'), 'taker_sell': r.get('taker_sell'), 'basis_pre': r.get('basis_pre'),
+                'bid1_ratio': r.get('bid1_ratio'), 'book_thin': r.get('book_thin')}
     return {'name': 'Wick catcher', 'prereg': 'PREREG-WICK-CATCHER', 'forward_from': wcr.FORWARD_FROM,
             'rule': ('Every hour, on each of the 20 coins: a resting limit buy at the last hourly close minus 5 x ATR(1h), live '
                      'for the next hour. Filled only if price trades 0.1 ATR through it. Sell back at the pre-wick price, else '
                      'after 24h. 0.12% round trip (maker entry). Report-only second book: -8 ATR, 4h hold.'),
             'verdict': wcr.decide(st, today), 'stats': st, 'stats2': st2, 'stats_mkt': st_m, 'stats_coin': st_c,
-            'sig': sig, 'addons': addons, 'sig_thr': {'btc_dump': wcr.BTC_DUMP, 'low_sell': wcr.LOW_SELL, 'discount': wcr.DISCOUNT},
+            'sig': sig, 'addons': addons, 'sig_thr': {'btc_dump': wcr.BTC_DUMP, 'low_sell': wcr.LOW_SELL, 'discount': wcr.DISCOUNT, 'book_thin': wcr.BOOK_THIN},
             'trades': sorted([row(r) for r in rows], key=lambda r: r['t'], reverse=True),
             'trades2': sorted([row(r) for r in rows2], key=lambda r: r['t'], reverse=True),
             'watch': watch, 'near': sorted(near, key=lambda x: x['hour'], reverse=True)[:40]}

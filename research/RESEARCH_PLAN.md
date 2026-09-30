@@ -1806,3 +1806,17 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Research 2023-06 → 2026-09: +20.5% on capital vs +8.3% Binance-only. It failed the fixed 2026 bar.
 - **Data fix (no rule change):** `funding_carry_reader.funding()` now paginates. A single call stopped after 1,000
   settlements, which on 4h-interval coins is about 166 days: before the formal read.
+
+### Amendment 2026-09-30 — PREREG-WICK-CATCHER: report-only THIN-BOOK line (owner order "Add")
+- **What it adds** (`wick_catcher_reader.tag_book`): each primary-book fill gets `bid1_ratio`. That is the bid notional
+  within 1% of mid at the last Binance bookDepth snapshot before the fill bar, divided by its median over the 24h to the
+  bid-hour close.
+  - `book_thin` = ratio ≤ 0.895, the 2023 discovery median.
+  - Lines: thin vs not thin, on all fills and on market-driven fills (market-wide or BTC dump).
+  - Source: the public daily archive (data.binance.vision), so tags stay pending until the day is published (about 1 day).
+  - The verdict is unchanged.
+- **Research basis:** `reports/structural_edge_2026-09-25.md`, "wick catcher × order-book depth".
+  - Selected on 2023; 2024–26 holdout: thin +2.46% vs +0.81%/fill.
+  - Inside the BTC-dump tier: +1.88% vs +0.37%.
+  - No effect on pure single-coin wicks; 2025 reversed.
+- **Check:** the tags reproduce the research values exactly on the 34 Aug–Sep 2026 fills.
