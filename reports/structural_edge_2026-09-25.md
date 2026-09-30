@@ -701,6 +701,39 @@ same 81 days × 20 coins. Script (scratch): `ny_1m.py`.
 - 1m more than doubles the cost drag (0.31R per trade) with no gain in gross.
 - Entering up to 4 minutes earlier doesn't help: there is no bounce in the first minutes for the 5m entry to miss.
 
+## Tested (2026-09-30): levers that could add information to Bitana's NY trigger (owner order "Test")
+Same 81 Tardis days × 20 coins, raw NY trigger, NY exit (5 ATR(5m) stop, 1h, 20 bps). Every filter is compared with
+random entries that meet the SAME condition ("matched"): does the liquidation trigger add anything beyond the filter?
+The limit-entry lever is compared with the same bid placed at random 15-min marks. Pass: edge vs matched ≥ +0.05R,
+t(day) ≥ 2, net > 0, positive in every period. About 12 variants were looked at. Script (scratch): `ny_levers.py`.
+
+| lever | legs | net R | vs matched (t) | periods 2020–21 / 2022–24 / 2025–26 | verdict |
+|---|---|---|---|---|---|
+| base trigger (market buy) | 4,233 | −0.124 | −0.003R (−0.18) | −0.005 / −0.012 / +0.005 | fail |
+| L1a extreme size (coin's top 0.2%) | 67 | −0.048 | +0.015R (+0.19) | +0.026 / n=2 / +0.013 | fail |
+| L1b price stretch ≥ 4 ATR in 30m | 671 | −0.110 | −0.015R (−0.33) | −0.058 / −0.012 / +0.019 | fail |
+| L2a BTC falling ≥ 1%/1h | 694 | −0.075 | +0.029R (+0.71) | +0.062 / +0.022 / −0.065 | fail |
+| L2b perp discount ≤ −0.10% | 214 | −0.060 | +0.010R (+0.29) | −0.126 / +0.037 / +0.056 | fail |
+| L4 thin book (2023+) | 617 | −0.105 | −0.017R (−0.39) | — / −0.047 / +0.006 | fail |
+| stretch + BTC falling | 344 | −0.113 | −0.018R (−0.28) | +0.006 / −0.033 / −0.058 | fail |
+| **L3 limit bid −2 ATR, 30 min** (fill 23%) | 1,109 fills | **+0.038** | **+0.067R (+2.83)** | +0.049 / +0.060 / +0.079 | **PASS** |
+| **L3 limit bid −3 ATR** (fill 11%) | 594 fills | **+0.095** | **+0.095R (+2.61)** | +0.089 / +0.115 / +0.066 | **PASS** |
+| **L3 −2 ATR & BTC falling** (fill 27%) | 198 fills | **+0.141** | **+0.094R (+2.39)** | +0.152 / +0.047 / +0.084 | **PASS** |
+
+- **Filters add nothing:** with each condition applied, the liquidation trigger does no better than a random buy under
+  the same condition.
+- **Execution does:**
+  - A bid 2–3 ATR(5m) below the trigger close, live 30 min, sells back at the trigger price (else 1h, no stop, 0.12%).
+  - It beats the same bid placed at random times, in every period.
+  - The trigger tells you when a flush will overshoot into a resting bid and revert. Market-buying after it gets no
+    discount.
+- It is the wick catcher at 5m scale, triggered by liquidations.
+- Per fill it is small: about +0.1–0.2% net at ATR(5m) ≈ 0.3% (1R = 5 ATR ≈ 1.5%). Fill rates 11–27%.
+- Caveats:
+  - 81 sample days.
+  - Fills assume a strict 0.1 ATR trade-through on 5m bars; queue and latency are not modelled.
+  - The 3 passes are one family (limit entry). Consistent across periods, but not independent tests.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -733,3 +766,4 @@ same 81 days × 20 coins. Script (scratch): `ny_1m.py`.
 | Wick catcher x order-book depth (2026-09-30) | thin/pulled bid book before the fill PASSES (2023 -> 2024-26); works inside the BTC-dump tier, not for pure single-coin wicks; 2025 reversed |
 | Bitana NY rule on 15m / 1h (2026-09-30) | costs fall, but the trigger = random entries at every timeframe; no edge |
 | Bitana NY rule on 1m / faster entry (2026-09-30) | 1m: cost 0.31R/trade, net -0.30R; entering 1-4 min earlier = same as live |
+| Bitana trigger levers (2026-09-30) | filters (size, stretch, BTC, discount, thin book) add nothing; LIMIT BID 2-3 ATR below the trigger PASSES all periods (+0.07-0.10R vs random bids) |
