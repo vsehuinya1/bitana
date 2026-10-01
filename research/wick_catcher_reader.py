@@ -8,7 +8,8 @@ Frozen rule (each of the 20 coins of capitulation_reader.UNIVERSE independently;
   every hour H: ATR1h = mean true range of the last 14 hourly bars (known at H's close); skip if ATR1h/close < 0.1%;
   resting LIMIT BUY at L = close(H) - 5 x ATR1h, live for hour H+1 only (cancel/replace hourly).
   FILL (strict, queue-safe): the first 5m bar in H+1 whose low <= L - 0.1 x ATR1h; fill price = min(that bar's open, L).
-  EXIT: limit sell at the pre-wick price close(H) (first 5m bar whose high reaches it), else the 5m open 24h after the fill.
+  EXIT: limit sell at the pre-wick price close(H) (first 5m bar whose high trades THROUGH it: high > close(H), i.e. by at
+    least one tick; a bare touch does not fill a resting sell - amendment 2026-10-01), else the 5m open 24h after the fill.
     Fill-bar resolution (amendment 2026-09-30, owner order "Fix"): if the FILL bar's own high reaches close(H), the order
     inside that bar is read from its five 1m bars: the TP counts only if a 1m bar AFTER the fill minute (first 1m low <=
     L - 0.1 ATR) reaches it; otherwise (fill minute itself, or 1m data missing) the TP search continues from the next 5m
@@ -99,7 +100,7 @@ def simulate(df, frm, k=K, exit_mode='tp', now=None, sym=None):
         j_end = t5.searchsorted(horizon)
         x, tx, closed, why = None, None, False, 'open'
         if exit_mode == 'tp':
-            hh = np.where(h[fb:j_end] >= ref)[0]
+            hh = np.where(h[fb:j_end] > ref)[0]                 # TP must trade THROUGH by >= 1 tick (2026-10-01)
             if len(hh) and hh[0] == 0 and not (sym and _tp_after_fill_1m(sym, tf, thr, ref)):
                 hh = hh[1:]                                   # TP inside the fill bar not confirmed on 1m
             if len(hh):
@@ -156,12 +157,12 @@ def _k1m(sym, t5):
 
 
 def _tp_after_fill_1m(sym, t5, thr, ref):
-    """True if, inside the 5m fill bar, a 1m bar AFTER the fill minute reaches ref."""
+    """True if, inside the 5m fill bar, a 1m bar AFTER the fill minute trades through ref (high > ref)."""
     m = _k1m(sym, t5)
     if m is None:
         return False
     fm = np.where(m[:, 2] <= thr)[0]
-    return bool(len(fm) and (m[fm[0] + 1:, 1] >= ref).any())
+    return bool(len(fm) and (m[fm[0] + 1:, 1] > ref).any())
 
 
 def stats(rows):

@@ -1839,3 +1839,12 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Thin book: +1.99% vs +0.40%. Every signature line still separates in the same direction.
   - Sizing, 2024–26 holdout: 2% flat +3.6%/yr (DD −2.5%); market-only 50% +79%/yr (DD −10%); tiered medium +113%/yr
     (DD −54%).
+
+### Amendment 2026-10-01 — PREREG-WICK-CATCHER: the take-profit must trade through (owner order "Do it" + standing order on obvious fixes)
+- The TP exit at the pre-wick close now needs a bar whose high is ABOVE that price (at least one tick through). A bare
+  touch does not fill a resting sell. This applies to both the 5m check and the 1m fill-bar check (`high > close(H)`). It
+  matches the entry rule, which already demands a trade-through (0.1 ATR).
+- 2024 basis unchanged: n=233, +2.53%, `--validate` PASS. No frozen number moves.
+- Forward: the TRX fill of 2026-10-01 still exits at the TP (TRX traded 2.4 bps through 0.33617 at 19:10Z).
+- Also recorded: paper wick and discount trades now carry a reporting R (1R = 3 × ATR1h at entry; neither track has a
+  stop). It appears in the Paper Lab and in exit alerts. Display only; verdicts stay on the % rules.
