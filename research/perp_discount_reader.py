@@ -43,6 +43,8 @@ def simulate(perp, spot, frm, exit_mode='4h'):
     if len(j) < 50:
         return []
     b = (j.c / j.sc - 1).values; o = j.o.values; t = j.index; c = j.c.values
+    Hh = perp.resample('h').agg({'h': 'max', 'l': 'min', 'c': 'last'}).dropna()
+    atr1h = (np.maximum(Hh.h, Hh.c.shift(1)) - np.minimum(Hh.l, Hh.c.shift(1))).rolling(14).mean()   # reporting R only
     out, busy = [], pd.Timestamp.min.tz_localize('UTC')
     for i in np.where((b <= THR) & (np.r_[np.nan, b[:-1]] > THR))[0]:
         if i + 1 >= len(t) or t[i + 1] < frm or t[i + 1] < busy:
@@ -56,8 +58,12 @@ def simulate(perp, spot, frm, exit_mode='4h'):
             k = e + conv[0] + 1 if len(conv) else t.searchsorted(te + pd.Timedelta(hours=24))
             closed = k < len(t) and (len(conv) > 0 or t[k] >= te + pd.Timedelta(hours=24))
         x, tx = (o[k], t[k]) if closed else (c[-1], t[-1])
+        a_ = atr1h[atr1h.index + pd.Timedelta(hours=1) <= te]
+        unit = float(3 * a_.iloc[-1] / o[e]) if len(a_) and np.isfinite(a_.iloc[-1]) else None
+        net = float(x / o[e] - 1 - COST)
         out.append({'t': te, 'fill': float(o[e]), 'basis': float(b[i]), 'exit_t': tx, 'exit': float(x),
-                    'net': float(x / o[e] - 1 - COST), 'closed': bool(closed), 'why': exit_mode if closed else 'open'})
+                    'net': net, 'closed': bool(closed), 'why': exit_mode if closed else 'open',
+                    'r_unit': unit, 'R': net / unit if unit else None})   # reporting R: 1R = 3 x ATR1h (no stop)
         busy = tx if closed else pd.Timestamp.max.tz_localize('UTC')
     return out
 

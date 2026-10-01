@@ -231,7 +231,7 @@ function pctKpis(st, extra) {
 }
 function tradeRows(rows, extraCol) {
   return rows.map(t => [t.sym, dt(t.t), px(t.fill)].concat(extraCol ? [extraCol(t)] : []).concat([t.closed ? dt(t.exit_t) : '—', px(t.exit),
-    t.closed ? t.why : '<span class="pill warn">open</span>', `<span class="${cls(t.net)}">${pct(t.net)}</span>`]));
+    t.closed ? t.why : '<span class="pill warn">open</span>', `<span class="${cls(t.net)}">${pct(t.net)}${t.R == null ? '' : ` · ${rr(t.R)}`}</span>`]));
 }
 function viewWick(s) {
   const st = s.stats || {}, s2 = s.stats2 || {};

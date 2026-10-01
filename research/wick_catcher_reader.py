@@ -111,7 +111,8 @@ def simulate(df, frm, k=K, exit_mode='tp', now=None, sym=None):
                 x, tx = c[-1], t5[-1]                                      # still open: mark at the last close
         out.append({'t': tf, 'fill': float(fill), 'ref': float(ref), 'level_k': k, 'exit_t': tx, 'exit': float(x),
                     'net': float(x / fill - 1 - COST), 'closed': closed, 'why': why,
-                    'depth_pct': float(fill / ref - 1)})
+                    'depth_pct': float(fill / ref - 1), 'r_unit': float(3 * a_ / fill),
+                    'R': float((x / fill - 1 - COST) / (3 * a_ / fill))})   # reporting R: 1R = 3 x ATR1h (no stop)
         busy_until = tx if closed else pd.Timestamp.max.tz_localize('UTC')
     return out
 

@@ -474,14 +474,16 @@ def tick(mode='loop'):
                      f"{r['t']:%d %b %H:%M}Z) - PREREG-WICK-CATCHER")
                 if r['closed']:
                     emit(f"WCOUT:{r['sym']}:{r['t'].isoformat()}", 'WICK',
-                         f"paper exit {r['sym'][:-4]} ({r['why']}) {r['exit_t']:%d %b %H:%M}Z: {100 * r['net']:+.2f}% net")
+                         f"paper exit {r['sym'][:-4]} ({r['why']}) {r['exit_t']:%d %b %H:%M}Z: {100 * r['net']:+.2f}% net"
+                         + (f" ({r['R']:+.2f}R, 1R = 3 ATR1h)" if r.get('R') is not None else ''))
             dr, _, _ = pdr.read(perp_frames=frames)
             for r in dr:
                 emit(f"PDIN:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
                      f"paper buy {r['sym'][:-4]} perp {100 * r['basis']:+.2f}% below spot ({r['t']:%d %b %H:%M}Z) - PREREG-PERP-DISCOUNT")
                 if r['closed']:
                     emit(f"PDOUT:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
-                         f"paper exit {r['sym'][:-4]} {r['exit_t']:%d %b %H:%M}Z (4h): {100 * r['net']:+.2f}% net")
+                         f"paper exit {r['sym'][:-4]} {r['exit_t']:%d %b %H:%M}Z (4h): {100 * r['net']:+.2f}% net"
+                         + (f" ({r['R']:+.2f}R, 1R = 3 ATR1h)" if r.get('R') is not None else ''))
             ST['wd_summary'] = (f"WICK {wcr.fmt(wcr.stats(wr))} | {wcr.decide(wcr.stats(wr), day)} || "
                                 f"DISCOUNT {wcr.fmt(wcr.stats(dr))} | {pdr.decide(wcr.stats(dr), day)}")
         except Exception as e:

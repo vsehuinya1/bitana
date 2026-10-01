@@ -188,7 +188,7 @@ def wick(today):
         return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'ref': r.get('ref'), 'depth_pct': r.get('depth_pct'),
                 'exit_t': r['exit_t'], 'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed'], 'mkt': r.get('mkt', False),
                 'tier': r.get('tier'), 'btc_move': r.get('btc_move'), 'taker_sell': r.get('taker_sell'), 'basis_pre': r.get('basis_pre'),
-                'bid1_ratio': r.get('bid1_ratio'), 'book_thin': r.get('book_thin')}
+                'bid1_ratio': r.get('bid1_ratio'), 'book_thin': r.get('book_thin'), 'R': r.get('R')}
     return {'name': 'Wick catcher', 'prereg': 'PREREG-WICK-CATCHER', 'forward_from': wcr.FORWARD_FROM,
             'rule': ('Every hour, on each of the 20 coins: a resting limit buy at the last hourly close minus 5 x ATR(1h), live '
                      'for the next hour. Filled only if price trades 0.1 ATR through it. Sell back at the pre-wick price, else '
@@ -209,7 +209,7 @@ def discount(today):
     watch = sorted([{'sym': k.replace('USDT', ''), **v} for k, v in cur.items()], key=lambda w: w['basis_now'])
     def row(r):
         return {'sym': r['sym'].replace('USDT', ''), 't': r['t'], 'fill': r['fill'], 'basis': r['basis'], 'exit_t': r['exit_t'],
-                'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed'], 'btc1h': r.get('btc1h'),
+                'exit': r['exit'], 'net': r['net'], 'why': r['why'], 'closed': r['closed'], 'btc1h': r.get('btc1h'), 'R': r.get('R'),
                 'btc_fall': r.get('btc_fall')}
     return {'name': 'Perp below spot', 'prereg': 'PREREG-PERP-DISCOUNT', 'forward_from': pdr.FORWARD_FROM,
             'rule': ('When a coin\'s perp closes a 5m bar 0.30% or more below its spot price (forced perp selling), buy the '
