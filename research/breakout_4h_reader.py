@@ -17,6 +17,11 @@ Control (the drift a long earns without the trigger): a long at EVERY 4h open of
   empty weeks included.
 Universe: the 20 coins of PREREG-CAPITULATION-BASKET (capitulation_reader.UNIVERSE).
 Forward window: entries >= 2026-09-26T08:00Z (first bar that closed after registration).
+Report-only COIN and MACRO lines (amendment 2026-10-02, owner order "Add"; verdict unchanged): TOP10_PLAIN = the 10 coins
+  with the best edge vs random longs on 2021-24 (fixed list); it beat the other 10 in both holdouts (2020 +0.074 vs
+  -0.010R, 2025-26 +0.174 vs +0.001R). MACRO line = trades whose signal day was a macro bull (BTC daily close > SMA200 and
+  SMA200 rising over 30 days; young bull included); bull-side edge beat the rest in all three periods. Each line is
+  compared with random longs on the same coins / in the same macro state.
 Report-only FUNDING line (amendment 2026-09-30, owner order "Add"; verdict unchanged; chosen after seeing research
   results, disclosed): closed trades whose last settled Binance funding at or before the signal-bar close was <= 0.
   Research (test #4): edge vs random longs 2020 +0.273R (plain +0.023), 2021-24 +0.282R (+0.207), 2025-26 +0.412R
@@ -57,6 +62,7 @@ FORMAL_DATE, EXTENSION_DATE = '2027-03-31', '2027-06-30'
 PERIODS = [('2020', '2020-01-01', '2021-01-01'), ('2021-01 .. 2025-01', '2021-01-01', '2025-02-01'),
            ('2025-02 .. 2026-08', '2025-02-01', '2026-09-01')]
 FUND_LINE_MAX = 0.0   # report-only funding line (amendment 2026-09-30)
+TOP10_PLAIN = ['DOGEUSDT', 'FILUSDT', 'AVAXUSDT', 'ETCUSDT', 'SOLUSDT', 'DOTUSDT', 'ETHUSDT', 'AAVEUSDT', 'TRXUSDT', 'BNBUSDT']  # 2026-10-02
 BASIS = {'2020': (408, 0.310), '2021-01 .. 2025-01': (2336, 0.276), '2025-02 .. 2026-08': (769, 0.055)}  # frozen 2026-09-26
 CTX = ssl.create_default_context()
 
@@ -241,6 +247,36 @@ def tag_funding(trades, start=pd.Timestamp('2026-09-24T00:00:00Z')):
     return trades
 
 
+_MACRO = {}
+
+
+def macro_state(day):
+    """Macro state of a UTC day from BTC daily closes: 'young bull' / 'bull' / 'transition' / 'bear' (amendment 2026-10-02).
+    bull = close > SMA200 and SMA200 > SMA200 30 days earlier; bear = both below; young bull = bull within 180 days of the
+    last bear day."""
+    if not _MACRO:
+        raw = _get('https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1d&limit=1500')
+        r = json.loads(raw) if raw else []
+        c = pd.Series({pd.Timestamp(int(x[0]), unit='ms', tz='UTC'): float(x[4]) for x in r})
+        sma = c.rolling(200).mean(); up = sma > sma.shift(30)
+        st = pd.Series(np.where((c > sma) & up, 'bull', np.where((c < sma) & ~up, 'bear', 'transition')), index=c.index)
+        n = pd.Series(np.arange(len(c), dtype=float), index=c.index); lb = n.where(st == 'bear').ffill()
+        _MACRO.update(st.where(~((st == 'bull') & ((n - lb) <= 180)), 'young bull').to_dict())
+    return _MACRO.get(pd.Timestamp(day).floor('D'))
+
+
+def subset_line(frames, entries_from, end, keep, vol_mult=None):
+    """Report-only line: closed trades with keep(sym, signal_time) True, against random longs with keep(sym, entry_time)."""
+    tr, ct = [], []
+    for sym, df in frames.items():
+        if len(df) < EMA_SPAN + 50:
+            continue
+        tr += [(x['entry_time'], x['R'], True) for x in run(df, entries_from, detail=True, vol_mult=vol_mult)
+               if x['kind'] == 'trade' and x['closed'] and keep(sym, x['signal'])]
+        ct += [x[1] for x in run(df, entries_from, every_bar=True) if x[2] and keep(sym, x[0])]
+    return summarize(tr, float(np.mean(ct)) if ct else float('nan'), pd.Timestamp(entries_from), pd.Timestamp(end)) if tr else {'n': 0}
+
+
 def funding_line(frames, entries_from, end, vol_mult=None):
     """Report-only: closed trades with signal-bar funding <= FUND_LINE_MAX, against the same random-long control."""
     tr, ct = [], []
@@ -315,6 +351,8 @@ def main():
     print(f'PREREG-BREAKOUT-4H forward read ({today}), entries from {FORWARD_FROM.isoformat()}: {fmt(s)}')
     end = pd.Timestamp.now(tz='UTC').normalize() + pd.Timedelta(days=1)
     print(f'  report-only funding <= 0 line: {fmt(funding_line(frames, FORWARD_FROM, end))}')
+    print(f'  report-only TOP10 coins line: {fmt(subset_line(frames, FORWARD_FROM, end, lambda s, t: s in TOP10_PLAIN))}')
+    print(f'  report-only macro-bull line: {fmt(subset_line(frames, FORWARD_FROM, end, lambda s, t: macro_state(t) in ("bull", "young bull")))}')
     print('VERDICT:', decide(s, today))
 
 

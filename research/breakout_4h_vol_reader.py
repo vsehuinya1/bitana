@@ -19,6 +19,9 @@ Formal read: n >= 100 closed over >= 16 weeks, or 2027-03-31; one extension to 2
   2020 n=286 E +0.346R edge +0.055R t +0.24 [n=408 edge +0.019R]
   2021-01 .. 2025-01 n=1561 E +0.328R edge +0.257R t +2.06 [n=2336 edge +0.205R t +1.93]
   2025-02 .. 2026-08 n=472 E +0.264R edge +0.316R t +1.02 top-5 weeks 211% [n=769 edge +0.108R t +0.50]
+Report-only COIN lines (amendment 2026-10-02, owner order "Add"; verdict unchanged): TOP5_VOL / TOP10_VOL = the best coins by
+  edge vs random longs on 2021-24 for THIS rule (fixed lists); both beat the rest in both holdouts (top-5 2025-26 +0.850R
+  vs +0.168R). Compared with random longs on the same coins.
 Report-only FUNDING line (amendment 2026-09-30, owner order "Add"; verdict unchanged): as PREREG-BREAKOUT-4H's line,
   restricted to this rule's trades (signal-bar funding <= 0).
 Public data only; no account calls.
@@ -37,6 +40,10 @@ VOL_MULT = 1.5
 FORWARD_FROM = pd.Timestamp('2026-09-26T12:00:00Z')
 FORMAL_DATE, EXTENSION_DATE = '2027-03-31', '2027-06-30'
 BASIS = {'2020': (286, 0.346), '2021-01 .. 2025-01': (1561, 0.328), '2025-02 .. 2026-08': (472, 0.264)}  # frozen 2026-09-26
+
+
+TOP5_VOL = ['DOGEUSDT', 'ETHUSDT', 'AVAXUSDT', 'XLMUSDT', 'XRPUSDT']                                    # 2026-10-02
+TOP10_VOL = TOP5_VOL + ['BTCUSDT', 'BNBUSDT', 'TRXUSDT', 'ETCUSDT', 'LINKUSDT']
 
 
 def read(frames=None, now=None):
@@ -86,6 +93,8 @@ def main():
     print(f'  plain rule, same window: {bo4.fmt(plain)}')
     end = pd.Timestamp.now(tz='UTC').normalize() + pd.Timedelta(days=1)
     print(f'  report-only funding <= 0 line (amendment 2026-09-30): {bo4.fmt(bo4.funding_line(frames, FORWARD_FROM, end, vol_mult=VOL_MULT))}')
+    for lab, coins in (('TOP5', TOP5_VOL), ('TOP10', TOP10_VOL)):
+        print(f'  report-only {lab} coins line: {bo4.fmt(bo4.subset_line(frames, FORWARD_FROM, end, lambda s, t, c=coins: s in c, vol_mult=VOL_MULT))}')
     print('VERDICT:', decide(s, plain, today))
 
 

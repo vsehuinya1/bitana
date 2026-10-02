@@ -104,6 +104,22 @@ def breakout(today, vol=False):
     ctrl_E = float(np.mean([x[1] for x in ctrl])) if ctrl else None
     if trades:
         bo4.tag_funding(trades)
+    for t in trades:                                                       # report-only tags (2026-10-02)
+        t['macro'] = bo4.macro_state(t['signal'])
+    endd = now.normalize() + pd.Timedelta(days=1)
+    if vol:
+        line_defs = [('Top-5 coins', bov.TOP5_VOL, None), ('Top-10 coins', bov.TOP10_VOL, None)]
+    else:
+        line_defs = [('Top-10 coins', bo4.TOP10_PLAIN, None), ('Macro bull', None, ('bull', 'young bull'))]
+    lines = []
+    for lab, coins, states in line_defs:
+        keep = (lambda s, t, c=coins: s in c) if coins else (lambda s, t, st=states: bo4.macro_state(t) in st)
+        lines.append({'label': lab, 'coins': [c.replace('USDT', '') for c in coins] if coins else None,
+                      'stats': bo4.subset_line(_frames(), ff, endd, keep, vol_mult=vm)})
+        if coins:
+            for t in trades:
+                t.setdefault('in_lines', [])
+                if t['sym'] + 'USDT' in coins: t['in_lines'].append(lab)
     closed = [t for t in trades if t['closed']]
     fc = [t for t in closed if t.get('fund') is not None and t['fund'] <= bo4.FUND_LINE_MAX]
     fund_line = bo4.summarize([(t['entry_time'], t['R'], True) for t in fc], ctrl_E if ctrl_E is not None else float('nan'),
@@ -125,7 +141,8 @@ def breakout(today, vol=False):
         plain, verdict = None, bo4.decide(st, today)
     return {'name': '4h breakout + volume' if vol else '4h breakout', 'prereg': 'PREREG-BREAKOUT-4H-VOL' if vol else 'PREREG-BREAKOUT-4H',
             'forward_from': ff, 'vol': vol, 'plain_same_window': plain,
-            'rule': rule, 'verdict': verdict, 'stats': st, 'control_E': ctrl_E, 'fund_line': fund_line,
+            'rule': rule, 'verdict': verdict, 'stats': st, 'control_E': ctrl_E, 'fund_line': fund_line, 'lines': lines,
+            'macro_now': bo4.macro_state(now),
             'open_R': sum(t['R'] for t in trades if not t['closed']),
             'trades': sorted(trades, key=lambda t: t['entry_time'], reverse=True), 'skipped': skipped,
             'watch': watch, 'curve': curve}

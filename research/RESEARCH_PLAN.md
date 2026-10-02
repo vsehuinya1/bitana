@@ -1848,3 +1848,17 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
 - Forward: the TRX fill of 2026-10-01 still exits at the TP (TRX traded 2.4 bps through 0.33617 at 19:10Z).
 - Also recorded: paper wick and discount trades now carry a reporting R (1R = 3 × ATR1h at entry; neither track has a
   stop). It appears in the Paper Lab and in exit alerts. Display only; verdicts stay on the % rules.
+
+### Amendment 2026-10-02 — PREREG-BREAKOUT-4H / -VOL: report-only coin and macro lines (owner order "Add")
+- **PREREG-BREAKOUT-4H:**
+  - `TOP10_PLAIN` = DOGE FIL AVAX ETC SOL DOT ETH AAVE TRX BNB, the best 10 by edge vs random longs on 2021–24. Holdout:
+    2020 +0.074 vs −0.010R; 2025–26 +0.174 vs +0.001R.
+  - Macro-bull line: the signal day is a macro bull (BTC daily close > SMA200 and SMA200 rising over 30 days; young bull
+    included), `macro_state`. Bull-side edge beat the rest in all three periods.
+- **PREREG-BREAKOUT-4H-VOL:**
+  - `TOP5_VOL` = DOGE ETH AVAX XLM XRP; `TOP10_VOL` adds BTC BNB TRX ETC LINK.
+  - Holdout: top-5 2020 +0.344 vs +0.107R; 2025–26 +0.850 vs +0.168R.
+- **How the lines are judged:** each line is compared with random longs on the same coins or in the same macro state
+  (`subset_line`). Verdicts stay on all 20 coins (unchanged).
+- **Basis:** `reports/structural_edge_2026-09-25.md`, "Breakout-4H (+VOL): restrict to the best coins, or to macro bull?".
+  Lists were chosen on 2021–24 and tested once on 2020 and 2025–26; 3 of 4 coin tests passed.

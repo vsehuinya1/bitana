@@ -159,10 +159,11 @@ function viewBO(s) {
     ${kpi('Avg per trade', fl.n ? rr(fl.E, 3) : '—', fl.n ? '' : 'research 2025–26: +0.36R', cls(fl.E))}
     ${kpi('Edge vs random', fl.n ? rr(fl.edge, 3) : '—', fl.n ? `t(week) ${fl.t == null ? '—' : fl.t.toFixed(2)}` : 'research: +0.27 / +0.28 / +0.41R', cls(fl.edge))}
   </div><div class="note">Short-squeeze setup: a breakout while shorts are paying. Research beat the plain rule in all three periods on 13% of its trades, but failed the fixed selection rule, so it's tracked forward only. The verdict stays on all trades.</div></div>`;
-  const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R', 'Funding at signal'],
+  const tr = table(['Coin', 'Signal', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'Reason', 'Bars', 'R', 'Funding at signal', 'Lines', 'Market'],
     s.trades.map(t => [t.sym, dt(t.signal), dt(t.entry_time), px(t.entry), px(t.stop), t.closed ? dt(t.exit_time) : '—',
       px(t.exit), t.closed ? t.reason : '<span class="pill warn">open</span>', t.bars + '/36', `<span class="${cls(t.R)}">${rr(t.R)}</span>`,
-      t.fund == null ? '—' : (t.fund <= 0 ? `<span class="pill good">${(t.fund * 100).toFixed(4)}%</span>` : `<span class="mut">${(t.fund * 100).toFixed(4)}%</span>`)]),
+      t.fund == null ? '—' : (t.fund <= 0 ? `<span class="pill good">${(t.fund * 100).toFixed(4)}%</span>` : `<span class="mut">${(t.fund * 100).toFixed(4)}%</span>`),
+      (t.in_lines || []).length ? t.in_lines.map(x => `<span class="pill">${esc(x)}</span>`).join(' ') : '<span class="mut">—</span>', esc(t.macro || '—')]),
     `No breakout trade since paper started (${dt(s.forward_from)}).`);
   const sk = table(['Coin', 'Signal bar', 'Close', 'Why not taken'], s.skipped.map(x => [x.sym, dt(x.signal), px(x.close), esc(x.why)]),
     'No skipped signals.');
@@ -176,7 +177,12 @@ function viewBO(s) {
         w.above_ema ? '<span class="pos">above</span>' : '<span class="neg">below</span>']
         .concat(s.vol ? [w.vol_ratio == null ? '—' : `<span class="${w.vol_ratio >= 1.5 ? 'pos' : 'mut'}">${w.vol_ratio.toFixed(2)}× avg</span>`] : []).concat([state]);
     }), 'No data.');
-  return head(s) + k + fk + `<div class="card"><h3>Cumulative R (closed trades)</h3>${lineChart(s.curve)}</div>
+  const RES = {'Top-5 coins': 'research 2025–26: +0.85R vs rest +0.17R', 'Top-10 coins': s.vol ? 'research 2025–26: +0.50R vs rest +0.17R' : 'research 2025–26: +0.17R vs rest 0.00R',
+               'Macro bull': 'research: bull-side edge beat the rest in 2020, 2021–24, 2025–26'};
+  const lk = (s.lines || []).length ? `<div class="card"><h3>Report-only lines (added 2026-10-02) · market now: ${esc(s.macro_now || '—')}</h3><div class="kpis">
+    ${(s.lines || []).map(l => { const x = l.stats || {}; return kpi(l.label, x.n || 0, x.n ? `avg ${rr(x.E, 3)} · edge ${rr(x.edge, 3)}` : RES[l.label] || '', cls(x.edge)); }).join('')}
+  </div><div class="note">${(s.lines || []).filter(l => l.coins).map(l => `<b>${esc(l.label)}</b>: ${l.coins.join(', ')}`).join(' · ')}${s.vol ? '' : ' · <b>Macro bull</b>: BTC daily close above a rising 200-day average (young bull included)'}. Lists were chosen on 2021–24 and checked on 2020 and 2025–26. Each line is compared with random longs on the same coins or in the same market phase. The verdict stays on all 20 coins.</div></div>` : '';
+  return head(s) + k + fk + lk + `<div class="card"><h3>Cumulative R (closed trades)</h3>${lineChart(s.curve)}</div>
     <div class="card"><h3>Paper trades</h3>${tr}</div>
     <div class="card"><h3>Non-trades · every coin now (last closed 4h bar)</h3>${w}
       <div class="note">A trade fires when a 4h bar closes above the trigger while price is above its EMA200${s.vol ? ' and that bar\'s volume is at least 1.5× its 20-bar average' : ''}. Sorted: nearest armed triggers first.</div></div>
