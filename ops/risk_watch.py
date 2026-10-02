@@ -254,6 +254,8 @@ def tick(mode='loop'):
     bk = book(bot_pos)
     # an arm whose allowed regimes exclude the current state is off, whatever its base hours say
     age = rh.get('age_bars')
+    if state and ST.get('regime') and state != ST['regime']:
+        age = 0                       # a flip seen this tick: the new regime is 0 bars old (the API can still carry the old age)
     today_hours = {k: (a.get('hours_by_weekday', {}).get(wd, [])
                        if (not a.get('regimes') or state in a['regimes'])
                        and (k not in AGE_CAPS or (age is not None and age <= AGE_CAPS[k])) else [])
@@ -417,6 +419,8 @@ def tick(mode='loop'):
             fwd = [t for t in ev if t + pd.Timedelta(hours=1) >= capr.FORWARD_FROM]
             tr = capr.trades(Ob, fwd)
             for _, r in (tr.dropna(subset=['basket_net']).iterrows() if len(tr) else []):
+                if r.entry_bar + pd.Timedelta(hours=capr.HOLD_H) < nowts - pd.Timedelta(hours=36):
+                    continue                      # old exits: never re-announce after the alert key expires (3 days)
                 emit(f"CAPX:{r.event_bar.isoformat()}", 'CAPITULATION',
                      f"paper exit for the {r.event_bar:%m-%d %H}:00 event: 20-coin basket {r.basket_net * 100:+.2f}% net, "
                      f"5 majors {r.majors_net * 100:+.2f}%, BTC {r.btc_net * 100:+.2f}%")
@@ -442,11 +446,16 @@ def tick(mode='loop'):
         ST['fc_slot'] = f'{day}:{now.hour}'
         try:
             r = fcr.read()
-            for t in r['open']:
+            fresh = now - timedelta(hours=36)
+            for t in r['open'] + r['closed']:
+                if t['entry'] < fresh:
+                    continue                      # an open trade must not be re-announced every 3 days
                 emit(f"FCIN:{t['sym']}:{t['entry'].isoformat()}", 'CARRY',
                      f"paper entry {t['sym']} at {t['entry']:%d %b %H}:00Z: trailing-24h funding >= {fcr.ENTER:.0%}/yr "
                      f"(long spot / short perp, PREREG-FUNDING-CARRY)")
             for t in r['closed']:
+                if t['exit'] < fresh:
+                    continue
                 emit(f"FCOUT:{t['sym']}:{t['exit'].isoformat()}", 'CARRY',
                      f"paper exit {t['sym']} at {t['exit']:%d %b %H}:00Z: funding {t['funding'] * 100:+.2f}%, "
                      f"basis {t['basis'] * 100:+.2f}%, net {t['net'] * 100:+.2f}% of notional")
@@ -468,19 +477,22 @@ def tick(mode='loop'):
         ST['wd_hour'] = H
         try:
             wr, _, frames = wcr.read()
+            fresh = now - timedelta(hours=36)     # paper events older than this are never (re)announced: alert keys expire after 3 days
             for r in wr:
-                emit(f"WCIN:{r['sym']}:{r['t'].isoformat()}", 'WICK',
-                     f"paper fill {r['sym'][:-4]} at {r['fill']:.6g} ({100 * r['depth_pct']:+.1f}% below the pre-wick close, "
-                     f"{r['t']:%d %b %H:%M}Z) - PREREG-WICK-CATCHER")
-                if r['closed']:
+                if r['t'] >= fresh:
+                    emit(f"WCIN:{r['sym']}:{r['t'].isoformat()}", 'WICK',
+                         f"paper fill {r['sym'][:-4]} at {r['fill']:.6g} ({100 * r['depth_pct']:+.1f}% below the pre-wick close, "
+                         f"{r['t']:%d %b %H:%M}Z) - PREREG-WICK-CATCHER")
+                if r['closed'] and r['exit_t'] >= fresh:
                     emit(f"WCOUT:{r['sym']}:{r['t'].isoformat()}", 'WICK',
                          f"paper exit {r['sym'][:-4]} ({r['why']}) {r['exit_t']:%d %b %H:%M}Z: {100 * r['net']:+.2f}% net"
                          + (f" ({r['R']:+.2f}R, 1R = 3 ATR1h)" if r.get('R') is not None else ''))
             dr, _, _ = pdr.read(perp_frames=frames)
             for r in dr:
-                emit(f"PDIN:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
-                     f"paper buy {r['sym'][:-4]} perp {100 * r['basis']:+.2f}% below spot ({r['t']:%d %b %H:%M}Z) - PREREG-PERP-DISCOUNT")
-                if r['closed']:
+                if r['t'] >= fresh:
+                    emit(f"PDIN:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
+                         f"paper buy {r['sym'][:-4]} perp {100 * r['basis']:+.2f}% below spot ({r['t']:%d %b %H:%M}Z) - PREREG-PERP-DISCOUNT")
+                if r['closed'] and r['exit_t'] >= fresh:
                     emit(f"PDOUT:{r['sym']}:{r['t'].isoformat()}", 'DISCOUNT',
                          f"paper exit {r['sym'][:-4]} {r['exit_t']:%d %b %H:%M}Z (4h): {100 * r['net']:+.2f}% net"
                          + (f" ({r['R']:+.2f}R, 1R = 3 ATR1h)" if r.get('R') is not None else ''))
