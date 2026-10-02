@@ -1898,3 +1898,17 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
 - **New numbers:** 1R = $15.84. The 35% equity pause is at $205.95, $110.90 (7.0R) away. The daily loss limit (50%) is
   about 10 stop-outs.
 - **Revert:** restore the config backup. The peak cannot be "un-reset"; the old peak was $427.30 (in the backup DB).
+
+### Deploy log 2026-10-02 15:12:33Z: cluster risk cap 15% → 7.5% (owner order "7.5% cap"; pause/restart/resume sequence)
+- **Config:** `portfolio.max_cluster_risk_pct` 15.0 → 7.5, i.e. one full leg plus a half leg per cluster (backup
+  `.pre_cluster75_20261002`).
+- **Sequence:**
+  - The owner sent `/pause` (14:50Z).
+  - The 3 NY legs exited at 15:10Z: XRP −0.53R, ETH −0.78R, SOL −0.77R (stop) = −2.08R / −$31.76.
+  - Bot flat → restart 15:11:03. The stop hung and was SIGKILLed at 15:12:33, the 3rd forced kill (pre-existing).
+  - The owner `/resume`s after the health check.
+  - Restarting during armed hour 15 was owner-requested; the bot was paused and flat, so no entry could fire.
+- **Health:** active; paused persisted; websocket connected; all tasks healthy; arms unchanged.
+  - Risk: peak $321.73, equity $289.97, DD 9.9%.
+  - risk_pct_active 4.375 (consecutive-loss reduced mode, 4 trades left).
+  - External positions ARIA FIGHT STBL VELVET untouched.

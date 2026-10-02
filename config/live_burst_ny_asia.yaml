@@ -120,7 +120,8 @@ portfolio:
   # Config-only caps were worse (max 3 open: -14.2%, Sharpe 0.09). Needs reports/cascade_window.patch
   # (engine now reads this key). Cluster risk 15 -> 9 = 3 legs x 3%.
   # 2026-10-02 owner order ("Reset peak, raise to 5%"): 3 -> 5 per leg (all copies moved together; reduced = 0.875x = 4.375; cluster cap 3 legs = 15). REVERT: backup .pre_5pct_20261002
-  max_cluster_risk_pct: 15.0
+  # 2026-10-02 owner order ("7.5% cap"): 15 -> 7.5 = one full 5% leg + a half leg per cluster. REVERT: 15.0 (backup .pre_cluster75_20261002)
+  max_cluster_risk_pct: 7.5
   cluster_window_minutes: 60
   limit_by_engine: true
   btc_priority: true
