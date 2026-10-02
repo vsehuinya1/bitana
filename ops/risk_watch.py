@@ -17,8 +17,8 @@ Telegram chat with the bot's token. TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are pa
   OPS       dashboard/bot unreachable, unit/pm2 down, stale feed, bot paused, reduced mode, critical task unhealthy
   EOD       21:05 UTC Mon-Fri: day summary
   CAPITULATION  hourly paper tracker for PREREG-CAPITULATION-BASKET: event alert + 24h exit result
-IDLE DAYS (2026-09-30, owner: stop monitoring in a neutral regime): when no arm can trade today, none is armed and no
-Bitana leg is open, BRIEF / EOD / TAPE / BOOK / the daily reduced-mode note are written to the log but NOT sent.
+IDLE DAYS (2026-09-30, owner: stop monitoring in a neutral regime): when no arm can trade today (or the bot is PAUSED,
+2026-10-02), none is armed and no Bitana leg is open, BRIEF / EOD / TAPE / BOOK / the daily reduced-mode note are written to the log but NOT sent.
 Still sent: OPS failures, paused, stale feed, drawdown crossings, regime changes and provisional flips, paper tracks.
 The owner's manual positions/trades (externally managed, EXT_ ids) are never counted as Bitana legs.
 Usage: venv/bin/python -u ops/risk_watch.py [--dry] [--once] [--test]
@@ -260,7 +260,8 @@ def tick(mode='loop'):
                        if (not a.get('regimes') or state in a['regimes'])
                        and (k not in AGE_CAPS or (age is not None and age <= AGE_CAPS[k])) else [])
                    for k, a in arms.items()}
-    idle = not any(today_hours.values()) and not bot_pos and not any(a.get('armed_now') for a in arms.values())
+    idle = ((m.get('paused') or not any(today_hours.values())) and not bot_pos
+            and (m.get('paused') or not any(a.get('armed_now') for a in arms.values())))   # paused = nothing can enter (2026-10-02)
     # drawdown vs the equity pause, in $ and in R at the active risk per leg
     rk, rc = d.get('risk') or {}, v.get('risk_context') or {}
     eq, peak = rk.get('current_equity') or m.get('equity'), rk.get('peak_equity')

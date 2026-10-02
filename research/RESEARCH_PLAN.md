@@ -1912,3 +1912,17 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Risk: peak $321.73, equity $289.97, DD 9.9%.
   - risk_pct_active 4.375 (consecutive-loss reduced mode, 4 trades left).
   - External positions ARIA FIGHT STBL VELVET untouched.
+
+### Ops log 2026-10-02 ~16:50Z: live Bitana PAUSED by the owner (Telegram /pause), after asking "Time to end Bitana as it is?"
+- **Recommendation given (evidence, not the day's loss):**
+  - Live since Jul-22: about −0.03R/leg. NY bull +0.018R (76 legs, t ≈ 0.2); London bull −0.02R (118).
+  - 6.7y: the NY trigger equals random entries in every macro state, about −0.11 to −0.16R/leg after costs.
+  - Every filter, timeframe, stop/target and sizing variant tested negative or zero; Kelly < 0.
+- **Day before the pause:** NY −2.29R / −$34.22 over 4 closed legs. ETH and SOL ran out their 1h timers after the pause.
+  Equity $285.20, 11.4% below the reset peak $321.73.
+- **What continues:** the bot keeps running (reconciliation, metrics); `/resume` undoes the pause. The shadow/paper harness
+  keeps logging. Owner manual positions are unaffected.
+- **Risk watch:** a paused bot now counts as an idle day (session chatter logged, not sent). OPS, drawdown and paper
+  alerts still send.
+- **Next:** capital goes to the paper tracks that pass their forward reads. Removing the NY arm from the config can wait
+  for a flat, quiet day.
