@@ -785,6 +785,33 @@ Every signature still separates in the same direction. Sizing at 1m (2024–26 h
 The fake exits had hidden the 2025-10-10 crash damage. Tiered medium/high now has a −54% / −70% worst day. Market-wide
 only stays the best return per unit of drawdown.
 
+## Macro-cycle split (2026-10-02, owner question: "do we separate known bull markets?")
+Definition fixed before looking, from BTC daily closes:
+- **bull** = close > SMA200 and SMA200 rising over 30 days; **bear** = both the other way; **transition** = anything else.
+- **young bull** = a bull day within 180 days of the last bear day.
+- Today: **young bull** since 2026-09-10 (BTC +19.6% over SMA200, SMA200 +2.7% in 30 days, last bear day 2026-08-18).
+- Past young-bull spells: 2020-05 → 10, 2021-10 → 12, 2023-02 → 07, 2024-11 → 2025-03.
+
+Script (scratch): `macro_split.py`.
+
+| NY raw trigger (Tardis 81 days), gross R | days | trigger | random | edge (t) | net after costs |
+|---|---|---|---|---|---|
+| young bull | 17 | +0.028 | +0.013 | +0.015 (+0.43) | −0.116 |
+| bull | 26 | +0.020 | +0.038 | −0.018 (−0.74) | −0.111 |
+| transition | 15 | −0.002 | +0.001 | −0.002 (−0.07) | −0.114 |
+| bear | 20 | −0.012 | −0.016 | +0.004 (+0.15) | −0.157 |
+
+| wick catcher (1m-resolved), net per fill | n | all | market-wide | coin-specific |
+|---|---|---|---|---|
+| young bull | 409 | +2.24% (win 67%) | +7.39% (58) | +1.39% |
+| bull | 485 | +2.38% | +4.75% (114) | +1.65% |
+| transition | 259 | +3.62% | +21.3% (40) | +0.38% |
+| bear | 324 | +0.88% | +2.00% (15) | +0.83% |
+
+- **Read:** the NY trigger has no edge in any macro state, young bull included. The wick catcher pays in every state:
+  most in transitions (crash-and-recover), least in bear.
+- Breakout and carry are the bull-dependent tracks: breakout earned in 2021 and 2023–24, carry in 2020–21 and 2024.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -820,3 +847,4 @@ only stays the best return per unit of drawdown.
 | Bitana trigger levers (2026-09-30) | filters add nothing; limit bid beats random bids but LOSES after costs once the fill bar is resolved on 1m (PASS withdrawn) |
 | In-bar TP correction (2026-09-30) | wick catcher optimistic by ~0.3%/fill (market-wide ~1.3 pts); to be resolved on 1m |
 | Wick catcher 1m re-run (2026-09-30) | reader fixed + basis re-frozen (+2.53%); market-wide 2024-26 +4.1% (68% win); signatures hold; big tiered sizing now -54% DD |
+| Macro-cycle split (2026-10-02) | today = young bull (since 09-10); NY trigger has no edge in any macro state; wick pays in all, best in transitions |
