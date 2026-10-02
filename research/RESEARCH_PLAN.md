@@ -1862,3 +1862,18 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   (`subset_line`). Verdicts stay on all 20 coins (unchanged).
 - **Basis:** `reports/structural_edge_2026-09-25.md`, "Breakout-4H (+VOL): restrict to the best coins, or to macro bull?".
   Lists were chosen on 2021–24 and tested once on 2020 and 2025–26; 3 of 4 coin tests passed.
+
+### Deploy log 2026-10-02 08:24:55Z: London bull disabled (owner order "Pause London bull for now")
+- **Change:** `config/live_burst_ny_asia.yaml`, `burst_follow.session_rules.london.allowed_btc_regimes`
+  `["bull", "bear"]` → `["bear"]`. Backup: `config/live_burst_ny_asia.yaml.pre_london_no_bull_20261002`. Revert = restore
+  `["bull", "bear"]`.
+- **Basis (live London bull):** 118 legs / 13 days, E −0.020R, payoff 1.00, Kelly −10%, t(day) −0.59. Fridays: 38 legs,
+  E −0.004R. The 6.7-year replay of London's live rule has no gross edge.
+- **Safe window:** 0 bot-managed positions and no arm armed (London's next hour was 10:00).
+  - 5 owner manual positions (FIGHT STBL VELVET 1000PEPE XAU) stayed open on the owner's order "Leave those external
+    trades running!".
+  - Verified in code before the restart: external positions are tracked only (no stops, no management, no closes). The
+    only order cancels are `/flatten` and the bot's own backstop sweep.
+- **Health after restart:** active; not paused; websocket connected; regime bull; all tasks healthy. London regimes
+  `["bear"]`; NY unchanged (bull/bear, Fri 14,15,16,18,19,20). All 5 external positions still tracked.
+- None of the manual coins is in the bot's 10 active symbols.

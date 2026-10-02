@@ -428,7 +428,9 @@ burst_follow:
       # criteria frozen in RESEARCH_PLAN.md); bear SHORT n=130 -7.31R stays
       # blocked by the allowed_side: LONG pin above. Kill: forward avgR <-0.02
       # at n>=30 or top-day >40% -> revert to [bull].
-      allowed_btc_regimes: ["bull", "bear"]
+      # 2026-10-02 owner order ("Pause London bull for now"): bull removed. Live basis: London bull n=118 legs / 13 days
+      # E -0.020R, payoff 1.00, t(day) -0.59; Fridays n=38 E -0.004R. REVERT: allowed_btc_regimes: ["bull", "bear"].
+      allowed_btc_regimes: ["bear"]
       # 2026-09-07 owner order: SL10 -> SL6 (G0 wire). Basis: per-bar in-hold MAE
       # on the live-real london book — worst excursion 5.1 ATR on the registered
       # 213-leg set (0 stopouts at >=6; SL4 -4.8, SL3 -22.1 on the 30m arm; ladder
