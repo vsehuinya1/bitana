@@ -900,6 +900,36 @@ Scripts (scratch): `month_scan.py` and an inline breadth split.
   - 2025–26: REVERSED (−13.9% vs +2.3%, win 14%). Bought into hot breadth, breakouts are late in the rally.
   - No stable rule identifies the good months in advance.
 
+## 4h breakout on ALL perps, 2023 → 2026-10 (2026-10-02, owner order "Yes, I need it")
+Universe: 817 USDT-M perps with ≥ 300 4h bars, including delisted (137 delisted coins traded). 20 majors vs 782 OTHERS.
+- **Rule:** registered (pivot-3 cross, close > EMA200, 2 ATR stop, 36 bars); costs 0.20% majors / 0.30% others.
+- **Controls:** random longs, and trend-matched random longs (close > EMA200).
+- **Periods:** discovery 2023–24, holdout 2025–26. Script (scratch): `bo4_allperps.py`.
+
+| book | discovery E / edge vs random (t) | holdout E / edge vs random (t) | holdout total | verdict |
+|---|---|---|---|---|
+| OTHERS, BO | +0.063R / +0.064R (0.55), n=10,943 | **−0.116R / −0.009R** (−0.11), n=17,263 | **−1,997R** | FAIL |
+| OTHERS, BO+VOL | −0.012R / −0.011R | **−0.147R / −0.040R** | **−1,671R** | FAIL |
+| MAJORS, BO | +0.267R / +0.144R (0.93) | +0.070R / +0.136R (0.71) | +64R | (reference) |
+| MAJORS, BO+VOL | +0.370R / +0.248R (1.32) | +0.205R / +0.271R (1.03) | +115R | (reference) |
+
+OTHERS by year (BO): 2023 +233R, 2024 +453R, **2025 −1,290R, 2026 −707R**.
+
+**By liquidity tier** (coin median daily quote volume; a full-history label, so mildly forward-looking):
+
+| tier | BO edge, discovery → holdout | BO+VOL edge, discovery → holdout | trades |
+|---|---|---|---|
+| > $100M | +0.218 → +0.091R | +0.224 → +0.177R (vs trend +0.241) | 1,215 / 769 |
+| $20–100M | about +0.08 in both periods | about +0.08 in both periods | — |
+| < $20M (most coins) | +0.046 → −0.031R | −0.048 → −0.073R | 22,064 BO |
+
+- **Read:**
+  - The long tail of illiquid alts is where breakouts bleed: winners like SOON and MOVR exist, but 3 of 4 trades lose
+    −1R and costs are higher.
+  - Liquid alts (> $100M/day) behave like the majors: a small positive edge in both periods (t about 1).
+- Delisted coins: 16% of OTHERS trades, mean −0.08 to −0.16R.
+- All-alts breakouts are also impractical: 115 positions open at once on average (p95 282).
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -940,3 +970,4 @@ Scripts (scratch): `month_scan.py` and an inline breadth split.
 | NY degen sizing / stops (2026-10-02) | all stop/TP/hold variants negative out of sample (best -0.107R); Kelly < 0; any big fixed size ruins |
 | Post-crash base breakout, 667 perps since 2023 (2026-10-02) | no edge: means ~0, medians -6..-13%, win 25-43%, edge vs random within +-2% |
 | Past-month scan + alt-breadth filter (2026-10-02) | Sep alt rally: 4h BO across 517 perps +0.21R, base BO +10%; breadth filter flips sign 2023-24 vs 2025-26 |
+| 4h breakout on all 817 perps (2026-10-02) | alts FAIL (2025-26 -2,000R); illiquid tail bleeds; liquid alts > $100M/day ~ majors (+0.1-0.2R edge, t ~1) |
