@@ -109,8 +109,16 @@ def save():
     os.replace(tmp, STATE)
 
 
+# 2026-10-02 owner order: "I don't want them muted. I want them paused / stopped ... Let Bitana just run in paper."
+# Every live-Bitana alert kind is STOPPED (logged only, never sent). Paper-track alerts still send. Re-enable: False.
+BITANA_ALERTS_STOPPED = True
+PAPER_KINDS = {'WICK', 'DISCOUNT', 'CAPITULATION', 'CARRY', 'BREAKOUT', 'PAPER'}
+
+
 def emit(key, kind, msg, send=True):
     """Record an alert once per key; it is sent at the end of the tick (send=False: log only, idle-day chatter)."""
+    if BITANA_ALERTS_STOPPED and kind not in PAPER_KINDS:
+        send = False
     if key in ST['fired']:
         return
     now = datetime.now(timezone.utc)
@@ -120,7 +128,7 @@ def emit(key, kind, msg, send=True):
     line = f'{now:%a %H:%M}Z {kind} | {msg}'
     print(line, flush=True)
     with open(LOG, 'a') as f:
-        f.write(line.replace('\n', ' / ') + ('' if send else ' [idle day: not sent]') + '\n')
+        f.write(line.replace('\n', ' / ') + ('' if send else (' [bitana alerts stopped]' if BITANA_ALERTS_STOPPED and kind not in PAPER_KINDS else ' [idle day: not sent]')) + '\n')
     if send:
         OUT.append(f'{kind}: {msg}')
 
