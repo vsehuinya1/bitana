@@ -834,6 +834,29 @@ once. Macro state as the macro split above. Script (scratch): `bo4_pairs_macro.p
   - Holdout samples per coin are small (44–231 trades).
   - The forward paper tracks stay on all 20 coins unless the owner changes them.
 
+## NY "degen" study: Kelly, tighter stops, targets (2026-10-02, owner ask). No positive variant.
+Data:
+- 107 live NY legs with 1m paths from entry.
+- Out of sample: the same raw trigger on the 6.7y Tardis days, 1m bars.
+
+Grid: stop 1/2/3/5 ATR (pessimistic intrabar), TP none/2/4 ATR, hold 30/60/240 min, 0.20% round trip.
+Script (scratch): `ny_degen.py`.
+- **Live paths:**
+  - ATR(5m) ≈ 0.50% of price, so fees cost **0.40 ATR per trade**. A 1-ATR stop pays 0.4R in fees every time.
+  - Winners' 1h adverse move: median 0.81 ATR (p90 2.2). Losers' median 1.96 ATR (p90 5.1).
+  - 57% of legs go ≥ 1 ATR against, 33% ≥ 2, 16% ≥ 3, 7% ≥ 5. Tight stops cut winners, not just losers.
+- **In-sample (live legs):** no combination is positive in R. The best is +0.02%/trade (3 ATR stop, 2 ATR TP, 4h);
+  live-like (5 ATR, 60m) is −0.03R.
+- **Out of sample (6.7y, NY hours, 775 legs):** every combination is negative.
+  - The best is −0.107R (5 ATR, 30 min).
+  - The in-sample "best" (3/2/240) is −0.22R; live-like is −0.108R.
+  - All hours (3,628 legs): the best is −0.108R.
+- **Kelly is negative** (−88% "of equity"), meaning the right size is zero. Monte Carlo, one year at live NY frequency
+  (600 legs): fixed 10% or 25% risk per leg loses 90%+ in 100% of runs.
+- **Read:** leverage and tighter stops amplify the edge you have, and here it is negative. The aggressive version that
+  does have an edge is the wick catcher's market-wide tier: 2024–26 +4.1%/fill, win 68% (1m-corrected). Market-only at
+  50% per fill gave +79%/yr with maxDD −10% (2024–26 holdout).
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -871,3 +894,4 @@ once. Macro state as the macro split above. Script (scratch): `bo4_pairs_macro.p
 | Wick catcher 1m re-run (2026-09-30) | reader fixed + basis re-frozen (+2.53%); market-wide 2024-26 +4.1% (68% win); signatures hold; big tiered sizing now -54% DD |
 | Macro-cycle split (2026-10-02) | today = young bull (since 09-10); NY trigger has no edge in any macro state; wick pays in all, best in transitions |
 | Breakout coin selection / macro filter (2026-10-02) | top-10 coins (from 2021-24) beat the rest in both holdouts on both books; volume top-5 strongest; bull-only helps plain, not volume |
+| NY degen sizing / stops (2026-10-02) | all stop/TP/hold variants negative out of sample (best -0.107R); Kelly < 0; any big fixed size ruins |
