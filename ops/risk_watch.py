@@ -18,7 +18,8 @@ Telegram chat with the bot's token. TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are pa
   EOD       21:05 UTC Mon-Fri: day summary
   CAPITULATION  hourly paper tracker for PREREG-CAPITULATION-BASKET: event alert + 24h exit result
 IDLE DAYS (2026-09-30, owner: stop monitoring in a neutral regime): when no arm can trade today (or the bot is PAUSED,
-2026-10-02), none is armed and no Bitana leg is open, BRIEF / EOD / TAPE / BOOK / the daily reduced-mode note are written to the log but NOT sent.
+2026-10-02), none is armed and no Bitana leg is open, BRIEF / EOD / TAPE / BOOK / PRE-HOUR / DAY / STOPS / the daily reduced-mode note are written to the
+log but NOT sent (PRE-HOUR is not even evaluated while paused).
 Still sent: OPS failures, paused, stale feed, drawdown crossings, regime changes and provisional flips, paper tracks.
 The owner's manual positions/trades (externally managed, EXT_ ids) are never counted as Bitana legs.
 Usage: venv/bin/python -u ops/risk_watch.py [--dry] [--once] [--test]
@@ -334,7 +335,7 @@ def tick(mode='loop'):
         legs = '; '.join(f"{k} {x['r']:+.2f}R/{x['n']} legs (${x['usd']:+.2f})" for k, x in ad.items()) or 'no legs'
         emit(f'EOD:{day}', 'EOD', f"Day close: {legs}\n{dd_txt}\nAlerts today: {n_alerts}", send=not idle)
     # pre-hour go/no-go, only when a flag is up
-    for arm, hs in today_hours.items():
+    for arm, hs in (today_hours.items() if not m.get('paused') else []):   # paused: no arm can arm (2026-10-02)
         for h in hs:
             if now.hour == (h - 1) % 24 and now.minute >= 53:
                 flags = []
@@ -353,7 +354,7 @@ def tick(mode='loop'):
                 if flags:
                     note = ('\n' + FADE_NOTE) if (fade and arm == 'london') else ''
                     emit(f'PREHOUR:{arm}:{day}:{h}', 'PRE-HOUR', f"{arm} {h:02d}:00 arms in {60 - now.minute} min. Flags: "
-                         + '; '.join(flags) + note)
+                         + '; '.join(flags) + note, send=not idle)
     # tape against the side actually at risk: long arms/legs fear drops, short arms/legs (asia) fear rips
     if b:
         pos = bot_pos
@@ -373,9 +374,9 @@ def tick(mode='loop'):
     for arm, x in ad.items():
         for thr in (-1.0, -2.0, -3.0):
             if x['r'] <= thr:
-                emit(f'DAYR:{arm}:{day}:{thr}', 'DAY', f"{arm} day {x['r']:+.2f}R over {x['n']} legs (crossed {thr:+.0f}R). {dd_txt}")
+                emit(f'DAYR:{arm}:{day}:{thr}', 'DAY', f"{arm} day {x['r']:+.2f}R over {x['n']} legs (crossed {thr:+.0f}R). {dd_txt}", send=not idle)
         if x['streak'] >= 3:
-            emit(f'STREAK:{arm}:{day}', 'DAY', f"{arm}: {x['streak']} straight losers, day {x['r']:+.2f}R")
+            emit(f'STREAK:{arm}:{day}', 'DAY', f"{arm}: {x['streak']} straight losers, day {x['r']:+.2f}R", send=not idle)
     # drawdown levels (re-arm a level once drawdown is 3 points back below it) and pause proximity
     if dd is not None:
         lvl, last = max([lv for lv in DD_LEVELS if dd >= lv], default=0), ST.get('dd_lvl', 0)
@@ -392,7 +393,7 @@ def tick(mode='loop'):
     for a, c in zip(stops, stops[1:]):
         gap = (datetime.fromisoformat(c) - datetime.fromisoformat(a)).total_seconds()
         if gap <= 600:
-            emit(f'STOPS:{a}', 'STOPS', f"2 stop-loss exits within {gap / 60:.0f} min ({a[11:16]}Z, {c[11:16]}Z)")
+            emit(f'STOPS:{a}', 'STOPS', f"2 stop-loss exits within {gap / 60:.0f} min ({a[11:16]}Z, {c[11:16]}Z)", send=not idle)
     # provisional regime at the next 4h close
     close_h = (now.hour // 4 + 1) * 4
     mins_left = (close_h - now.hour) * 60 - now.minute
