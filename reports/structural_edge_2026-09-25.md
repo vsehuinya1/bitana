@@ -812,6 +812,28 @@ Script (scratch): `macro_split.py`.
   most in transitions (crash-and-recover), least in bear.
 - Breakout and carry are the bull-dependent tracks: breakout earned in 2021 and 2023–24, carry in 2020–21 and 2024.
 
+## Breakout-4H (+VOL): restrict to the best coins, or to macro bull? (2026-10-02, owner question)
+Coins ranked by edge vs random longs on DISCOVERY 2021–24 only; top-k fixed; holdouts 2020 and 2025-01 → 2026-09 checked
+once. Macro state as the macro split above. Script (scratch): `bo4_pairs_macro.py`.
+
+| book | coins (from 2021–24) | 2020 edge: top vs rest | 2025–26 edge: top vs rest (total R) | verdict |
+|---|---|---|---|---|
+| plain TOP5 | DOGE FIL AVAX ETC SOL | −0.149 (n=44) vs +0.037 | +0.213 (+11R) vs +0.046 (+17R) | FAIL (2020) |
+| plain TOP10 | + DOT ETH AAVE TRX BNB | +0.074 (n=157) vs −0.010 | +0.174 (+42R) vs +0.001 (−13R) | PASS |
+| volume TOP5 | DOGE ETH AVAX XLM XRP | +0.344 (n=55) vs +0.107 | **+0.850 (+95R)** vs +0.168 (+34R) | PASS |
+| volume TOP10 | + BTC BNB TRX ETC LINK | +0.234 (n=136) vs +0.057 | +0.504 (+113R) vs +0.170 (+17R) | PASS |
+
+- **Macro bull-only filter:** plain breakout PASSES. Bull-side edge beats transition + bear in all three periods:
+  2020 +0.086 vs −0.245; 2021–24 +0.205 vs +0.155; 2025–26 +0.146 vs +0.021. The volume version FAILS (2020 +0.153 vs
+  +0.172).
+- Young bull alone is mixed: +0.23R edge in 2020, −0.05R in 2025 (n=103, E −0.43R).
+- **Read:** coin choice persists out of sample. Coins that broke out well in 2021–24 kept doing so in 2020 and 2025–26,
+  on both books; DOGE and AVAX top both lists.
+- Caveats:
+  - 4 coin-selection tests were run and 3 passed.
+  - Holdout samples per coin are small (44–231 trades).
+  - The forward paper tracks stay on all 20 coins unless the owner changes them.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -848,3 +870,4 @@ Script (scratch): `macro_split.py`.
 | In-bar TP correction (2026-09-30) | wick catcher optimistic by ~0.3%/fill (market-wide ~1.3 pts); to be resolved on 1m |
 | Wick catcher 1m re-run (2026-09-30) | reader fixed + basis re-frozen (+2.53%); market-wide 2024-26 +4.1% (68% win); signatures hold; big tiered sizing now -54% DD |
 | Macro-cycle split (2026-10-02) | today = young bull (since 09-10); NY trigger has no edge in any macro state; wick pays in all, best in transitions |
+| Breakout coin selection / macro filter (2026-10-02) | top-10 coins (from 2021-24) beat the rest in both holdouts on both books; volume top-5 strongest; bull-only helps plain, not volume |
