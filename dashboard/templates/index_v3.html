@@ -916,25 +916,28 @@ function uPos(pos, rich) {
     g.innerHTML = pos.map(p => {
         /* v3: u_r = (mark - entry) / |entry - initial stop|, computed server-side from the live mark */
         const uR = p.u_r != null ? p.u_r : null;
+        /* 2026-10-02: externally managed (owner manual) positions carry the bot's 2% placeholder stop, not the real
+           exchange TP/SL, which the bot cannot see -> never display the placeholder as a stop or derive R from it */
+        const ext = !!p.externally_managed;
         return `
         <div class="pos-card">
             <div class="pos-hd">
                 <span class="pos-sym">${p.symbol}</span>
                 <span class="pos-pnl ${clr(p.unrealized_pnl)}">${p.unrealized_pnl != null ? fmtS$(p.unrealized_pnl) : '—'}</span>
-                <span class="pos-side ${p.side.toLowerCase()}">${p.side}</span>
+                <span class="pos-side ${p.side.toLowerCase()}">${p.side}</span>${ext ? ' <span class="pos-side" style="opacity:.75">MANUAL</span>' : ''}
             </div>
             <div class="pos-rows">
                 <div class="pos-r"><span class="pos-rl">Entry</span><span class="pos-rv">${fmtP(p.entry_price)}</span></div>
-                <div class="pos-r"><span class="pos-rl">uR</span><span class="pos-rv ${uR != null ? clr(uR) : ''}">${uR != null ? fmtR(uR) : '—'}</span></div>
-                <div class="pos-r"><span class="pos-rl">Stop</span><span class="pos-rv red">${fmtP(p.stop_price)}</span></div>
-                <div class="pos-r"><span class="pos-rl">Risk R</span><span class="pos-rv">${fmtR(p.risk_r)}</span></div>
+                <div class="pos-r"><span class="pos-rl">uR</span><span class="pos-rv ${!ext && uR != null ? clr(uR) : ''}">${!ext && uR != null ? fmtR(uR) : '—'}</span></div>
+                <div class="pos-r"><span class="pos-rl">Stop</span>${ext ? '<span class="pos-rv">on exchange</span>' : `<span class="pos-rv red">${fmtP(p.stop_price)}</span>`}</div>
+                <div class="pos-r"><span class="pos-rl">Risk R</span><span class="pos-rv">${ext ? '—' : fmtR(p.risk_r)}</span></div>
                 <div class="pos-r"><span class="pos-rl">Leverage</span><span class="pos-rv">${p.leverage}x</span></div>
-                <div class="pos-r"><span class="pos-rl">Engine</span><span class="pos-rv">${p.engine}</span></div>
+                <div class="pos-r"><span class="pos-rl">Engine</span><span class="pos-rv">${ext ? 'manual (not managed by the bot)' : p.engine}</span></div>
                 <div class="pos-r"><span class="pos-rl">Held</span><span class="pos-rv">${p.candles_held} bars</span></div>
                 <div class="pos-r"><span class="pos-rl">Mark</span><span class="pos-rv">${p.mark != null ? fmtP(p.mark) : '—'}</span></div>
                 <div class="pos-r"><span class="pos-rl">Time left</span><span class="pos-rv">${p.time_left_s != null ? fmtDur(p.time_left_s) : '—'}</span></div>
                 <div class="pos-r"><span class="pos-rl">Arm</span><span class="pos-rv">${esc((p.arm || '').toUpperCase() || '—')}</span></div>
-                <div class="pos-r"><span class="pos-rl">TP at</span><span class="pos-rv">${p.tp_r != null ? fmtR(p.tp_r) : 'time exit'}</span></div>
+                <div class="pos-r"><span class="pos-rl">TP at</span><span class="pos-rv">${ext ? 'on exchange' : (p.tp_r != null ? fmtR(p.tp_r) : 'time exit')}</span></div>
                 <div class="pos-r"><span class="pos-rl">Qty</span><span class="pos-rv">${p.quantity}</span></div>
             </div>
         </div>
