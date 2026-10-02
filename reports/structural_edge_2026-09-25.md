@@ -857,6 +857,31 @@ Script (scratch): `ny_degen.py`.
   does have an edge is the wick catcher's market-wide tier: 2024–26 +4.1%/fill, win 68% (1m-corrected). Market-only at
   50% per fill gave +79%/yr with maxDD −10% (2024–26 holdout).
 
+## Post-crash BASE BREAKOUT on every perp listed since 2023 (2026-10-02, owner order "Test"; the owner's VELVET-type setup)
+Universe: 667 USDT-M perps first listed 2023-01 → 2026-09, including 106 delisted (survivorship-free; monthly archive for
+removed symbols). 492 of them were at some point ≥ 70% below their all-time high.
+- **Signal:** daily close above the prior 20-day high, while ≥ 70% below the ATH, listing age ≥ 30 days. V1 adds volume
+  ≥ 2× the 20-day mean.
+- **Trade:** next-day open, 0.30% round trip.
+- **Control:** random entries on the same coins while they meet the same ≥ 70%-down condition.
+- Script (scratch): `base_breakout.py`.
+
+| variant / exit | 2023–24 mean (median, win) | 2025–26 mean (median, win) | 2025–26 edge vs random | verdict |
+|---|---|---|---|---|
+| V0, stop under base, 20d | −0.3% (−7.4%, 35%) | +0.7% (−5.9%, 38%), n=2,056 | +1.6%, t 0.19 | fail |
+| V0, 2 ATR, 20d | −3.1% | −0.6% (−11.0%, 29%) | +0.7% | fail |
+| V0, base stop + 10d-low trail | −1.3% | −2.8% (−8.8%, 27%) | −1.4% | fail |
+| V0, base stop + prior-breakdown target | +0.0% | +0.9% (−12.6%, 41%) | +2.1%, t 0.31 | fail |
+| V1 (volume), stop under base, 20d | +3.7% (n=143) | −0.7% (−8.3%, 35%), n=1,612 | +0.2% | fail |
+| V1, 2 ATR / trail / target | −4.3% / +0.2% / −0.5% | −1.8% / −3.5% / +0.1% | −0.5 / −2.2 / +1.4% | fail |
+
+- **Read:** mechanically, breakouts in coins ≥ 70% down are coin flips with a fat right tail. Means sit around 0, medians
+  are −6% to −13%, and win rates are 25–43%. Most fail; a few big winners pay for them.
+- VELVET's own volume-breakout signal on 2026-08-12 lost −58%.
+- Delisted coins' trades average −3 to −10%.
+- The owner's discretionary selection (clean base, trendline, context) is not captured by this rule and is untested. A
+  journal of his picks would show whether it beats this base rate.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -895,3 +920,4 @@ Script (scratch): `ny_degen.py`.
 | Macro-cycle split (2026-10-02) | today = young bull (since 09-10); NY trigger has no edge in any macro state; wick pays in all, best in transitions |
 | Breakout coin selection / macro filter (2026-10-02) | top-10 coins (from 2021-24) beat the rest in both holdouts on both books; volume top-5 strongest; bull-only helps plain, not volume |
 | NY degen sizing / stops (2026-10-02) | all stop/TP/hold variants negative out of sample (best -0.107R); Kelly < 0; any big fixed size ruins |
+| Post-crash base breakout, 667 perps since 2023 (2026-10-02) | no edge: means ~0, medians -6..-13%, win 25-43%, edge vs random within +-2% |
