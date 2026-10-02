@@ -47,7 +47,8 @@ symbols:
     # clear $6.50 floor down to 2.6% stop widths; ETH ($20 min) fires <~8%;
     # BTC ($50 min) fires only <~5% widths — effectively dark. Owner-instructed.
     # 2026-09-25 owner order "3% per leg": 10 -> 3 (moved with risk.* and burst_follow.risk_pct).
-    risk_pct: 3.0
+    # 2026-10-02 owner order ("Reset peak, raise to 5%"): 3 -> 5 per leg (all copies moved together; reduced = 0.875x = 4.375; cluster cap 3 legs = 15). REVERT: backup .pre_5pct_20261002
+    risk_pct: 5.0
 
 timeframes:
   regime: "15m"
@@ -59,10 +60,12 @@ risk:
   # 2026-08-30 owner: 24% -> 10% (moved with symbols.defaults.risk_pct —
   # all copies must move together).
   # 2026-09-25 owner order "3% per leg": 10 -> 3 (all four copies moved together; reduced = 0.875x = 2.625).
-  default_risk_pct: 3.0
+  # 2026-10-02 owner order ("Reset peak, raise to 5%"): 3 -> 5 per leg (all copies moved together; reduced = 0.875x = 4.375; cluster cap 3 legs = 15). REVERT: backup .pre_5pct_20261002
+  default_risk_pct: 5.0
   # 2026-08-30: 21.0 -> 8.75 (proportional 0.875× of new default 10%).
   # At $24.59 equity clears $6.50 floor for stop widths <=21.4% — 100% of book.
-  reduced_risk_pct: 2.625
+  # 2026-10-02 owner order ("Reset peak, raise to 5%"): 3 -> 5 per leg (all copies moved together; reduced = 0.875x = 4.375; cluster cap 3 legs = 15). REVERT: backup .pre_5pct_20261002
+  reduced_risk_pct: 4.375
   drawdown_reduce_threshold: 0.15
   drawdown_restore_threshold: 0.10
   max_leverage: 100
@@ -116,7 +119,8 @@ portfolio:
   # 15-min buckets worst day -17.5% (Sharpe_d 0.33); 60-min x3 worst -10.6% (Sharpe_d 0.31); uncapped -55%.
   # Config-only caps were worse (max 3 open: -14.2%, Sharpe 0.09). Needs reports/cascade_window.patch
   # (engine now reads this key). Cluster risk 15 -> 9 = 3 legs x 3%.
-  max_cluster_risk_pct: 9.0
+  # 2026-10-02 owner order ("Reset peak, raise to 5%"): 3 -> 5 per leg (all copies moved together; reduced = 0.875x = 4.375; cluster cap 3 legs = 15). REVERT: backup .pre_5pct_20261002
+  max_cluster_risk_pct: 15.0
   cluster_window_minutes: 60
   limit_by_engine: true
   btc_priority: true
@@ -210,7 +214,8 @@ burst_follow:
   oi_inflow_max_pct: 0.5
   # 2026-08-30: moved with symbols.defaults (owner 24% -> 10%).
   # 2026-09-25 owner order "3% per leg": 10 -> 3 (moved with symbols.defaults + risk.*).
-  risk_pct: 3.0
+  # 2026-10-02 owner order ("Reset peak, raise to 5%"): 3 -> 5 per leg (all copies moved together; reduced = 0.875x = 4.375; cluster cap 3 legs = 15). REVERT: backup .pre_5pct_20261002
+  risk_pct: 5.0
   btc_regime_gate_enabled: true
   allowed_btc_regimes: ["neutral", "bear"]
   session_rules:

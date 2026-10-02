@@ -1877,3 +1877,24 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
 - **Health after restart:** active; not paused; websocket connected; regime bull; all tasks healthy. London regimes
   `["bear"]`; NY unchanged (bull/bear, Fri 14,15,16,18,19,20). All 5 external positions still tracked.
 - None of the manual coins is in the bot's 10 active symbols.
+
+### Deploy log 2026-10-02 11:17:24Z: peak reset + risk 3% → 5% per leg (owner order "Reset peak, raise to 5%, leave external trades untouched")
+- **Config** (`config/live_burst_ny_asia.yaml`, backup `.pre_5pct_20261002`): every risk copy moved together.
+  - symbols.defaults.risk_pct 3 → 5
+  - risk.default_risk_pct 3 → 5
+  - risk.reduced_risk_pct 2.625 → 4.375 (0.875×)
+  - burst_follow.risk_pct 3 → 5
+  - portfolio max_cluster_risk_pct 9 → 15 (3 legs)
+- **Risk state** (`data/bitana-live-burst.db`, written with the bot STOPPED; backups in `data/backups/*.pre_peak_reset_20261002`):
+  - Before: peak $427.30, equity $316.85, DD 25.8%, risk_pct_active 2.625.
+  - After: peak = equity $316.85, DD 0, risk_pct_active 5.0, reduced_risk_trades_remaining 0.
+  - Brake state unchanged (not paused).
+- **Safe window:** 0 bot positions and nothing armed (NY 14:00). The owner's external positions were left untouched as
+  ordered: ARIA FIGHT STBL VELVET 1000PEPE XAU, all tracked-only.
+- **Shutdown:** the stop hung and systemd SIGKILLed it after 90s. This also happened on 2026-09-27; it is a pre-existing
+  intermittent hang in the bot's shutdown. The 2026-09-25 and 2026-10-02 08:24 stops were clean.
+- **Health after start:** active; not paused; websocket connected; regime bull; all tasks healthy. Bot reads peak
+  $316.85, DD 0.0%, risk_pct_active 5.0. Arms unchanged (NY bull/bear Fri 14,15,16,18,19,20; London bear-only).
+- **New numbers:** 1R = $15.84. The 35% equity pause is at $205.95, $110.90 (7.0R) away. The daily loss limit (50%) is
+  about 10 stop-outs.
+- **Revert:** restore the config backup. The peak cannot be "un-reset"; the old peak was $427.30 (in the backup DB).
