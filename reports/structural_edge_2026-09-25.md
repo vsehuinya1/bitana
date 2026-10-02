@@ -882,6 +882,24 @@ removed symbols). 492 of them were at some point ≥ 70% below their all-time hi
 - The owner's discretionary selection (clean base, trendline, context) is not captured by this rule and is untested. A
   journal of his picks would show whether it beats this base rate.
 
+## Past-month scan (2026-09-02 → 10-02) and an alt-breadth filter (2026-10-02, owner question)
+Scripts (scratch): `month_scan.py` and an inline breadth split.
+- **Month:** 517 trading perps; median 30-day return +19.1%; 72 up > 50%, 21 doubled. A broad alt rally (young bull).
+- **Top 12 (hindsight):** BULLA +370%, QNT +286%, MOVR +273%, AKE +257%, BR +248%, BTW +238%, PHA +198%, LSK +196%,
+  MUBARAK +190%, ONE +189%, NEAR +155%, ARX +131%.
+  - The 4h breakout caught most of them: QNT +21.5R (+37.5R with volume), LSK +15.6R, PHA +13.8R, MUBARAK +12.5R.
+  - The daily base breakout caught BULLA +155%, MOVR +220%, PHA +202%, ONE +98%.
+- **Denominator, same month, all 517 perps:**
+  - 4h breakout: 1,876 trades, mean +0.21R, median −1.02R, win 37%.
+  - 4h breakout + volume: 1,184 trades, mean +0.11R.
+  - Base breakout: 259 trades, mean +10.0%, median +4.3%, win 61%. A good month because everything rose.
+- **VELVET's big-R trades** (4h breakout + volume): June 2026, +267% (+40R) and +809% (+54R) as it ran from 0.105 to 1.32.
+  All 16 VELVET trades: +90R from 4 wins and 12 losses.
+- **Breadth filter test** (base breakout, trades taken only when the median 30-day return of all perps > +10%, or > 0%):
+  - 2023–24: IN beats OUT (+6.4% vs −2.2%).
+  - 2025–26: REVERSED (−13.9% vs +2.3%, win 14%). Bought into hot breadth, breakouts are late in the rally.
+  - No stable rule identifies the good months in advance.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -921,3 +939,4 @@ removed symbols). 492 of them were at some point ≥ 70% below their all-time hi
 | Breakout coin selection / macro filter (2026-10-02) | top-10 coins (from 2021-24) beat the rest in both holdouts on both books; volume top-5 strongest; bull-only helps plain, not volume |
 | NY degen sizing / stops (2026-10-02) | all stop/TP/hold variants negative out of sample (best -0.107R); Kelly < 0; any big fixed size ruins |
 | Post-crash base breakout, 667 perps since 2023 (2026-10-02) | no edge: means ~0, medians -6..-13%, win 25-43%, edge vs random within +-2% |
+| Past-month scan + alt-breadth filter (2026-10-02) | Sep alt rally: 4h BO across 517 perps +0.21R, base BO +10%; breadth filter flips sign 2023-24 vs 2025-26 |
