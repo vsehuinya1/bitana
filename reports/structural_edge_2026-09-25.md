@@ -930,6 +930,40 @@ OTHERS by year (BO): 2023 +233R, 2024 +453R, **2025 −1,290R, 2026 −707R**.
 - Delisted coins: 16% of OTHERS trades, mean −0.08 to −0.16R.
 - All-alts breakouts are also impractical: 115 positions open at once on average (p95 282).
 
+## Weekly chart patterns on liquid perps, 2020 → 2026 (2026-10-02, owner: "can't we filter them? Retests? Patterns")
+Universe: 657 perps with full daily history (incl. delisted), liquid at the signal (trailing 28-day mean ≥ $20M/day).
+- **Patterns** (mechanical, from confirmed weekly pivots): falling WEDGE (310), TRIangle (303), DouBLe bottom (117),
+  long BASE (261).
+- **Controls:** the plain 26-week-high breakout B26 (504) and random liquid weeks (7,177).
+- **Entries:** breakout vs retest. **Exits:** stop or 26 weeks; measured-move target; 50-day-low trail. 0.30%.
+- **Periods:** discovery 2020–23, holdout 2024–26. Script (scratch): `patterns_weekly.py`.
+
+Mean per trade, breakout entry, stop or 26 weeks:
+
+| | discovery 2020–23 | holdout 2024–26 |
+|---|---|---|
+| random liquid alt, held 26 weeks | +7.2% | **−19.5%** |
+| plain 26-week breakout | +28.4% (t 2.34) | −31.2% |
+| WEDGE | +9.6% (win 24%) | −12.9% (win 20%) |
+| TRIangle | +3.0% | −23.9% (win 12%) |
+| DouBLe bottom | +32.6% (n=35) | −31.1% |
+| BASE | +36.8% (t 1.56) | −35.5% (win 12%) |
+
+- **No pattern passes**, with any entry or exit:
+  - Measured-move targets raise win rates to 42–75% with means about 0 or negative.
+  - Retests fill 62–89% and do not fix it.
+- **Market regime dominates:** the same rules made +28–37% in the 2020–21 alt bull and lost 20–35% in 2024–26.
+- **By BTC macro state at the signal** (B26 / BASE / TRI):
+  - young bull −29% / −37% / −29%
+  - bull +2% / +11% / −10%
+  - transition +12% / +42% / +36%
+  - bear −6% / −16% / −23%
+
+  Few episodes per state; the 2024-11 → 2025-03 young bull was an alt top.
+- **Filters:** volume, RSI > 50 and RSI divergence are inconsistent across periods, except WEDGE + weekly RSI bullish
+  divergence, where IN beats OUT in both periods (+42.9% vs −0.7%; −8.8% vs −15.1%; n = 34 / 59). It is still negative
+  in the holdout: +73.5% in transitions, +14.6% bull, about −11% in bear / young bull.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -971,3 +1005,4 @@ OTHERS by year (BO): 2023 +233R, 2024 +453R, **2025 −1,290R, 2026 −707R**.
 | Post-crash base breakout, 667 perps since 2023 (2026-10-02) | no edge: means ~0, medians -6..-13%, win 25-43%, edge vs random within +-2% |
 | Past-month scan + alt-breadth filter (2026-10-02) | Sep alt rally: 4h BO across 517 perps +0.21R, base BO +10%; breadth filter flips sign 2023-24 vs 2025-26 |
 | 4h breakout on all 817 perps (2026-10-02) | alts FAIL (2025-26 -2,000R); illiquid tail bleeds; liquid alts > $100M/day ~ majors (+0.1-0.2R edge, t ~1) |
+| Weekly chart patterns, liquid perps 2020-26 (2026-10-02) | no pattern / entry / exit passes; alt regime dominates (+28% 2020-23 vs -31% 2024-26); wedge+RSI-div best relative, still negative in holdout |
