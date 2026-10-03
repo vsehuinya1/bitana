@@ -1,0 +1,15 @@
+[Unit]
+Description=Bitana wick catcher + perp discount engine (wd_engine; mode set in wd_engine/config.yaml)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+ExecStart=/root/bitana/venv/bin/python -u -m wd_engine.engine --config /root/bitana/wd_engine/config.yaml
+Restart=always
+RestartSec=15
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

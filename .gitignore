@@ -50,3 +50,8 @@ replay_output/
 # owner-entered stops for manual positions (dashboard runtime data)
 dashboard/manual_stops.json
 dashboard/manual_stops.tmp
+
+# wd_engine sub-account keys + runtime files
+.env.wd
+data/wd_engine_status.json
+data/wd_engine.PAUSE

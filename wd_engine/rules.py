@@ -1,0 +1,67 @@
+"""Entry/exit maths of PREREG-WICK-CATCHER and PREREG-PERP-DISCOUNT as the live engine applies them.
+
+Mirror of research/wick_catcher_reader.py (k=5 primary book) and research/perp_discount_reader.py (4h primary book);
+tests/test_wd_engine_rules.py replays both readers on cached klines and checks these functions give the same levels.
+Pure functions only: no I/O, no exchange calls.
+
+Sizing: 1R = 3 x ATR1h (the paper tracks' reporting unit). A leg risks `r_usd` per R, so qty = r_usd / (3 x ATR1h)
+(price-independent: $ per R = qty x 3 x ATR). The disaster stop sits k R below the entry: entry - k x 3 x ATR1h.
+"""
+from __future__ import annotations
+
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+
+ATR_N = 14
+R_ATR = 3.0               # 1R = 3 x ATR1h
+WICK_K = 5.0              # bid at close(H) - 5 x ATR1h
+WICK_STRICT = 0.1         # paper fill rule: low <= L - 0.1 ATR (live fills on touch; logged for the paper/live gap)
+WICK_MIN_ATR = 0.001      # skip when ATR1h / close < 0.1%
+WICK_HOLD_H = 24
+DISC_THR = -0.003         # perp/spot - 1 crosses below -30 bps
+DISC_HOLD_H = 4
+
+
+def atr1h(bars: list[tuple[float, float, float, float]]) -> float | None:
+    """Mean true range of the last 14 closed hourly bars (o, h, l, c), oldest first; needs >= 15 bars.
+    Same as the readers: TR = max(h, prev c) - min(l, prev c), rolling 14 mean ending at the last bar."""
+    if len(bars) < ATR_N + 1:
+        return None
+    trs = [max(b[1], p[3]) - min(b[2], p[3]) for p, b in zip(bars[:-1], bars[1:])]
+    return sum(trs[-ATR_N:]) / ATR_N
+
+
+def wick_bid(close_h: float, atr: float | None) -> float | None:
+    """Bid level for the next hour, or None when the coin is too quiet (ATR1h < 0.1% of price) or ATR is unknown."""
+    if not atr or atr / close_h < WICK_MIN_ATR:
+        return None
+    return close_h - WICK_K * atr
+
+
+def disc_signal(basis_prev: float | None, basis_now: float | None) -> bool:
+    """Perp/spot basis (perp close / spot close - 1, same 5m bar) crosses below -30 bps on this bar."""
+    return basis_prev is not None and basis_now is not None and basis_now <= DISC_THR < basis_prev
+
+
+def qty_for_r(r_usd: float, atr: float, step: str) -> Decimal:
+    """Quantity so that 1R (3 x ATR1h) = r_usd, floored to the lot step."""
+    return floor_to(Decimal(str(r_usd / (R_ATR * atr))), step)
+
+
+def stop_price(entry: float, atr: float, k_r: float) -> float:
+    return entry - k_r * R_ATR * atr
+
+
+def floor_to(x: Decimal | float, step: str) -> Decimal:
+    s = Decimal(step)
+    return (Decimal(str(x)) / s).to_integral_value(rounding=ROUND_FLOOR) * s
+
+
+def ceil_to(x: Decimal | float, step: str) -> Decimal:
+    s = Decimal(step)
+    return (Decimal(str(x)) / s).to_integral_value(rounding=ROUND_CEILING) * s
+
+
+def fmt_dec(x: Decimal) -> str:
+    """Plain decimal string for the API (no exponent, no trailing zeros)."""
+    s = format(x.normalize(), 'f')
+    return s if s not in ('-0', '') else '0'

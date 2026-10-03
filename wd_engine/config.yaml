@@ -1,0 +1,33 @@
+# Wick catcher + perp discount engine (wd_engine/engine.py). Owner decisions 2026-10-03: $1 per R, both strategies,
+# a sub-account with a smaller balance, a disaster stop. This file is the engine's only config; the live Bitana bot
+# never reads it.
+
+# dry = public data, simulated fills, no keys | testnet = futures testnet keys | live = sub-account keys.
+# Switching to testnet / live is the owner's step (keys go in env_file).
+mode: dry
+env_file: /root/bitana/.env.wd          # WD_API_KEY=... / WD_API_SECRET=... (sub-account, futures trading only, no withdrawals)
+
+r_usd: 1.0                               # $ per R; 1R = 3 x ATR1h. History at $1/R (2024-26): +$210, max drawdown -$84, worst day -$50
+stop_r: 12                               # disaster stop, R under entry: never triggered in 6 years on these coins (worst trade -8.8R);
+                                         # tighter stops lose money (edge report "Disaster stop", 2026-10-03)
+cooldown_h: 24                           # after a stop-out: no new entry on that coin for that strategy
+
+strategies:
+  wick: true                             # PREREG-WICK-CATCHER primary book (k=5, TP pre-wick close or 24h)
+  discount: true                         # PREREG-PERP-DISCOUNT primary book (basis < -30 bps, 4h hold)
+
+leverage: 10                             # per symbol, set at start (testnet/live)
+margin_type: CROSSED
+max_open_legs: 40                        # 20 coins x 2 strategies
+equity_floor_usd: null                   # live: pause new entries below this account equity (set with the balance)
+
+universe: [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, LINKUSDT, AVAXUSDT, DOTUSDT, LTCUSDT,
+           BCHUSDT, ATOMUSDT, NEARUSDT, UNIUSDT, FILUSDT, ETCUSDT, TRXUSDT, BNBUSDT, XLMUSDT, AAVEUSDT]
+
+db: /root/bitana/data/wd_engine.db
+status_file: /root/bitana/data/wd_engine_status.json
+pause_file: /root/bitana/data/wd_engine.PAUSE   # touch to stop new entries (open legs keep their exits)
+log_file: /root/bitana/logs/wd_engine.log
+log_level: INFO
+telegram: true                           # entries / exits / errors, tagged WD[dry] / WD[testnet] / WD
+telegram_env: /root/bitana/.env

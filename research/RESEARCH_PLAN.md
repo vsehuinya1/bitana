@@ -1970,3 +1970,18 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - The risk watch spawns `--update` at :03 after each 4h close (~200 weight-1 kline calls, cached).
   - PATTERN paper alerts cover DBL+div and wedge+div entries and exits ≤ 36h old, plus a Sunday weekly digest.
   - Paper Lab has a "4h patterns" tab; the research board has a row.
+
+### Ops log 2026-10-03 ~07:50Z: wick catcher + perp discount execution engine built (dry); owner decisions: "$1 it is", "both strategies, and a sub account, with a smaller balance", "Disaster stop sounds like a safe idea"
+- **Code:** `wd_engine/` (rules, exchange, store, engine, config).
+  - Same rules as the readers of record; `tests/test_wd_engine_rules.py` checks ATR, bid levels, fills and discount
+    signals against both readers on cached data.
+  - Sizing $1 per R (1R = 3 × ATR1h).
+  - Disaster stop −12R plus a 24h coin cooldown after a stop-out. The test showed tighter stops lose money; −12R never
+    triggered in 6 years (edge report, "Disaster stop").
+  - Wick entries are conditional buys, because Binance's PERCENT_PRICE band (5–10% below mark) rejects about a third of
+    the research bids as plain limits. Exits are reduce-only with each leg's own quantity.
+- **Mode:** dry, until the owner installs `deploy/bitana-wd-engine.service`, then switches `mode` to testnet / live
+  with sub-account keys in `.env.wd`.
+- **Contract:** going live before the formal reads (wick n ≥ 60 fills / 10 days; discount n ≥ 80 / 10 days) is the
+  owner's decision. The paper readers stay the record; the engine's fills and R are logged separately in
+  `data/wd_engine.db`.
