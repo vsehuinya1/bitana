@@ -46,3 +46,7 @@ research/venv/
 
 # Replay output
 replay_output/
+
+# owner-entered stops for manual positions (dashboard runtime data)
+dashboard/manual_stops.json
+dashboard/manual_stops.tmp

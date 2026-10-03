@@ -119,7 +119,9 @@ class DashboardDB:
 
     def trade_stats(self) -> dict:
         """Compute performance statistics from the trades table."""
-        trades = self._q("SELECT pnl_usd, pnl_r FROM trades")
+        trades = self._q("SELECT pnl_usd, pnl_r, trade_uuid, entry_price, quantity FROM trades")
+        # 2026-10-03: manual (EXT_) trades carry R from the bot's 2% placeholder stop -> real-stop R or left out of R
+        trades = extras.fix_manual_r(trades)
         if not trades:
             return {
                 "total_trades": 0, "wins": 0, "losses": 0,
@@ -128,7 +130,7 @@ class DashboardDB:
             }
 
         pnls = [t["pnl_usd"] for t in trades]
-        rs = [t["pnl_r"] for t in trades]
+        rs = [t["pnl_r"] for t in trades if t["pnl_r"] is not None]
         wins = [p for p in pnls if p > 0]
         losses = [p for p in pnls if p <= 0]
         gross_win = sum(wins) if wins else 0
@@ -140,7 +142,7 @@ class DashboardDB:
             "losses": len(losses),
             "win_rate": round(len(wins) / len(trades) * 100, 1),
             "total_pnl": round(sum(pnls), 2),
-            "expectancy_r": round(sum(rs) / len(rs), 3),
+            "expectancy_r": round(sum(rs) / len(rs), 3) if rs else 0,
             "profit_factor": round(gross_win / gross_loss, 2),
             "best_trade": round(max(pnls), 2),
             "worst_trade": round(min(pnls), 2),
@@ -177,6 +179,7 @@ def create_app(db: DashboardDB, token: str, bot_url: str) -> web.Application:
     app.router.add_get("/api/dashboard", _handle_dashboard)
     app.router.add_get("/paper", _handle_paper_page)       # Paper Lab tab (2026-09-26): the three paper systems
     app.router.add_get("/api/paper", _handle_paper_api)
+    app.router.add_post("/api/manual_stop", _handle_manual_stop)   # 2026-10-03: owner's real stop for EXT_ positions
     app.on_shutdown.append(_on_shutdown)
     return app
 
@@ -221,6 +224,24 @@ async def _handle_paper_api(request: web.Request) -> web.Response:
     return web.Response(body=path.read_bytes(), content_type="application/json")
 
 
+async def _handle_manual_stop(request: web.Request) -> web.Response:
+    """Store the owner's real stop for an open manual position (dashboard-only file; no exchange call, no bot DB write)."""
+    db: DashboardDB = request.app["db"]
+    try:
+        body = await request.json()
+        uuid, stop, initial = str(body.get("trade_uuid", "")), float(body.get("stop")), bool(body.get("initial"))
+    except (ValueError, TypeError):
+        return web.json_response({"error": "bad request"}, status=400)
+    pos = db._q1("SELECT symbol, side, entry_price FROM positions WHERE trade_uuid = ? AND externally_managed = 1 "
+                 "AND state NOT IN ('CLOSED', 'CANCELLED')", (uuid,))
+    if not pos or not uuid.startswith("EXT_"):
+        return web.json_response({"error": "no open manual position with that id"}, status=404)
+    if not (0 < stop < 10 * float(pos["entry_price"])):
+        return web.json_response({"error": "stop out of range"}, status=400)
+    rec = extras.save_manual_stop(uuid, pos["symbol"], pos["side"], stop, initial)
+    return web.json_response({"ok": True, "trade_uuid": uuid, **{k: rec[k] for k in ("stop", "initial_stop")}})
+
+
 async def _handle_dashboard(request: web.Request) -> web.Response:
     db: DashboardDB = request.app["db"]
     bot_url: str = request.app["bot_url"]
@@ -231,7 +252,7 @@ async def _handle_dashboard(request: web.Request) -> web.Response:
         "risk": db.risk_state(),
         "brakes": db.brake_state(),
         "positions": db.open_positions(),
-        "trades": db.recent_trades(50),
+        "trades": extras.fix_manual_r(db.recent_trades(50)),
         "transfers": db.transfers(20),
         "stats": db.trade_stats(),
         "pnl_curve": db.pnl_curve(),

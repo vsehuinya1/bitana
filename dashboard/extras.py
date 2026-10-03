@@ -37,6 +37,10 @@ FRESHNESS = {
     "paper log": ROOT / "logs" / "v5_forward_test.log",
 }
 SESSION_END_H = {"asia": 8, "london": 14, "ny": 22, "late": 24}
+# 2026-10-03: owner-entered stops for manual (EXT_) positions. The bot only sees a 2% placeholder stop (it ignores the
+# exchange's conditional/algo orders), so R for manual trades comes from here or is not shown. Written by
+# POST /api/manual_stop: {trade_uuid: {"initial_stop": 1R stop, "stop": current stop, "symbol", "side", "history": [...]}}.
+MANUAL_STOPS = Path(__file__).resolve().parent / "manual_stops.json"
 _cache: dict = {}
 
 
@@ -57,6 +61,55 @@ def _http_json(url, timeout=6):
         return json.load(r)
 
 
+# ---------------------------------------------------------------- manual (EXT_) trades
+def manual_stops() -> dict:
+    try:
+        return json.loads(MANUAL_STOPS.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def save_manual_stop(trade_uuid, symbol, side, stop, initial):
+    """Record the owner's real stop; the first stop entered (or one flagged initial) defines 1R."""
+    ms = manual_stops()
+    rec = ms.get(trade_uuid) or {"symbol": symbol, "side": side, "history": []}
+    if initial or rec.get("initial_stop") is None:
+        rec["initial_stop"] = stop
+    rec["stop"] = stop
+    rec["history"].append({"t": datetime.now(timezone.utc).isoformat(timespec="seconds"), "stop": stop,
+                           "initial": bool(initial)})
+    ms[trade_uuid] = rec
+    tmp = MANUAL_STOPS.with_suffix(".tmp")
+    tmp.write_text(json.dumps(ms, indent=1))
+    tmp.replace(MANUAL_STOPS)
+    return rec
+
+
+def is_manual(t) -> bool:
+    return str(t.get("trade_uuid") or "").startswith("EXT_")
+
+
+def manual_trade_r(t, ms=None):
+    """R of a closed manual trade from the owner's 1R stop (net $ / $ risked); None when no stop was entered."""
+    rec = (manual_stops() if ms is None else ms).get(t.get("trade_uuid")) or {}
+    init = rec.get("initial_stop")
+    try:
+        risk_usd = abs(float(t["entry_price"]) - float(init)) * float(t["quantity"])
+        return round(float(t["pnl_usd"]) / risk_usd, 3) if risk_usd > 0 else None
+    except (TypeError, ValueError, KeyError):
+        return None
+
+
+def fix_manual_r(trades):
+    """Replace the bot's placeholder-stop R on manual trades with the real-stop R (or None). In place."""
+    ms = manual_stops()
+    for t in trades:
+        if is_manual(t):
+            t["pnl_r"] = manual_trade_r(t, ms)
+            t["manual"] = True
+    return trades
+
+
 # ---------------------------------------------------------------- arms (current vs retired)
 def _arm_defs():
     import yaml
@@ -71,6 +124,8 @@ def _arm_defs():
 
 def _arm_key(t, defs):
     """(group label, is_current) for one trade row."""
+    if is_manual(t):
+        return "manual (owner)", False
     if t["engine"] != "LIQ_BURST_FOLLOW":
         return f"{t['engine'].lower()} (not live)", False
     sd = t["sd"]
@@ -85,8 +140,10 @@ def _arm_key(t, defs):
 
 def performance(conn):
     rows = [dict(r) for r in conn.execute(
-        "SELECT timestamp, engine, symbol, side, pnl_r, pnl_usd, hold_time_s, exit_reason, signal_data FROM trades "
-        "ORDER BY timestamp ASC")]
+        "SELECT timestamp, engine, symbol, side, pnl_r, pnl_usd, hold_time_s, exit_reason, signal_data, trade_uuid, "
+        "entry_price, quantity FROM trades ORDER BY timestamp ASC")]
+    # manual trades: real-stop R or dropped from R stats (never the 2% placeholder R)
+    rows = [t for t in fix_manual_r(rows) if t["pnl_r"] is not None]
     defs = _arm_defs()
     now = datetime.now(timezone.utc)
     today = now.strftime("%Y-%m-%d")
@@ -239,6 +296,7 @@ def gate_funnel(metrics):
 # ---------------------------------------------------------------- positions
 def enrich_positions(positions):
     out = []
+    ms = manual_stops()
     for p in positions:
         q = dict(p)
         try:
@@ -256,6 +314,19 @@ def enrich_positions(positions):
             q.update({"mark": mark, "u_r": round(sign * (mark - entry) / risk, 3) if risk else None,
                       "time_left_s": max(0, int(left)), "arm": sd.get("session"), "strategy": sd.get("shadow_strategy"),
                       "tp_r": round(tp_atr / stop_atr, 3) if tp_atr and stop_atr and tp_atr < 900 else None})
+            if p.get("externally_managed"):
+                # bot-side stop/PnL are placeholders for manual positions: $ from the live mark, R from the owner's stop
+                qty = float(p["quantity"])
+                rec = ms.get(p["trade_uuid"]) or {}
+                init, cur = rec.get("initial_stop"), rec.get("stop")
+                r1 = abs(entry - float(init)) if init is not None else 0
+                q.update({"u_r": round(sign * (mark - entry) / r1, 3) if r1 else None,
+                          "unrealized_pnl": round(sign * (mark - entry) * qty, 2),
+                          "u_pct": round(sign * (mark / entry - 1) * 100, 2),
+                          "manual_stop": cur, "manual_initial_stop": init,
+                          "stop_r": round(sign * (float(cur) - entry) / r1, 3) if r1 and cur is not None else None,
+                          "risk_usd": round(sign * (entry - float(cur)) * qty, 2) if cur is not None else None,
+                          "tp_r": None, "time_left_s": None})
         except Exception as e:  # noqa: BLE001
             q["enrich_error"] = str(e)[:120]
         out.append(q)
@@ -269,14 +340,22 @@ def risk_context(conn, positions):
         y = yaml.safe_load(fh) or {}
     rs = dict(conn.execute("SELECT * FROM risk_state LIMIT 1").fetchone() or {})
     eq = float(rs.get("current_equity") or 0)
+    bot_pos = [p for p in positions or [] if not p.get("externally_managed")]
     open_risk = sum(abs(float(p["entry_price"]) - float(p["initial_stop"] or p["stop_price"])) * float(p["quantity"])
-                    for p in positions) if positions else 0.0
+                    for p in bot_pos)
+    # manual positions: $ still at risk to the owner's current stop (0 once the stop is past entry); unknown without one
+    ms, man = manual_stops(), [p for p in positions or [] if p.get("externally_managed")]
+    man_known = [p for p in man if (ms.get(p["trade_uuid"]) or {}).get("stop") is not None]
+    man_risk = sum(max(0.0, (1 if p["side"] == "LONG" else -1) * (float(p["entry_price"]) - float(ms[p["trade_uuid"]]["stop"]))
+                       * float(p["quantity"])) for p in man_known)
     risk_cfg, brakes, port = y.get("risk", {}), y.get("brakes", {}), y.get("portfolio", {})
     dd = float(rs.get("current_drawdown_pct") or 0)
     return {"reduced_mode": dd > float(risk_cfg.get("drawdown_reduce_threshold", 0.15)),
             "reduce_at": risk_cfg.get("drawdown_reduce_threshold"), "restore_at": risk_cfg.get("drawdown_restore_threshold"),
             "pause_at": brakes.get("equity_pause_drawdown"), "shutdown_at": brakes.get("equity_shutdown_drawdown"),
             "dd": dd, "open_risk_pct": round(100 * open_risk / eq, 2) if eq else None,
+            "manual_open_risk_pct": round(100 * man_risk / eq, 2) if eq and man_known else None,
+            "manual_positions": len(man), "manual_without_stop": len(man) - len(man_known),
             "cluster_budget_pct": port.get("max_cluster_risk_pct"), "max_positions": port.get("max_concurrent_positions"),
             "risk_pct_default": risk_cfg.get("default_risk_pct")}
 

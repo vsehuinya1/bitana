@@ -257,6 +257,8 @@
         .pos-r { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
         .pos-rl { color: var(--text-3); }
         .pos-rv { font-family: var(--mono); font-weight: 600; }
+        .ms-btn { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+                  background: transparent; color: var(--text-2, inherit); border: 1px solid var(--border, #475569); }
 
         .empty {
             text-align: center; padding: 28px 16px; color: var(--text-3);
@@ -917,20 +919,26 @@ function uPos(pos, rich) {
         /* v3: u_r = (mark - entry) / |entry - initial stop|, computed server-side from the live mark */
         const uR = p.u_r != null ? p.u_r : null;
         /* 2026-10-02: externally managed (owner manual) positions carry the bot's 2% placeholder stop, not the real
-           exchange TP/SL, which the bot cannot see -> never display the placeholder as a stop or derive R from it */
+           exchange TP/SL, which the bot cannot see -> never display the placeholder as a stop or derive R from it.
+           2026-10-03: the server sends PnL from the live mark and R from the stop the owner enters here (Set stop);
+           the first stop entered = 1R. "Stop at" = where the current stop sits in R (+ = locked profit). */
         const ext = !!p.externally_managed;
+        const ms = p.manual_stop, mi = p.manual_initial_stop;
+        const setBtn = ext ? `<button class="ms-btn" onclick="setManualStop('${esc(p.trade_uuid)}','${esc(p.symbol)}',${ms != null ? ms : 'null'},${mi != null ? mi : 'null'})">${ms != null ? 'Move stop' : 'Set stop'}</button>` : '';
         return `
         <div class="pos-card">
             <div class="pos-hd">
                 <span class="pos-sym">${p.symbol}</span>
-                <span class="pos-pnl ${clr(p.unrealized_pnl)}">${p.unrealized_pnl != null ? fmtS$(p.unrealized_pnl) : '—'}</span>
+                <span class="pos-pnl ${clr(p.unrealized_pnl)}">${p.unrealized_pnl != null ? fmtS$(p.unrealized_pnl) : '—'}${ext && p.u_pct != null ? ` <span style="font-size:.8em;opacity:.8">${p.u_pct >= 0 ? '+' : ''}${p.u_pct.toFixed(1)}%</span>` : ''}</span>
                 <span class="pos-side ${p.side.toLowerCase()}">${p.side}</span>${ext ? ' <span class="pos-side" style="opacity:.75">MANUAL</span>' : ''}
             </div>
             <div class="pos-rows">
                 <div class="pos-r"><span class="pos-rl">Entry</span><span class="pos-rv">${fmtP(p.entry_price)}</span></div>
-                <div class="pos-r"><span class="pos-rl">uR</span><span class="pos-rv ${!ext && uR != null ? clr(uR) : ''}">${!ext && uR != null ? fmtR(uR) : '—'}</span></div>
-                <div class="pos-r"><span class="pos-rl">Stop</span>${ext ? '<span class="pos-rv">on exchange</span>' : `<span class="pos-rv red">${fmtP(p.stop_price)}</span>`}</div>
-                <div class="pos-r"><span class="pos-rl">Risk R</span><span class="pos-rv">${ext ? '—' : fmtR(p.risk_r)}</span></div>
+                <div class="pos-r"><span class="pos-rl">uR</span><span class="pos-rv ${uR != null ? clr(uR) : ''}">${uR != null ? fmtR(uR) : (ext ? 'set stop' : '—')}</span></div>
+                <div class="pos-r"><span class="pos-rl">Stop</span>${ext ? `<span class="pos-rv red">${ms != null ? fmtP(ms) : 'not set'}</span>` : `<span class="pos-rv red">${fmtP(p.stop_price)}</span>`}</div>
+                ${ext ? `<div class="pos-r"><span class="pos-rl">Stop at</span><span class="pos-rv ${p.stop_r != null ? clr(p.stop_r) : ''}">${p.stop_r != null ? fmtR(p.stop_r) + (p.risk_usd != null ? ' · ' + (p.risk_usd > 0 ? fmt$(p.risk_usd) + ' at risk' : fmt$(-p.risk_usd) + ' locked') : '') : '—'}</span></div>
+                <div class="pos-r"><span class="pos-rl">1R stop</span><span class="pos-rv">${mi != null ? fmtP(mi) : '—'}</span></div>`
+                      : `<div class="pos-r"><span class="pos-rl">Risk R</span><span class="pos-rv">${fmtR(p.risk_r)}</span></div>`}
                 <div class="pos-r"><span class="pos-rl">Leverage</span><span class="pos-rv">${p.leverage}x</span></div>
                 <div class="pos-r"><span class="pos-rl">Engine</span><span class="pos-rv">${ext ? 'manual (not managed by the bot)' : p.engine}</span></div>
                 <div class="pos-r"><span class="pos-rl">Held</span><span class="pos-rv">${p.candles_held} bars</span></div>
@@ -939,9 +947,27 @@ function uPos(pos, rich) {
                 <div class="pos-r"><span class="pos-rl">Arm</span><span class="pos-rv">${esc((p.arm || '').toUpperCase() || '—')}</span></div>
                 <div class="pos-r"><span class="pos-rl">TP at</span><span class="pos-rv">${ext ? 'on exchange' : (p.tp_r != null ? fmtR(p.tp_r) : 'time exit')}</span></div>
                 <div class="pos-r"><span class="pos-rl">Qty</span><span class="pos-rv">${p.quantity}</span></div>
-            </div>
+            </div>${setBtn ? `<div style="margin-top:9px;text-align:right">${setBtn}</div>` : ''}
         </div>
     `; }).join('');
+}
+
+/* 2026-10-03: owner enters the real exchange stop of a manual position (the bot cannot read conditional orders).
+   Stored by the dashboard only (dashboard/manual_stops.json): no exchange call, no bot DB write. */
+async function setManualStop(uuid, sym, cur, init) {
+    const v = prompt(`${sym}: stop price on Binance` + (init != null ? ` (1R stop ${fmtP(init)})` : ' — this first stop = 1R'), cur != null ? cur : '');
+    if (v == null || v.trim() === '') return;
+    const stop = parseFloat(v.replace(',', '.'));
+    if (!(stop > 0)) { alert('Not a price: ' + v); return; }
+    const initial = init == null ? true : confirm(`Make ${fmtP(stop)} the new 1R stop too?\nOK = yes (restart R from here)\nCancel = no, it is a moved stop (1R stays ${fmtP(init)})`);
+    try {
+        const r = await fetch('/api/manual_stop?token=' + encodeURIComponent(TK), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trade_uuid: uuid, stop, initial }) });
+        const j = await r.json();
+        if (!r.ok) { alert('Not saved: ' + (j.error || r.status)); return; }
+        refresh();
+    } catch (e) { alert('Not saved: ' + e); }
 }
 
 function uTrades(trades, meta) {
@@ -952,7 +978,7 @@ function uTrades(trades, meta) {
 
     b.innerHTML = trades.map(t => { const mt = meta[t.timestamp] || {}; return `<tr>
         <td>${fmtT(t.timestamp)}</td>
-        <td>${mt.arm ? (mt.current ? `<span class="sw" style="display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle;background:${ARM_COLOR[mt.arm] || '#94a3b8'}"></span>` + esc(mt.arm.toUpperCase()) : `<span style="color:var(--text-3)">${esc(mt.arm)}</span>`) : '—'}</td>
+        <td>${t.manual ? '<span style="color:var(--text-3)">manual</span>' : mt.arm ? (mt.current ? `<span class="sw" style="display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle;background:${ARM_COLOR[mt.arm] || '#94a3b8'}"></span>` + esc(mt.arm.toUpperCase()) : `<span style="color:var(--text-3)">${esc(mt.arm)}</span>`) : '—'}</td>
         <td>${mt.hour != null ? H2(mt.hour) : '—'}</td>
         <td>${t.symbol.replace('USDT','')}</td>
         <td class="${t.side === 'LONG' ? 'green' : 'red'}">${t.side}</td>
@@ -1171,7 +1197,9 @@ function uToday(d) {
         $('td-brake').className = 'tile-val ' + (RC.pause_at - dd < 0.1 ? 'red' : '');
         $('td-brake-sub').textContent = `to equity pause · drawdown ${pct(dd)}, pause ${pct(RC.pause_at, 0)}, stop ${pct(RC.shutdown_at, 0)}`;
         $('td-open').textContent = RC.open_risk_pct != null ? RC.open_risk_pct.toFixed(1) + '%' : '—';
-        $('td-open-sub').textContent = `equity at stop · cluster cap ${RC.cluster_budget_pct}% · max ${RC.max_positions} positions`;
+        /* 2026-10-03: bot legs only; manual positions shown separately from the owner's stops */
+        const man = RC.manual_positions ? ` · manual ${RC.manual_open_risk_pct != null ? RC.manual_open_risk_pct.toFixed(1) + '%' : '?'}${RC.manual_without_stop ? ` (${RC.manual_without_stop} w/o stop)` : ''}` : '';
+        $('td-open-sub').textContent = `bot legs, equity at stop · cluster cap ${RC.cluster_budget_pct}% · max ${RC.max_positions} positions${man}`;
     }
 }
 
