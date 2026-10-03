@@ -1054,3 +1054,31 @@ Stop or 7 days:
 | Weekly chart patterns, liquid perps 2020-26 (2026-10-02) | no pattern / entry / exit passes; alt regime dominates (+28% 2020-23 vs -31% 2024-26); wedge+RSI-div best relative, still negative in holdout |
 | 4h patterns + RSI divergence (2026-10-03) | double bottom + divergence, 7-day exit: +0.24R (past yr, n=77) and +0.17R (2023-25 OOS, n=235); divergence separates wedges/DBL in both windows; measured-move exit fails OOS |
 | Patterns + divergence on 1h / 15m (2026-10-03) | all negative (1h all patterns -704R, 15m -6,185R); divergence stops separating; only 4h holds |
+
+## Weekly triple bottom: buy the third touch vs wait for the neckline (2026-10-03, owner: "Check whether CLOUSD really has a triple bottom and if it's a good setup")
+- **Rules (fixed before running; script `edge/triple_touch.py`):**
+  - Data: all USDT-M perps from listing incl. delisted, weekly bars.
+  - Setup: the two lowest weekly swing lows of the past 52 weeks, ≥ 6 weeks apart, within 8%, each followed by a bounce
+    of ≥ 1.5×. A third week then trades back into the zone and closes no more than 8% below it.
+  - Neckline = the lower of the two bounce highs.
+  - Entry A: buy the third touch, stop 3% under the lows.
+  - Entry B: first weekly close above the neckline.
+  - Exits: X1 = stop or 26 weeks; X2 = stop or target (A: the neckline; B: measured move). Cost 0.30%.
+  - Control: random weekly entries on the same coins.
+  - v2 picks the two lowest swing lows. v1 used the last two swing lows, which misses CLO (higher lows in Jul/Aug);
+    v2 was fixed before either result was read.
+- **CLO qualifies:**
+  - Lows 0.0530 (wk 02-02) and 0.0550 (wk 05-18); third touch 0.0510 (wk 09-21, weekly close 0.0613).
+  - Neckline 0.185 (+190% from 0.063). 93% below its high.
+- **A, buy the third touch, X1:**
+  - 2024–26: n=255, WR 4%, −0.63R, PF 0.34, 90% stopped out.
+  - Random entries on the same coins and years: −0.61R. The setup adds nothing.
+  - All years: n=344, +0.06R, positive only because of 2023 (34 trades, +199R; alt bull).
+  - CLO-like subset (≥ 70% below the high, < $20M/day): n=199, −0.01R.
+- **A with the neckline target (X2):** 2024–26 n=260, WR 17%, −0.38R.
+- **B, confirmed breakout, measured-move target (X2):**
+  - n=71, WR 69%, +0.21R, PF 1.84; 2024–26 n=42, +0.08R, PF 1.26.
+  - Only 18% of third touches ever confirm.
+- **v1 (last two swing lows):** same picture. A 2024–26 n=69, −0.75R, 94% stopped; B n=12–15.
+- **Read:** buying a third touch is a lottery ticket (about 1 win in 9; the top 5% of trades carry all the profit), and
+  it has lost since 2024. Only waiting for the neckline break held up, and that sample is small.
