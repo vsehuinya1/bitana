@@ -275,7 +275,10 @@ burst_follow:
       side_mode: follow
       pos_imb_only: true
       min_imb: 0.5
-      exclude_weekdays: [0, 5, 6]
+      # 2026-10-03 owner order ("Disable all the armed setups ... to make sure it doesn't trade again"): ALL weekdays
+      # excluded = arm OFF, wiring kept. Do NOT delete session_rules instead (empty rules -> default rule trades every
+      # session). REVERT: exclude_weekdays: [0, 5, 6] ; backup .pre_all_arms_off_20261003
+      exclude_weekdays: [0, 1, 2, 3, 4, 5, 6]
       hours: [16, 17]
       regime_hours:
         # 2026-08-28 owner order ("activate h18-20 for Friday London bull"): evidence
@@ -392,7 +395,10 @@ burst_follow:
       allowed_side: LONG
       pos_imb_only: true
       min_imb: 0.5
-      exclude_weekdays: [5, 6]
+      # 2026-10-03 owner order ("Disable all the armed setups ... to make sure it doesn't trade again"): ALL weekdays
+      # excluded = arm OFF, wiring kept. Do NOT delete session_rules instead (empty rules -> default rule trades every
+      # session). REVERT: exclude_weekdays: [5, 6] ; backup .pre_all_arms_off_20261003
+      exclude_weekdays: [0, 1, 2, 3, 4, 5, 6]
       # h9/h10/h11/h13 only — h8+h12 dropped (owner, Aug26), h14+ is NY territory.
       hours: [9, 10, 11, 13]
       # PREREG-LON-H9 (2026-09-24, owner order "You have my order" on the Opus

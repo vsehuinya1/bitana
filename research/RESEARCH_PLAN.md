@@ -1926,3 +1926,23 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   alerts still send.
 - **Next:** capital goes to the paper tracks that pass their forward reads. Removing the NY arm from the config can wait
   for a flat, quiet day.
+
+### Deploy log 2026-10-03 05:46:08Z: ALL live arms disabled (owner order: "I've also resumed trading on Bitana. Disable all the armed setups bull NY, bear London and NY to make sure it doesn't trade again, and restart it.")
+- **Config:** `session_rules.ny.exclude_weekdays` [0,5,6] → [0..6] and `session_rules.london.exclude_weekdays` [5,6] → [0..6].
+  - Both rules stay loaded, so all wiring is kept.
+  - Asia and late have no rule, so they return `no_rule` (no entries).
+  - Deleting the rules was NOT used: with empty `session_rules`, the engine falls back to a default rule that trades every
+    session.
+  - Backup `.pre_all_arms_off_20261003`.
+- **Safe window:**
+  - Saturday 05:46Z; no NY/London hours; the bot was flat.
+  - The only open positions were owner manual EXT_ positions (STBL, FIGHT, ARIA, BOME), untouched and recovered on start.
+  - The owner had `/resume`d between 05:35 and 05:40Z.
+- **Restart:** clean stop in under 1s (no SIGKILL this time).
+- **Health:** active; `paused: false` (as the owner left it); websocket connected (31 streams); 0 warnings/errors.
+  - Risk: equity $331.88, peak $334.47.
+- **Revert:**
+  - NY `exclude_weekdays: [0, 5, 6]`; London `[5, 6]` (London `allowed_btc_regimes` stays `["bear"]`).
+  - Then restart.
+- **Paper:** the shadow/paper harness is not restarted. Its WLA mirror re-binds these gates on its next restart, so
+  live-real tagging will then show every arm blocked.
