@@ -1136,3 +1136,36 @@ Stop or 7 days:
   - A catastrophe stop at −12R would never have triggered, so it has no historical cost. It caps a collapsing coin
     (LUNA-type, not in this universe's history) at about −12R per leg.
   - Pair it with a 24h no-new-entry cooldown on a coin after a stop-out.
+
+### CORRECTION (2026-10-03, same day): the −12R stop does trigger
+- **Error:** "−12R never triggered in 6 years" used the worst FINAL trade (−8.8R), not the intra-trade low.
+- **Max adverse excursion (MAE)** on the 20 coins, 2020–26, no stop (`edge/mae.py`):
+  - Wick: median −1.05R, p99.9 −14.2R, worst −16.6R (FIL 2022-12-16, finished −8.8R). 5 trades went below −12R, 4 of
+    them on 2025-10-10 (XRP −14.4R / −53%, ADA −13.9R / −62%, AVAX −13.8R, XLM −12.3R); they finished at −1.6 to −3.0R.
+  - Discount: worst −6.0R.
+- **Engine rules 2024–26 on the 20 coins:**
+  - Wick with a −12R stop: +26.5R, DD −106R (4 stops, all 2025-10-10 20:55).
+  - Wick with no stop: +65.6R, DD −79R.
+  - Discount: unchanged.
+- **Fix:** the engine default is now `stop_r: 20`, beyond every intra-trade low seen. It stays a catastrophe-only cap of
+  about $20 per leg at $1/R.
+
+## More coins for the wick/discount engine? (2026-10-03, owner: "Should this engine be tracking more pairs?")
+- **Rules (fixed before running; `edge/expand_test.py` v2):**
+  - B = the next 40 USDT perps by mean daily quote volume over their 2023 trading days (≥ 60 days; known before the
+    test). Delisted and migrated coins kept (MATIC, FTM, EOS, TOMO, RNDR, SXP, …).
+  - Engine rules incl. −12R stop + 24h cooldown. Entries 2024-01..2026-09; delisted coins exit at their last price.
+  - PASS: B's avg R > 0 in both 2024 and 2025 per strategy, AND the A+B return/drawdown ≥ A's.
+  - v2 fix: v1 divided by a zero R unit on flat post-delisting bars; the discount now skips dead-market bars.
+- **Wick:**
+  - A (current 20): n=515, +0.052R, +27R.
+  - B: n=785, −0.050R, −39R; 2025 −0.64R/trade; worst day −139.5R.
+  - A+B: max DD −320R vs −106R. FAIL.
+- **Discount:**
+  - A: n=512, +0.278R, +142R, return/DD 5.4.
+  - B: n=25,707, −0.041R, −1,067R. On thinner coins the perp trades ≥ 30 bps under spot routinely, so the signal is
+    noise, not forced selling.
+  - B ≥ $100M/day: n=2,533, +0.029R. Post-hoc subset, tiny, not proposed.
+  - FAIL.
+- **Portfolio:** A +169R, DD −84R vs A+B −937R, DD −1,320R.
+- **Verdict:** keep the 20 coins.

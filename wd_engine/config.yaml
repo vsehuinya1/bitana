@@ -8,8 +8,10 @@ mode: dry
 env_file: /root/bitana/.env.wd          # WD_API_KEY=... / WD_API_SECRET=... (sub-account, futures trading only, no withdrawals)
 
 r_usd: 1.0                               # $ per R; 1R = 3 x ATR1h. History at $1/R (2024-26): +$210, max drawdown -$84, worst day -$50
-stop_r: 12                               # disaster stop, R under entry: never triggered in 6 years on these coins (worst trade -8.8R);
-                                         # tighter stops lose money (edge report "Disaster stop", 2026-10-03)
+stop_r: 20                               # disaster stop, R under entry. Deepest intra-trade drop in 6 years on these coins: wick -16.6R
+                                         # (FIL 2022-12), discount -6.0R. -12R would have sold XRP/ADA/AVAX/XLM at the 2025-10-10
+                                         # flash-crash low (they recovered to -1.6..-3.0R): -39R. Tighter stops lose money
+                                         # (edge report "Disaster stop" + correction, 2026-10-03)
 cooldown_h: 24                           # after a stop-out: no new entry on that coin for that strategy
 
 strategies:

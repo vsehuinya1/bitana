@@ -9,7 +9,8 @@ perp_discount_reader.py 4h primary book), on the same 20 coins:
   discount  every 5m close: perp/spot basis crosses below -30 bps -> buy the perp now; exit 4h later.
 Sizing: 1R = 3 x ATR1h (the paper unit); each leg risks r_usd per R (qty = r_usd / (3 x ATR1h)).
 Disaster stop: stop_r R under the entry on every leg (catastrophe-only; reports/structural_edge_2026-09-25.md
-  "Disaster stop": stops inside the normal adverse range lose money; -12R never triggered in 6 years on these coins).
+  "Disaster stop" + correction: stops inside the normal adverse range lose money; the deepest intra-trade drop in 6
+  years on these coins was -16.6R (wick) / -6.0R (discount), so the default sits at -20R).
   After a stop-out the coin gets a cooldown (no new entry for that strategy) of cooldown_h hours.
 One leg per coin per strategy (as on paper). Both strategies may hold the same coin: every exit is reduce-only with the
   leg's own quantity, so legs never close each other (one-way mode).

@@ -1985,3 +1985,8 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
 - **Contract:** going live before the formal reads (wick n ≥ 60 fills / 10 days; discount n ≥ 80 / 10 days) is the
   owner's decision. The paper readers stay the record; the engine's fills and R are logged separately in
   `data/wd_engine.db`.
+- **Correction 2026-10-03 (same day):** "−12R never triggered" was wrong. It used the worst final trade, not the
+  intra-trade low. The wick's deepest intra-trade drop is −16.6R, and −12R would have stopped 4 legs at the 2025-10-10
+  flash-crash low (−39R vs no stop). The engine default is now `stop_r: 20`.
+- **More pairs (owner question):** the next 40 coins by 2023 volume fail both strategies over 2024–26 (edge report);
+  the universe stays at 20.
