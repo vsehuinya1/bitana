@@ -964,6 +964,37 @@ Mean per trade, breakout entry, stop or 26 weeks:
   divergence, where IN beats OUT in both periods (+42.9% vs −0.7%; −8.8% vs −15.1%; n = 34 / 59). It is still negative
   in the holdout: +73.5% in transitions, +14.6% bull, about −11% in bear / young bull.
 
+## 4h patterns + RSI divergence (2026-10-03, owner: "200 pairs, past year, not delisted: WR, total R...")
+Past year: 200 most liquid TRADING perps (survivorship, by request), signals 2025-10-03 → 2026-09-25.
+Out-of-sample check: 805 perps including delisted, liquid at the signal (≥ $14M/day), 2023-01 → 2025-09.
+- **Patterns:** from confirmed 4h pivots (pivot-3): falling wedge, triangle, double bottom (lows within 3%), tight base.
+- **Divergence:** price lower low with RSI14 higher low at the two pattern lows (impossible for triangles by construction).
+- **Trade:** entry next 4h open, stop at the pattern low (1R), 0.30% round trip.
+- **Exits:** stop or 7 days; or measured-move target (max 14 days).
+- Scripts (scratch): `patterns_4h.py`, `patterns_4h_oos.py`.
+
+Stop or 7 days:
+
+| set | past year: n, WR, avg R, total R, PF | 2023–25 out of sample: n, WR, avg R, total R, PF |
+|---|---|---|
+| WEDGE + divergence | 149, 26%, +0.21, +31R, 1.25 (ex-HEI −0.11R, −16R) | 291, 35%, **+0.33**, +95R, 1.51 |
+| WEDGE no divergence | 308, 21%, −0.30, −93R | 830, 29%, −0.01, −4R |
+| DOUBLE BOTTOM + divergence | **77, 47%, +0.24, +18R, 1.68**, max DD −7R, longest losing run 5 | **235, 41%, +0.17, +39R, 1.32** |
+| DOUBLE BOTTOM no divergence | 460, 32%, −0.06, −28R | 1,321, 39%, +0.00, +5R |
+| TRIANGLE | 377, 26%, +0.12, +45R (top-3 trades +92R) | 1,119, 35%, +0.08, +95R |
+| BASE | 653, 36%, +0.04, +23R | — |
+| RANDOM (stop = 30-bar low) | 32,934, 29%, +0.08 (fat-tailed) | 83,732, 31%, −0.08 |
+
+- **Measured-move exit:** past year DOUBLE BOTTOM + divergence had WR 74%, +0.24R. It FAILS out of sample (−0.12R).
+  Wedge and triangle versions are negative.
+- **Read:**
+  - Divergence separates both wedges and double bottoms in both windows: about +0.2–0.5R over the same pattern
+    without divergence.
+  - DOUBLE BOTTOM + divergence with a 7-day exit is positive in both windows and not carried by one coin. Small n,
+    t ≈ 1.3.
+  - WEDGE + divergence is positive in both windows, but the past year's +31R is one trade (HEI +47R).
+  - Fat-tailed: win rates 26–47%.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -1006,3 +1037,4 @@ Mean per trade, breakout entry, stop or 26 weeks:
 | Past-month scan + alt-breadth filter (2026-10-02) | Sep alt rally: 4h BO across 517 perps +0.21R, base BO +10%; breadth filter flips sign 2023-24 vs 2025-26 |
 | 4h breakout on all 817 perps (2026-10-02) | alts FAIL (2025-26 -2,000R); illiquid tail bleeds; liquid alts > $100M/day ~ majors (+0.1-0.2R edge, t ~1) |
 | Weekly chart patterns, liquid perps 2020-26 (2026-10-02) | no pattern / entry / exit passes; alt regime dominates (+28% 2020-23 vs -31% 2024-26); wedge+RSI-div best relative, still negative in holdout |
+| 4h patterns + RSI divergence (2026-10-03) | double bottom + divergence, 7-day exit: +0.24R (past yr, n=77) and +0.17R (2023-25 OOS, n=235); divergence separates wedges/DBL in both windows; measured-move exit fails OOS |
