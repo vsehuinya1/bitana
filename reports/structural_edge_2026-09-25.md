@@ -1112,3 +1112,27 @@ Stop or 7 days:
 - **At $5 per R:**
   - Position value $97–757 per coin (median about $130); about $4.2k for all 20 resting wick bids.
   - History: +$1,050 over 2024–26, max drawdown −$420, worst day −$252.
+
+## Disaster stop for the wick catcher + perp discount (2026-10-03, owner: "Disaster stop sounds like a safe idea")
+- **Rules (fixed before running; `edge/disaster_stop.py`):**
+  - The readers' rules plus a stop-market k R below entry (1R = 3 × ATR1h), k ∈ {3, 4, 5, 6, 8, 10}.
+  - 0.2% extra slippage on every stop exit.
+  - Pessimistic: a wick fill bar that reaches the stop counts as stopped; a stop and the target in one bar → the stop.
+  - No-stop check: wick 2024 n=233 +2.53% = basis.
+- **Wick catcher, 2024–26:**
+  - No stop: +67R, max drawdown −79R.
+  - −3R: −35R. −4R: −24R. −5R: −34R. −6R: −27R (DD −149R). −8R: +5R (DD −115R). −10R: +30R (DD −104R).
+  - Every stop level made both the result and the drawdown worse.
+  - Why:
+    - The bids sit in wicks that often extend before they recover: of the trades stopped at −6R, 92% would have finished
+      above the stop exit (average without the stop −2.7R vs −6.5R at the stop).
+    - A stopped coin frees its slot and the next hourly bid catches the same falling coin again: worst day −68R at −6R
+      vs −47.6R without a stop.
+- **Perp discount (4h hold):**
+  - Stops at −5R or further never trigger.
+  - −3R costs 17R over 2024–26 (+143 → +126R).
+- **Decision basis:**
+  - Worst trade without a stop on these 20 coins in 6 years: −8.8R.
+  - A catastrophe stop at −12R would never have triggered, so it has no historical cost. It caps a collapsing coin
+    (LUNA-type, not in this universe's history) at about −12R per leg.
+  - Pair it with a 24h no-new-entry cooldown on a coin after a stop-out.
