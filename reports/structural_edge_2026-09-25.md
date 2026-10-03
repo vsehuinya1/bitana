@@ -1082,3 +1082,33 @@ Stop or 7 days:
 - **v1 (last two swing lows):** same picture. A 2024–26 n=69, −0.75R, 94% stopped; B n=12–15.
 - **Read:** buying a third touch is a lottery ticket (about 1 win in 9; the top 5% of trades carry all the profit), and
   it has lost since 2024. Only waiting for the neckline break held up, and that sample is small.
+
+## Wick catcher + perp discount: losses in R units, for sizing a live engine (2026-10-03, owner: "$5 risk per position, or whatever minimum Binance allows")
+- **Method:** 1R = 3 × the coin's hourly ATR at entry (the paper tracks' reporting unit). Neither strategy has a stop.
+  - Wick: the 1,519 1m-corrected research fills (20 coins, 2020-10..2026-09). R rebuilt from 5m data; 2024 check n=233
+    +2.53% = the frozen basis.
+  - Discount: the reader's own `simulate()` on the research 5m perp + spot data. 2024 check n=142 +4.20% (basis 143 /
+    +4.15%).
+  - Script: `edge/wd_tail_R.py`.
+- **First forward week (from 09-27 10:00Z):**
+  - Wick: TRX +1.46R and LINK +1.63R.
+  - Discount: ATOM +0.19R and TRX +0.47R.
+  - 4 of 4 won, +3.75R. Far below the formal reads (wick n ≥ 60 / 10 days; discount n ≥ 80 / 10 days).
+- **Wick, 2024–26:**
+  - n=516, WR 59%, +0.13R/fill, +67R. 2025: −3R.
+  - Market-wide-hour fills: n=103, +0.58R. Coin-specific: n=413, +0.02R.
+  - Worst fill −6.7R; 3.9% of fills worse than −3R.
+  - Worst day 2024-04-12: 19 of 20 coins filled and kept falling, −47.6R. The market-wide flag did not fire (the crash came
+    in the bid hour, not before it).
+  - Months positive 58%; top-5 days = 149% of net.
+- **Discount, 2024–26:**
+  - n=512, WR 57%, +0.28R/trade, +143R; 2026 YTD −26R.
+  - Worst trade −2.45R (all years −2.85R); worst day −3.9R (all years −14.3R).
+  - Months positive 41%; top-5 days = 110% of net.
+- **Combined 2024–26:** +210R, max drawdown −84R, worst day −50.5R; about 7 trades a week; up to 20 positions open at
+  once per strategy.
+- **Binance minimum order size** (MIN_NOTIONAL $5–50) is not the constraint. The smallest uniform $ per R that clears it
+  on all 20 coins today is about $0.8 (LTC: $20 minimum, 1R = 4.1%).
+- **At $5 per R:**
+  - Position value $97–757 per coin (median about $130); about $4.2k for all 20 resting wick bids.
+  - History: +$1,050 over 2024–26, max drawdown −$420, worst day −$252.
