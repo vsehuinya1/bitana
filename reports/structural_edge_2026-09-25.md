@@ -995,6 +995,21 @@ Stop or 7 days:
   - WEDGE + divergence is positive in both windows, but the past year's +31R is one trade (HEI +47R).
   - Fat-tailed: win rates 26–47%.
 
+**Follow-up: the same patterns on 1h and 15m** (same 200 coins and year, same bar counts, price thresholds scaled by
+√time, 0.30% costs, exit = stop or 42 bars). Script (scratch): `patterns_ltf.py`.
+
+| set (stop or 42 bars) | 4h | 1h | 15m |
+|---|---|---|---|
+| DOUBLE BOTTOM + divergence | n=77, WR 47%, **+0.24R**, +18R | n=348, WR 34%, −0.13R, −45R | n=1,233, WR 37%, −0.13R, −158R |
+| WEDGE + divergence | n=149, WR 26%, +0.21R, +31R (one trade) | n=523, WR 27%, −0.26R, −137R | n=1,753, WR 28%, −0.29R, −510R |
+| TRIANGLE | +0.12R, +45R | +0.01R, +9R | −0.23R, −1,182R |
+| ALL PATTERNS | 2,024 trades, −0.00R, −4R | 8,474, −0.08R, −704R | 31,806, −0.19R, −6,185R |
+| RANDOM | +0.08R | −0.16R | −0.36R |
+
+- Measured-move exits are negative on both lower timeframes.
+- **Read:** lower timeframes are worse. Stops get tighter, so the fixed 0.30% costs eat more of each R. The divergence
+  filter stops separating (on 1h, DBL with divergence is worse than without). Only 4h holds anything.
+
 ## Scorecard (2026-09-25)
 | idea | status |
 |---|---|
@@ -1038,3 +1053,4 @@ Stop or 7 days:
 | 4h breakout on all 817 perps (2026-10-02) | alts FAIL (2025-26 -2,000R); illiquid tail bleeds; liquid alts > $100M/day ~ majors (+0.1-0.2R edge, t ~1) |
 | Weekly chart patterns, liquid perps 2020-26 (2026-10-02) | no pattern / entry / exit passes; alt regime dominates (+28% 2020-23 vs -31% 2024-26); wedge+RSI-div best relative, still negative in holdout |
 | 4h patterns + RSI divergence (2026-10-03) | double bottom + divergence, 7-day exit: +0.24R (past yr, n=77) and +0.17R (2023-25 OOS, n=235); divergence separates wedges/DBL in both windows; measured-move exit fails OOS |
+| Patterns + divergence on 1h / 15m (2026-10-03) | all negative (1h all patterns -704R, 15m -6,185R); divergence stops separating; only 4h holds |
