@@ -28,6 +28,7 @@ import breakout_4h_vol_reader as bov  # noqa: E402
 import wick_catcher_reader as wcr  # noqa: E402
 import perp_discount_reader as pdr  # noqa: E402
 import paper_klines as pk  # noqa: E402
+import pattern_div_4h_reader as pdv  # noqa: E402
 
 OUT = '/root/bitana/dashboard/paper_lab.json'
 
@@ -238,11 +239,31 @@ def discount(today):
             'trades2': sorted([row(r) for r in rows2], key=lambda r: r['t'], reverse=True), 'watch': watch}
 
 
+def pattern(today):
+    """PREREG-DBL-DIV-4H: read the state the reader writes after each 4h close (no fetching here)."""
+    st = json.load(open(pdv.STATE))
+    closed = sorted([t for t in st['trades'] if t['pat'] == 'DBL' and t['div'] and t['closed']], key=lambda t: t['exit_time'])
+    curve, cum = [], 0.0
+    for t in closed:
+        cum += t['R']; curve.append({'t': t['exit_time'], 'v': cum})
+    main_open = [t for t in st['trades'] if t['pat'] == 'DBL' and t['div'] and not t['closed']]
+    return {'name': '4h double bottom + RSI divergence', 'prereg': 'PREREG-DBL-DIV-4H', 'forward_from': st['forward_from'],
+            'state_built': st['built'], 'verdict': st['verdict'], 'stats': st['stats'], 'control_E': st['control_E'],
+            'control_n': st['control_n'], 'open_R': sum(t['R'] for t in main_open), 'curve': curve, 'stale': st.get('stale', []),
+            'rule': ('Double bottom on the 4h chart (two swing lows within 3%, at least 2 days apart, neckline at least 5% '
+                     'higher) with bullish RSI divergence (second low lower, RSI higher). Buy the next 4h open after the '
+                     'first close above the neckline; stop under the lower low; exit on the stop or after 7 days. 0.30% '
+                     'costs. Top-200 coins (frozen list). Control: a long every 12th 4h bar with a 30-bar-low stop.'),
+            'basis': {'past_year': 'n=77 · WR 47% · +0.24R · +18R · PF 1.68', 'oos': 'n=235 · +0.17R · +39R · PF 1.32 (2023-25, incl. delisted)',
+                      'wedge_div': 'n=149 · +0.21R', 'dbl_no_div': 'n=460 · -0.06R'},
+            'trades': st['trades']}
+
+
 def main():
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     out = {'built': datetime.now(timezone.utc).isoformat(timespec='seconds'), 'systems': {}, 'errors': {}}
     for key, fn in (('capitulation', capitulation), ('breakout', breakout), ('breakout_vol', lambda d: breakout(d, vol=True)),
-                    ('carry', carry), ('wick', wick), ('discount', discount)):
+                    ('carry', carry), ('wick', wick), ('discount', discount), ('pattern', pattern)):
         try:
             out['systems'][key] = fn(today)
         except Exception as e:

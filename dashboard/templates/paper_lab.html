@@ -65,7 +65,7 @@ svg text{fill:var(--text-3);font:10px var(--mono)}
   </div>
   <nav class="tabs sys-tabs" id="systabs">
     <button data-k="overview" class="on">Overview</button><button data-k="capitulation">Capitulation</button>
-    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button><button data-k="wick">Wick catcher</button><button data-k="discount">Perp below spot</button>
+    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button><button data-k="wick">Wick catcher</button><button data-k="discount">Perp below spot</button><button data-k="pattern">4h patterns</button>
   </nav>
   <div id="errors"></div>
   <div id="view"></div>
@@ -303,6 +303,31 @@ function viewDisc(s) {
     <div class="card"><h3>Non-trades · perp-to-spot gap on every coin now</h3>${w}<div class="note">A trade fires when a 5m bar closes with the perp at least ${pct(-s.threshold, 2)} below spot.</div></div>
     <div class="card"><h3>Report-only book: exit when the gap closes · ${s2.n ? 'n=' + s2.n + ', avg ' + pct(s2.mean) : 'no closed trades yet'}</h3>${tr2}</div>`;
 }
+function viewPat(s) {
+  const S = s.stats || {}, st = S['DBL+div'] || {}, wd = S['WEDGE+div'] || {}, nd = S['DBL no div'] || {};
+  const lab = t => t.pat === 'DBL' ? (t.div ? 'Double bottom + div' : '<span class="mut">Double bottom, no div</span>') : (t.div ? 'Wedge + div' : '<span class="mut">Wedge, no div</span>');
+  const open = s.trades.filter(t => t.pat === 'DBL' && t.div && !t.closed);
+  const k = `<div class="card"><div class="kpis">
+    ${kpi('Closed trades', st.n || 0, open.length + ' open · formal read at n ≥ 60')}
+    ${kpi('Win rate', st.n ? (st.wr * 100).toFixed(0) + '%' : '—', 'research past year 47%')}
+    ${kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'research +0.24R / OOS +0.17R', cls(st.E))}
+    ${kpi('Total', st.n ? rr(st.total, 1) : '—', 'closed trades', cls(st.total))}
+    ${kpi('Random longs', s.control_E == null ? '—' : rr(s.control_E, 3), `same exit · n=${s.control_n || 0}`, cls(s.control_E))}
+    ${kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', st.n ? `t(week) ${st.t == null ? '—' : st.t.toFixed(2)} · promote ≥ +0.10R, t ≥ 1.5` : 'promote needs ≥ +0.10R, t ≥ 1.5', cls(st.edge))}
+    ${kpi('Open R', rr(s.open_R), 'marked at last close', cls(s.open_R))}
+  </div><div class="note">Research basis, past year on these 200 coins: ${esc(s.basis.past_year)}. Out of sample: ${esc(s.basis.oos)}. State refreshed after each 4h close: ${dt(s.state_built)}.</div></div>`;
+  const lk = `<div class="card"><h3>Report-only lines (verdict unchanged)</h3><div class="kpis">
+    ${kpi('Wedge + divergence', wd.n || 0, wd.n ? `avg ${rr(wd.E, 3)} · edge ${rr(wd.edge, 3)}` : 'research ' + s.basis.wedge_div, cls(wd.edge))}
+    ${kpi('Double bottom, no divergence', nd.n || 0, nd.n ? `avg ${rr(nd.E, 3)} · edge ${rr(nd.edge, 3)}` : 'research ' + s.basis.dbl_no_div, cls(nd.edge))}
+  </div><div class="note">Wedge + divergence held out of sample (+0.33R) but its past year leaned on one coin (HEI +47R). Double bottoms without divergence lost money: the divergence is the filter.</div></div>`;
+  const rows = s.trades.filter(t => t.div || t.pat === 'DBL').map(t => [t.sym.replace('USDT', ''), lab(t), dt(t.entry_time), px(t.entry), px(t.stop) + ` <span class="mut">−${t.risk_pct.toFixed(1)}%</span>`,
+    t.closed ? dt(t.exit_time) : '—', t.closed ? px(t.exit) : px(t.mark) + ' <span class="mut">mark</span>', t.closed ? esc(t.why) : '<span class="pill warn">open</span>',
+    t.bars + '/42', `<span class="${cls(t.R)}">${rr(t.R)}</span>`]);
+  const tr = table(['Coin', 'Pattern', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'How', 'Bars', 'R'], rows,
+    `No pattern trade since paper started (${dt(s.forward_from)}). Expect about 1–2 double bottom + divergence trades a week.`);
+  return head(s) + k + lk + `<div class="card"><h3>Cumulative R (double bottom + divergence, closed)</h3>${lineChart(s.curve)}</div>
+    <div class="card"><h3>Paper trades</h3>${tr}</div>`;
+}
 function viewOverview(d) {
   const S = d.systems, c = S.capitulation, b = S.breakout, f = S.carry;
   const card = (key, name, line1, line2, v) => `<div class="card" style="cursor:pointer" onclick="go('${key}')">
@@ -331,6 +356,11 @@ function viewOverview(d) {
     kpi('Closed', st.n || 0, (st.open || 0) + ' open') + kpi('Avg per trade', st.n ? pct(st.mean) : '—', 'net', cls(st.mean))
     + kpi('Lowest gap now', dc.watch.length ? pct(dc.watch[0].basis_now, 3) : '—', 'trigger −0.30%'),
     'Buys the perp when forced selling pushes it below spot.', dc.verdict); }
+  const pt = S.pattern;
+  if (pt) { const st = (pt.stats || {})['DBL+div'] || {}; h += card('pattern', '4h double bottom + divergence',
+    kpi('Closed', st.n || 0, pt.trades.filter(t => t.pat === 'DBL' && t.div && !t.closed).length + ' open') + kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'net', cls(st.E))
+    + kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', '', cls(st.edge)) + kpi('Open R', rr(pt.open_R), 'marked', cls(pt.open_R)),
+    'Chart pattern + RSI divergence on 200 coins, stop under the lows, 7-day exit. ~1–2 trades a week.', pt.verdict); }
   if (f) { h += card('carry', 'Funding carry',
     kpi('Open', f.trades.filter(t => !t.closed).length, f.trades.filter(t => t.closed).length + ' closed') + kpi('Net on capital', pct(f.net_on_capital, 3), '', cls(f.net_on_capital))
     + kpi('Highest funding', f.watch[0] ? pct(f.watch[0].trailing_ann, 0) : '—', 'entry at 15%/yr'),
@@ -349,7 +379,8 @@ function render() {
     : TAB === 'breakout_vol' && S.breakout_vol ? viewBO(S.breakout_vol)
     : TAB === 'carry' && S.carry ? viewCarry(S.carry)
     : TAB === 'wick' && S.wick ? viewWick(S.wick)
-    : TAB === 'discount' && S.discount ? viewDisc(S.discount) : '<div class="empty">No data for this system in the snapshot.</div>';
+    : TAB === 'discount' && S.discount ? viewDisc(S.discount)
+    : TAB === 'pattern' && S.pattern ? viewPat(S.pattern) : '<div class="empty">No data for this system in the snapshot.</div>';
 }
 document.querySelectorAll('#systabs button').forEach(b => b.onclick = () => go(b.dataset.k));
 async function load() {

@@ -49,6 +49,7 @@ import funding_carry_reader as fcr  # noqa: E402  (PREREG-FUNDING-CARRY paper tr
 import breakout_4h_vol_reader as bov  # noqa: E402  (PREREG-BREAKOUT-4H-VOL weekly line)
 import wick_catcher_reader as wcr  # noqa: E402  (PREREG-WICK-CATCHER paper track)
 import perp_discount_reader as pdr  # noqa: E402  (PREREG-PERP-DISCOUNT paper track)
+import pattern_div_4h_reader as pdv  # noqa: E402  (PREREG-DBL-DIV-4H paper track; state JSON written by --update)
 
 LOG = f'{ROOT}/logs/risk_watch_alerts.log'
 STATE = f'{ROOT}/logs/risk_watch_state.json'
@@ -112,7 +113,7 @@ def save():
 # 2026-10-02 owner order: "I don't want them muted. I want them paused / stopped ... Let Bitana just run in paper."
 # Every live-Bitana alert kind is STOPPED (logged only, never sent). Paper-track alerts still send. Re-enable: False.
 BITANA_ALERTS_STOPPED = True
-PAPER_KINDS = {'WICK', 'DISCOUNT', 'CAPITULATION', 'CARRY', 'BREAKOUT', 'PAPER'}
+PAPER_KINDS = {'WICK', 'DISCOUNT', 'CAPITULATION', 'CARRY', 'BREAKOUT', 'PAPER', 'PATTERN'}
 
 
 def emit(key, kind, msg, send=True):
@@ -238,6 +239,33 @@ def book(pos):
 def hours_txt(hs):
     return ','.join(str(h) for h in hs) if hs else 'off'
 
+
+
+def pattern_alerts(now):
+    """PREREG-DBL-DIV-4H paper alerts from the state JSON, once per new state file (entries/exits <= 36h old)."""
+    try:
+        mt = os.path.getmtime(pdv.STATE)
+    except OSError:
+        mt = None
+    if mt and mt != ST.get('pdv_mtime'):
+        ST['pdv_mtime'] = mt
+        try:
+            pst = json.load(open(pdv.STATE))
+            fresh = (now - timedelta(hours=36)).isoformat()
+            for x in pst['trades']:
+                if not x['div'] or x['pat'] not in ('DBL', 'WEDGE'):
+                    continue                      # DBL without divergence: Paper Lab only (no alerts)
+                lab = 'double bottom + RSI divergence' if x['pat'] == 'DBL' else 'falling wedge + RSI divergence (report-only line)'
+                if x['entry_time'] >= fresh:
+                    emit(f"PDVIN:{x['pat']}:{x['sym']}:{x['entry_time']}", 'PATTERN',
+                         f"paper buy {x['sym'][:-4]} at {x['entry']:.6g} ({datetime.fromisoformat(x['entry_time']):%d %b %H:%M}Z 4h open), "
+                         f"stop {x['stop']:.6g} (-{x['risk_pct']:.1f}%), 7-day exit: {lab} - PREREG-DBL-DIV-4H")
+                if x['closed'] and x['exit_time'] and x['exit_time'] >= fresh:
+                    emit(f"PDVOUT:{x['pat']}:{x['sym']}:{x['entry_time']}", 'PATTERN',
+                         f"paper exit {x['sym'][:-4]} ({x['why']}) at {x['exit']:.6g}: {x['R']:+.2f}R, {100 * x['net']:+.2f}% net "
+                         f"after {x['bars']} bars - {lab}")
+        except Exception as e:
+            print(f'pattern alerts failed: {type(e).__name__}', file=sys.stderr, flush=True)
 
 def tick(mode='loop'):
     now = datetime.now(timezone.utc)
@@ -449,6 +477,10 @@ def tick(mode='loop'):
                 emit(f'WDW:{wk_key}', 'PAPER', 'weekly | ' + ST['wd_summary'])
             if ST.get('fc_summary'):
                 emit(f'FCW:{wk_key}', 'CARRY', 'PREREG-FUNDING-CARRY weekly | ' + ST['fc_summary'])
+            try:
+                emit(f'PDVW:{wk_key}', 'PATTERN', pdv.weekly_digest(json.load(open(pdv.STATE))))
+            except (OSError, ValueError, KeyError):
+                pass
         except Exception as e:
             print(f'breakout weekly failed: {type(e).__name__}', file=sys.stderr, flush=True)
     # PREREG-FUNDING-CARRY: after each paper act time (settlement + 1h = 01/09/17Z), alert entries/exits
@@ -472,6 +504,18 @@ def tick(mode='loop'):
             ST['fc_summary'] = fcr.summary(r, day)
         except Exception as e:
             print(f'carry check failed: {type(e).__name__}', file=sys.stderr, flush=True)
+    # PREREG-DBL-DIV-4H: after each 4h close (:03), refresh the state in a subprocess (~200 weight-1 calls, ~90 s);
+    # alerts come from the state JSON once it is newer than the last one read (entries/exits <= 36h old only)
+    if now.hour % 4 == 0 and now.minute >= 3 and ST.get('pdv_slot') != f'{day}:{now.hour}':
+        ST['pdv_slot'] = f'{day}:{now.hour}'
+        try:
+            import subprocess
+            subprocess.Popen(['nice', '-n', '19', sys.executable, f'{ROOT}/research/pattern_div_4h_reader.py', '--update'],
+                             stdout=subprocess.DEVNULL, stderr=open(f'{ROOT}/logs/pattern_div_4h.err', 'a'),
+                             start_new_session=True)
+        except Exception as e:
+            print(f'pattern reader spawn failed: {type(e).__name__}', file=sys.stderr, flush=True)
+    pattern_alerts(now)
     # Paper Lab snapshot (dashboard /paper tab): hourly at :07, fire-and-forget so the tick never blocks
     if now.minute >= 7 and ST.get('pl_hour') != H:
         ST['pl_hour'] = H

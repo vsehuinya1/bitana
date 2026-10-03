@@ -25,6 +25,7 @@ import breakout_4h_vol_reader as bov  # noqa: E402
 import wick_catcher_reader as wcr  # noqa: E402
 import perp_discount_reader as pdr  # noqa: E402
 import capitulation_reader as capr  # noqa: E402
+import pattern_div_4h_reader as pdv  # noqa: E402
 
 OUT = '/root/bitana/dashboard/research_board.json'
 
@@ -118,6 +119,13 @@ def main():
                             'n': ds_.get('n', 0), 'days': ds_.get('days', 0), 'n_target': 80, 'days_target': 10})
         except Exception as e:
             print(f'wick/discount rows failed: {type(e).__name__}: {e}', file=sys.stderr)
+        try:
+            pst = json.load(open(pdv.STATE)); ps_ = pst['stats']['DBL+div']        # state written after each 4h close
+            rows.insert(0, {'name': 'PREREG-DBL-DIV-4H (paper)', 'kind': 'dark', 'next': 'n>=60 over 26 weeks or 2027-06-30',
+                            'status': (pdv.fmt(ps_) if ps_.get('n') else 'no closed trades yet') + ' | ' + pst['verdict'],
+                            'n': ps_.get('n', 0), 'days': ps_.get('weeks', 0), 'n_target': 60, 'days_target': 26})
+        except Exception as e:
+            print(f'pattern row failed: {type(e).__name__}: {e}', file=sys.stderr)
         ak, _ = amv.load(db, amv.FORWARD_FROM, '9999')
         a_s, a_lv = amv.stats(ak), amv.stats([x for x in ak if x['symbol'] in amv.LIVE])
         rows.insert(0, {'name': 'PREREG-ASIA-MIDVOL (paper since 2026-09-25)', 'kind': 'dark', 'next': 'n>=30 revert check / n>=50 & 10d formal',

@@ -1946,3 +1946,27 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Then restart.
 - **Paper:** the shadow/paper harness is not restarted. Its WLA mirror re-binds these gates on its next restart, so
   live-real tagging will then show every arm blocked.
+
+### Registration 2026-10-03 ~06:15Z: PREREG-DBL-DIV-4H (paper; owner order "Add" on the offer "put it on paper (stop under the lows, 7-day exit, top-200 coins) and track it forward")
+- **Reader of record:** `research/pattern_div_4h_reader.py`. The frozen rule, universe and criteria are in its docstring;
+  the universe is `research/pattern_div_4h_universe.json`. DARK: nothing is wired.
+- **Rule:**
+  - 4h double bottom with bullish RSI divergence (second low lower, RSI14 higher).
+  - Entry at the next open after the first close above the neckline; stop = the lower low.
+  - Exit on the stop or the close of bar 42 (7 days). Cost 0.30%. One DBL slot per coin.
+- **Report-only lines:** falling wedge + divergence; double bottom without divergence.
+- **Control:** a long every 12th 4h bar per coin with a 30-bar-low stop and the same exit.
+- **Basis (rules fixed before running, commits 94f49ff / 113dac6):**
+  - Past year, 200 coins: n=77, WR 47%, E +0.240R, +18R, PF 1.68.
+  - Out of sample 2023-01..2025-09 (805 perps incl. delisted): n=235, +0.17R, PF 1.32.
+  - Same window: wedge+div n=149 +0.209R; DBL without divergence n=460 −0.061R.
+  - `--validate` reproduces the past-year basis exactly from the public archive: n=77, E +0.2400R, all 200 coins. PASS.
+- **Forward window:** entries ≥ 2026-10-03T12:00Z.
+- **PROMOTE (all):** E ≥ +0.10R; edge vs control ≥ +0.10R; t(week) ≥ 1.5; top-5 weeks ≤ 60%.
+- **KILL:** E < 0 at n ≥ 50, or edge ≤ 0 at the formal read.
+- **Formal read:** n ≥ 60 over ≥ 26 weeks or 2027-06-30. One extension to 2027-12-31, then park. Promotion is an owner
+  decision on a separately sized sleeve.
+- **Plumbing:**
+  - The risk watch spawns `--update` at :03 after each 4h close (~200 weight-1 kline calls, cached).
+  - PATTERN paper alerts cover DBL+div and wedge+div entries and exits ≤ 36h old, plus a Sunday weekly digest.
+  - Paper Lab has a "4h patterns" tab; the research board has a row.
