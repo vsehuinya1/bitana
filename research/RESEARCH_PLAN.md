@@ -2016,3 +2016,29 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - NULL-regime rows in the window: none.
 - **Other weekly watch rows on live arms** (NY-VOLZ-OFF, NEUT-STOP, FK1–3, OIGATE, LON-BULL-NARROW, Rows 11–13,
   LATE-BULL-FLUSH, ASIA-MIDVOL): not read. Their arms are disabled; parking them is the owner's call.
+
+### 2026-10-04 ~17:10Z: shadow read of the remaining live-Bitana watch rows (owner: "Can we read those arms from shadow db? I'm not setting it live anytime soon")
+- **Reader:**  (new), on a backup-API copy with 4,515 closed parity-era rows.
+  - Mirror (WLA) cells are exact and gate-complete (unknown group n=22 reported, never counted).
+  - Replica cells are approximate: no book caps; London age column mismatch, disclosed in the reader.
+- **The arms (mirror, parity era):**
+  - NY bull: n=55 over 4 days, E −0.038R, ΣR −2.11.
+  - London bull: n=25 over 4 days, E +0.052R, top-day 80%.
+  - 0 accepted legs since arms-off (a weekend: excluded days for both arms).
+- **Row verdicts (frozen bars):**
+  - NY-VOLZ-OFF: vol_z<0 replica n=18 / 4d, E −0.088R vs ≥0 −0.099R. Floors n ≥ 40 / ≥ 5d unmet → INCONCLUSIVE.
+  - **FK1: KILL clause fires.** Kept side (rv ≥ 0.07) n=38, E +0.076R, top-day 119% > 60%. The clause has no n floor;
+    it fires on 3 days of data. Blocked bucket (rv < 0.07) n=17, all bull, 1 day, E −0.294R (supports the filter, but
+    n < 30). Disclosed; the owner decides whether a 3-day kill stands.
+  - FK2: marginal blocked n=11, E +0.028R. The kill needs n ≥ 20 → not yet.
+  - FK3: hits n=11, E −0.089R vs kept −0.026R. Promote bar n ≥ 40 → not yet.
+  - OIGATE: oi > 1.0 n=7 (+0.068R); oi > 0.5 n=12 (+0.013R) vs pass n=68 (−0.014R). Floors 100 / 150 unmet → stays dark.
+  - Row 8 LON-BULL-NARROW: cut h9–10 replica n=5 (+0.143R) vs kept h11–13 n=6 (+0.021R), one day → not readable.
+  - LON-TAIL: shadow h9:00–29 n=3 → no. The live-paired clause has no live legs.
+  - Row 9 NY-ZEC: n=7, E −0.308R (leaning veto; floor 30).
+  - Row 10 LON-DECILE: D1 n=22 (+0.050R) vs D2+ n=3. Floor n(D2+) ≥ 100.
+  - Row 1 NY-NEUT-KEEP: moot (NY neutral disabled 09-27); replica n=5.
+  - Row 2 LON-NEUT-H13: n=5 / 100.
+  - Row 4 NEUT-STOP: live legs only → unreadable.
+- **Why so thin:** the parity era (since 09-23) was mostly neutral regime, when these arms are off by config, and the
+  mirror binds the 09-27 config (weekdays only). Rows keep accruing on shadow while  runs.
