@@ -3,10 +3,16 @@
 sub account, with a smaller balance. Disaster stop sounds like a safe idea").
 
 Strategies = the paper readers of record (research/wick_catcher_reader.py k=5 primary book; research/
-perp_discount_reader.py 4h primary book), on the same 20 coins:
-  wick      every hour: a buy 5 x ATR1h under the last hourly close, live for that hour only; exit at the pre-wick close
-            (take-profit) or 24h after the fill.
-  discount  every 5m close: perp/spot basis crosses below -30 bps -> buy the perp now; exit 4h later.
+perp_discount_reader.py 4h primary book), on the same 20 coins, with the v2 changes (owner order 2026-10-04 "Build into
+the engine"; edge report "Improving the wick/discount engine": each passed alone, the combination was tested once):
+  wick      every hour: a LADDER of buys 5 / 6.5 / 8 x ATR1h under the last hourly close (1/3 R each), live for that
+            hour only; each rung exits at the pre-wick close (take-profit) or 24h after its fill. ADD-ON: when BTC's
+            close at the end of the rung's fill bar is >= 1.7% under the bid-hour close, a second unit of the same size
+            is bought at market, exiting with its rung (same take-profit, same expiry).
+  discount  every 5m close: perp/spot basis crosses below -30 bps AND BTC's 5m close is >= 1% under 60 min earlier ->
+            buy the perp now; exit 4h later.
+Coins where a 1/3-R rung is below Binance's minimum order value (at $1/R: BTC, LINK, LTC, BCH, AAVE ... depending on
+  ATR) take the v1 single 5-ATR bid at the full R instead, so every coin stays at ~r_usd per R.
 Sizing: 1R = 3 x ATR1h (the paper unit); each leg risks r_usd per R (qty = r_usd / (3 x ATR1h)).
 Disaster stop: stop_r R under the entry on every leg (catastrophe-only; reports/structural_edge_2026-09-25.md
   "Disaster stop" + correction: stops inside the normal adverse range lose money; the deepest intra-trade drop in 6
@@ -48,7 +54,7 @@ from wd_engine.exchange import DryBroker, LiveBroker, Market  # noqa: E402
 from wd_engine.store import Store, now_iso  # noqa: E402
 
 logger = get_logger("wd_engine")
-COST = {"wick": 0.0012, "discount": 0.0020}
+COST = {"wick": 0.0012, "discount": 0.0020, "addon": 0.0020}   # paper cost models (add-on = taker in, like discount)
 HOLD_H = {"wick": rules.WICK_HOLD_H, "discount": rules.DISC_HOLD_H}
 UTC = timezone.utc
 
@@ -132,9 +138,15 @@ class Engine:
         t = _ts(self.store.last_stop_out(strategy, symbol))
         return bool(t and datetime.now(UTC) - t < timedelta(hours=float(self.cfg["cooldown_h"])))
 
-    def holding(self, strategy: str, symbol: str) -> bool:
+    def holding(self, strategy: str, symbol: str, rung: float | None = None) -> bool:
+        """An open leg on this coin for this strategy (wick: this rung; add-ons exit with their rung, so they don't count)."""
         return any(x["strategy"] == strategy and x["symbol"] == symbol and x["state"] in ("OPEN", "ENTERING")
-                   for x in self.store.live_legs())
+                   and (rung is None or (x["rung"] == rung and not x["parent"])) for x in self.store.live_legs())
+
+    def label(self, leg: dict) -> str:
+        if leg["strategy"] != "wick":
+            return leg["strategy"]
+        return f"wick {leg['rung']:g} ATR" + (" add-on" if leg["parent"] else "")
 
     async def safe(self, coro, what: str) -> None:
         try:
@@ -160,17 +172,22 @@ class Engine:
                 logger.warning("no fresh hourly bar", symbol=s)
 
     # ------------------------------------------------------------------------------------------- leg lifecycle
-    async def open_leg(self, leg_id: int, entry: float, qty: float) -> None:
+    async def open_leg(self, leg_id: int, entry: float, qty: float, expires: str | None = None) -> None:
         leg = self.store.leg(leg_id)
         s, f = leg["symbol"], self.filters[leg["symbol"]]
         q = rules.floor_to(qty, f.step)
         now = datetime.now(UTC)
         stop = rules.floor_to(rules.stop_price(entry, leg["atr"], self.stop_r), f.tick)
-        self.store.update(leg_id, state="OPEN", entry=entry, entry_time=now.isoformat(timespec="seconds"), qty=str(q),
-                          stop=float(stop), expires=(now + timedelta(hours=HOLD_H[leg["strategy"]])).isoformat(timespec="seconds"))
+        upd = dict(state="OPEN", entry=entry, entry_time=now.isoformat(timespec="seconds"), qty=str(q), stop=float(stop),
+                   expires=expires or (now + timedelta(hours=HOLD_H[leg["strategy"]])).isoformat(timespec="seconds"))
+        if leg["strategy"] == "wick" and not leg["parent"] and self.cfg.get("wick_addon_btc_dump") is not None:
+            m5 = now.replace(second=0, microsecond=0)                          # add-on check at the fill bar's close
+            upd.update(addon="pending", addon_at=(m5 - timedelta(minutes=m5.minute % 5) + timedelta(minutes=5)).isoformat())
+        self.store.update(leg_id, **upd)
         self.store.event(leg_id, "open", f"{s} {q} @ {entry}")
+        leg = self.store.leg(leg_id)
         risk = float(q) * rules.R_ATR * leg["atr"]
-        await self.notify(f"{leg['strategy']} BUY {s[:-4]} {rules.fmt_dec(q)} @ {entry:.6g} (1R = ${risk:.2f}; stop "
+        await self.notify(f"{self.label(leg)} BUY {s[:-4]} {rules.fmt_dec(q)} @ {entry:.6g} (1R = ${risk:.2f}; stop "
                           f"{float(stop):.6g} = -{self.stop_r:g}R" + (f"; take-profit {leg['ref']:.6g}" if leg["strategy"] == "wick" else
                           f"; exit in {HOLD_H['discount']}h") + ")")
         await self.place_exits(leg_id)
@@ -219,11 +236,11 @@ class Engine:
     async def finalize(self, leg_id: int, exit_px: float, why: str) -> None:
         leg = self.store.leg(leg_id)
         q = float(leg["qty"])
-        pnl = q * (exit_px - leg["entry"]) - COST[leg["strategy"]] * q * leg["entry"]
+        pnl = q * (exit_px - leg["entry"]) - COST["addon" if leg["parent"] else leg["strategy"]] * q * leg["entry"]
         R = pnl / (q * rules.R_ATR * leg["atr"])
         self.store.update(leg_id, state="CLOSED", exit=exit_px, exit_time=now_iso(), why=why, pnl_usd=pnl, R=R)
         self.store.event(leg_id, "close", f"{why} @ {exit_px} R={R:+.2f} ${pnl:+.2f}")
-        await self.notify(f"{leg['strategy']} exit {leg['symbol'][:-4]} ({why}) @ {exit_px:.6g}: {R:+.2f}R (${pnl:+.2f})")
+        await self.notify(f"{self.label(leg)} exit {leg['symbol'][:-4]} ({why}) @ {exit_px:.6g}: {R:+.2f}R (${pnl:+.2f})")
 
     async def reconcile(self, leg: dict) -> None:
         s, lid = leg["symbol"], leg["id"]
@@ -278,41 +295,60 @@ class Engine:
         if blocked:
             logger.info("wick bids skipped", reason=blocked)
             return
-        placed = 0
+        placed, bumped = 0, []
+        ladder = [float(k) for k in self.cfg.get("wick_ladder") or [rules.WICK_K]]
+        btc_h = self.close_h.get("BTCUSDT")
         for s in self.syms:
-            if self.holding("wick", s) or self.cooling("wick", s) or s not in self.atr:
-                continue
-            L = rules.wick_bid(self.close_h[s], self.atr[s])
-            if L is None:
+            if self.cooling("wick", s) or s not in self.atr:
                 continue
             f = self.filters[s]
-            bid, qty = rules.floor_to(L, f.tick), rules.qty_for_r(self.r_usd, self.atr[s], f.step)
-            if qty <= 0 or float(qty) * float(bid) < f.min_notional:
-                logger.info("bid below min notional", symbol=s, qty=str(qty), bid=str(bid))
-                continue
-            lid = self.store.new_leg(strategy="wick", symbol=s, state="BID", qty=str(qty), atr=self.atr[s], r_usd=self.r_usd,
-                                     bid=float(bid), ref=self.close_h[s], hour=hour.isoformat(), mode=self.mode,
-                                     expires=(hour + timedelta(hours=1)).isoformat(), signal={"close_h": self.close_h[s]})
-            cid = self.cid(lid, "wick", "b")
-            r = await self.broker.entry_bid(s, qty, bid, cid)
-            if not r.ok:
-                self.store.update(lid, state="ERROR", why=f"bid rejected {r.code} {r.msg}")
-                await self.notify(f"{s[:-4]} bid rejected: {r.code} {r.msg}", key=f"bid:{s}:{r.code}", every_s=6 * 3600)
-                continue
-            self.store.update(lid, bid_cid=cid, bid_kind=r.kind)
-            placed += 1
-            if r.filled_qty > 0 and r.status == "FILLED":
-                await self.open_leg(lid, r.avg_price, r.filled_qty)
-        logger.info("wick bids placed", n=placed, hour=hour.isoformat())
+            plan = []                                                      # (k, bid, qty, bumped)
+            for k in ladder:
+                L = rules.wick_bid(self.close_h[s], self.atr[s], k)
+                if L is not None and L > 0:
+                    bid = rules.floor_to(L, f.tick)
+                    plan.append((k, bid, *rules.rung_qty(self.r_usd, 1 / len(ladder), self.atr[s], f.step, float(bid), f.min_notional)))
+            if len(ladder) > 1 and any(p_[3] for p_ in plan):
+                # a 1/3-R rung is under Binance's minimum order: this coin takes the v1 single 5-ATR bid at the full R
+                # instead, so its risk stays ~r_usd per R (raising each rung to the minimum would be 2.4-4x the R)
+                L = rules.wick_bid(self.close_h[s], self.atr[s], rules.WICK_K)
+                plan = []
+                if L is not None and L > 0:
+                    bid = rules.floor_to(L, f.tick)
+                    plan = [(rules.WICK_K, bid, *rules.rung_qty(self.r_usd, 1.0, self.atr[s], f.step, float(bid), f.min_notional))]
+                    bumped.append(s[:-4])
+            for k, bid, qty, bump in plan:
+                if self.holding("wick", s, k) or qty <= 0:
+                    continue
+                lid = self.store.new_leg(strategy="wick", symbol=s, state="BID", qty=str(qty), atr=self.atr[s], r_usd=self.r_usd,
+                                         bid=float(bid), ref=self.close_h[s], hour=hour.isoformat(), mode=self.mode, rung=k,
+                                         expires=(hour + timedelta(hours=1)).isoformat(),
+                                         signal={"close_h": self.close_h[s], "btc_close_h": btc_h, "bumped": bump})
+                cid = self.cid(lid, "wick", "b")
+                r = await self.broker.entry_bid(s, qty, bid, cid)
+                if not r.ok:
+                    self.store.update(lid, state="ERROR", why=f"bid rejected {r.code} {r.msg}")
+                    await self.notify(f"{s[:-4]} bid rejected: {r.code} {r.msg}", key=f"bid:{s}:{r.code}", every_s=6 * 3600)
+                    continue
+                self.store.update(lid, bid_cid=cid, bid_kind=r.kind)
+                placed += 1
+                if r.filled_qty > 0 and r.status == "FILLED":
+                    await self.open_leg(lid, r.avg_price, r.filled_qty)
+        logger.info("wick bids placed", n=placed, hour=hour.isoformat(), single_bid_coins=bumped)
 
     async def on_5m(self, bar_close: datetime) -> None:
         for leg in self.store.live_legs():                                  # time exits at the first 5m open >= expiry
             if leg["state"] == "OPEN" and leg["expires"] and _ts(leg["expires"]) <= bar_close + timedelta(seconds=30):
                 await self.close_market(leg["id"], "time")
+        want = int((bar_close - timedelta(minutes=5)).timestamp() * 1000)   # open time of the bar that just closed
+        btc = {b[0]: b[4] for b in await self.market.klines("BTCUSDT", "5m", 15)}
+        await self.addons(bar_close, btc)
         if not self.cfg["strategies"].get("discount"):
             return
+        thr = self.cfg.get("discount_btc_fall")
+        if thr is not None and not rules.btc_falling(btc.get(want), btc.get(want - 3600000), float(thr)):
+            return                                                           # v2: discount only while BTC is falling
         blocked = self.entries_blocked()
-        want = int((bar_close - timedelta(minutes=5)).timestamp() * 1000)   # open time of the bar that just closed
         todo = [s for s in self.syms if not (blocked or self.holding("discount", s) or self.cooling("discount", s) or s not in self.atr)]
         perp = await asyncio.gather(*[self.market.klines(s, "5m", 3) for s in todo])
         spot = await asyncio.gather(*[self.market.klines(s, "5m", 3, spot=True) for s in todo])
@@ -338,6 +374,36 @@ class Engine:
             self.store.update(lid, signal=json.dumps({"basis": b_now, "basis_prev": b_prev}))
             await self.open_leg(lid, r.avg_price, r.filled_qty)
 
+    async def addons(self, bar_close: datetime, btc: dict) -> None:
+        """v2 add-on: for rungs whose fill bar has closed, buy a second unit when BTC dumped >= 1.7% since the bid hour."""
+        thr = self.cfg.get("wick_addon_btc_dump")
+        for leg in self.store.live_legs():
+            if leg["addon"] != "pending" or _ts(leg["addon_at"]) > bar_close:
+                continue
+            if leg["state"] != "OPEN" or thr is None:                        # exited inside its fill bar: no add-on (paper)
+                self.store.update(leg["id"], addon="skipped")
+                continue
+            sig = json.loads(leg["signal"] or "{}")
+            fb_open = int((_ts(leg["addon_at"]) - timedelta(minutes=5)).timestamp() * 1000)
+            c_fill = btc.get(fb_open) or (btc[max(btc)] if btc else None)
+            if not rules.btc_dump(sig.get("btc_close_h"), c_fill, float(thr)):
+                self.store.update(leg["id"], addon="no")
+                continue
+            if self.entries_blocked():
+                self.store.update(leg["id"], addon="blocked")
+                continue
+            s, q = leg["symbol"], Decimal(leg["qty"])
+            lid = self.store.new_leg(strategy="wick", symbol=s, state="ENTERING", qty=leg["qty"], atr=leg["atr"], r_usd=leg["r_usd"],
+                                     ref=leg["ref"], rung=leg["rung"], parent=leg["id"], hour=leg["hour"], mode=self.mode,
+                                     signal={"btc_close_h": sig.get("btc_close_h"), "btc_fill_close": c_fill})
+            r = await self.broker.market(s, "BUY", q, False, self.cid(lid, "wick", "a"))
+            self.store.update(leg["id"], addon="done" if r.ok and r.filled_qty > 0 else "failed")
+            if not r.ok or r.filled_qty <= 0:
+                self.store.update(lid, state="ERROR", why=f"add-on failed {r.code} {r.msg}")
+                await self.notify(f"{s[:-4]} add-on failed: {r.code} {r.msg}", key=f"addon:{s}", every_s=3600)
+                continue
+            await self.open_leg(lid, r.avg_price, r.filled_qty, expires=leg["expires"])   # exits with its rung
+
     async def on_minute(self) -> None:
         if self.mode == "dry":                                             # feed closed 1m bars to the simulator
             for s in self.broker.symbols_with_orders():
@@ -351,7 +417,7 @@ class Engine:
             for leg in self.store.live_legs():
                 await self.reconcile(leg)
         st = {"t": now_iso(), "mode": self.mode, "paused": self.entries_blocked(),
-              "legs": [{k: x[k] for k in ("id", "strategy", "symbol", "state", "entry", "stop", "qty")} for x in self.store.live_legs()]}
+              "legs": [{k: x[k] for k in ("id", "strategy", "rung", "parent", "symbol", "state", "entry", "stop", "qty")} for x in self.store.live_legs()]}
         with open(self.cfg["status_file"] + ".tmp", "w") as fh:
             json.dump(st, fh)
         os.replace(self.cfg["status_file"] + ".tmp", self.cfg["status_file"])
@@ -456,7 +522,9 @@ class Engine:
                 await self.reconcile(leg)
         live = self.store.live_legs()
         await self.notify(f"started ({self.mode}); ${self.r_usd:g}/R, stop -{self.stop_r:g}R, "
-                          f"strategies {[k for k, v in self.cfg['strategies'].items() if v]}, {len(live)} live legs")
+                          f"strategies {[k for k, v in self.cfg['strategies'].items() if v]}, ladder {self.cfg.get('wick_ladder')}, "
+                          f"add-on {self.cfg.get('wick_addon_btc_dump')}, discount BTC filter {self.cfg.get('discount_btc_fall')}, "
+                          f"{len(live)} live legs")
 
     async def run(self) -> None:
         await self.startup()

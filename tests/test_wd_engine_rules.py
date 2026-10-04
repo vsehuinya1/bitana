@@ -92,3 +92,16 @@ def test_dry_broker_fill_rules():
     assert br.on_bar("X", 1, 10.5, 10.6, 9.9, 10.2) == ["b"] and br.orders["b"].avg == 10.0
     assert br.on_bar("X", 2, 7.5, 7.9, 7.0, 7.2) == ["s"] and br.orders["s"].avg == 7.5     # gap through the stop: open
     assert br.on_bar("X", 3, 12.5, 13.0, 12.4, 12.8) == []                                  # bar before min_bar_ms ignored
+
+
+def test_v2_rules():
+    # ladder rungs: depth k x ATR; v1 default stays k=5
+    assert rules.wick_bid(100.0, 1.0) == 95.0 and rules.wick_bid(100.0, 1.0, 8.0) == 92.0
+    # 1/3 R rung: TRX-like ATR 0.004 at $1/R -> 27 units; LINK-like at $20 minimum -> bumped to the minimum
+    q, b = rules.rung_qty(1.0, 1 / 3, 0.004, "1", 0.33, 5.0)
+    assert q == Decimal("27") and not b
+    q, b = rules.rung_qty(1.0, 1 / 3, 0.17, "0.01", 13.0, 20.0)
+    assert b and float(q) * 13.0 >= 20.0 and q == Decimal("1.54")
+    # add-on: BTC -1.7% from the bid-hour close to the fill-bar close; discount filter: BTC -1% over 60 min
+    assert rules.btc_dump(100.0, 98.3) and not rules.btc_dump(100.0, 98.4) and not rules.btc_dump(None, 90.0)
+    assert rules.btc_falling(99.0, 100.0) and not rules.btc_falling(99.1, 100.0) and not rules.btc_falling(99.0, None)

@@ -9,7 +9,8 @@ from pathlib import Path
 
 LEG_COLS = ["strategy", "symbol", "state", "qty", "atr", "r_usd", "bid", "ref", "stop", "entry", "entry_time", "exit",
             "exit_time", "why", "pnl_usd", "R", "bid_cid", "bid_kind", "tp_cid", "stop_cid", "hour", "expires", "signal",
-            "created", "updated", "mode"]
+            "created", "updated", "mode", "rung", "parent", "addon", "addon_at"]
+NUM = ("atr", "r_usd", "bid", "ref", "stop", "entry", "exit", "pnl_usd", "R", "rung", "parent")
 FINAL = ("CLOSED", "CANCELLED", "ERROR")
 
 
@@ -24,7 +25,11 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute(f"""CREATE TABLE IF NOT EXISTS legs (id INTEGER PRIMARY KEY AUTOINCREMENT,
-            {', '.join(c + ' ' + ('REAL' if c in ('atr', 'r_usd', 'bid', 'ref', 'stop', 'entry', 'exit', 'pnl_usd', 'R') else 'TEXT') for c in LEG_COLS)})""")
+            {', '.join(c + ' ' + ('REAL' if c in NUM else 'TEXT') for c in LEG_COLS)})""")
+        have = {r[1] for r in self.db.execute("PRAGMA table_info(legs)")}
+        for c in LEG_COLS:                                   # v2 columns on a v1 file
+            if c not in have:
+                self.db.execute(f"ALTER TABLE legs ADD COLUMN {c} {'REAL' if c in NUM else 'TEXT'}")
         self.db.execute("""CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, t TEXT, leg_id INTEGER,
             kind TEXT, msg TEXT)""")
         self.db.execute("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)")

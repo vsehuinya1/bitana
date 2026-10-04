@@ -17,8 +17,11 @@ WICK_K = 5.0              # bid at close(H) - 5 x ATR1h
 WICK_STRICT = 0.1         # paper fill rule: low <= L - 0.1 ATR (live fills on touch; logged for the paper/live gap)
 WICK_MIN_ATR = 0.001      # skip when ATR1h / close < 0.1%
 WICK_HOLD_H = 24
+WICK_LADDER = (5.0, 6.5, 8.0)   # v2 (2026-10-04): three rungs, 1/3 R each (edge report "Improving the wick/discount engine")
+BTC_DUMP = -0.017         # v2 add-on: BTC fill-bar close vs the bid-hour close <= -1.7% -> second unit per rung fill
 DISC_THR = -0.003         # perp/spot - 1 crosses below -30 bps
 DISC_HOLD_H = 4
+DISC_BTC_FALL = -0.01     # v2 filter: discount entries only when BTC's 5m close <= -1% vs 60 min earlier
 
 
 def atr1h(bars: list[tuple[float, float, float, float]]) -> float | None:
@@ -30,11 +33,30 @@ def atr1h(bars: list[tuple[float, float, float, float]]) -> float | None:
     return sum(trs[-ATR_N:]) / ATR_N
 
 
-def wick_bid(close_h: float, atr: float | None) -> float | None:
-    """Bid level for the next hour, or None when the coin is too quiet (ATR1h < 0.1% of price) or ATR is unknown."""
+def wick_bid(close_h: float, atr: float | None, k: float = WICK_K) -> float | None:
+    """Bid level k x ATR1h under the last hourly close, or None when the coin is too quiet (ATR1h < 0.1% of price)."""
     if not atr or atr / close_h < WICK_MIN_ATR:
         return None
-    return close_h - WICK_K * atr
+    return close_h - k * atr
+
+
+def btc_dump(btc_close_h: float | None, btc_close_fill: float | None, thr: float = BTC_DUMP) -> bool:
+    """BTC fell >= |thr| from the bid-hour close to the fill-bar close (the add-on condition)."""
+    return bool(btc_close_h and btc_close_fill and btc_close_fill / btc_close_h - 1 <= thr)
+
+
+def btc_falling(c_now: float | None, c_60m: float | None, thr: float = DISC_BTC_FALL) -> bool:
+    """BTC's 5m close at the signal bar vs the close 60 min earlier <= thr (the discount filter)."""
+    return bool(c_now and c_60m and c_now / c_60m - 1 <= thr)
+
+
+def rung_qty(r_usd: float, weight: float, atr: float, step: str, price: float, min_notional: float) -> tuple[Decimal, bool]:
+    """Quantity for weight x r_usd per R; if that is below the exchange's minimum order value, the minimum
+    (rounded up to the step) instead. Returns (qty, bumped)."""
+    q = floor_to(Decimal(str(r_usd * weight / (R_ATR * atr))), step)
+    if float(q) * price >= min_notional:
+        return q, False
+    return ceil_to(Decimal(str(min_notional / price)), step), True
 
 
 def disc_signal(basis_prev: float | None, basis_now: float | None) -> bool:

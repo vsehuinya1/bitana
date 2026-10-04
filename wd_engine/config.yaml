@@ -15,12 +15,18 @@ stop_r: 20                               # disaster stop, R under entry. Deepest
 cooldown_h: 24                           # after a stop-out: no new entry on that coin for that strategy
 
 strategies:
-  wick: true                             # PREREG-WICK-CATCHER primary book (k=5, TP pre-wick close or 24h)
-  discount: true                         # PREREG-PERP-DISCOUNT primary book (basis < -30 bps, 4h hold)
+  wick: true                             # PREREG-WICK-CATCHER rules (TP pre-wick close or 24h) with the v2 ladder / add-on below
+  discount: true                         # PREREG-PERP-DISCOUNT rules (basis < -30 bps, 4h hold) with the v2 BTC filter below
+
+# v2 (owner order 2026-10-04 "Build into the engine"; edge report "Improving the wick/discount engine"). 2024-26 at the same
+# $/R: +346R vs +209R, max drawdown -68R vs -84R, worst day -38R vs -50R (each change passed alone; combination tested once).
+wick_ladder: [5.0, 6.5, 8.0]             # bid depths in ATR1h, R split equally (1/3 R each); [5.0] = the v1 single bid
+wick_addon_btc_dump: -0.017              # second unit per rung fill when BTC <= -1.7% vs the bid-hour close; null = off
+discount_btc_fall: -0.01                 # discount entries only when BTC 1h <= -1%; null = off
 
 leverage: 10                             # per symbol, set at start (testnet/live)
 margin_type: CROSSED
-max_open_legs: 40                        # 20 coins x 2 strategies
+max_open_legs: 140                       # 20 coins x 3 rungs x 2 (add-ons) + 20 discount
 equity_floor_usd: null                   # live: pause new entries below this account equity (set with the balance)
 
 universe: [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, LINKUSDT, AVAXUSDT, DOTUSDT, LTCUSDT,

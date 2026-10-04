@@ -1990,3 +1990,12 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   flash-crash low (−39R vs no stop). The engine default is now `stop_r: 20`.
 - **More pairs (owner question):** the next 40 coins by 2023 volume fail both strategies over 2024–26 (edge report);
   the universe stays at 20.
+- **wd_engine v2 (2026-10-04, owner order "Build into the engine"):**
+  - Wick ladder at 5 / 6.5 / 8 ATR, ⅓ R each.
+  - Coins whose ⅓-R rung is under Binance's minimum order take the v1 single 5-ATR bid at the full R, so per-coin risk
+    stays about $1 per R. Today that's BTC, LINK, LTC, BCH, NEAR and AAVE, depending on ATR.
+  - BTC-dump add-on (a second unit per rung fill when BTC ≤ −1.7% at the fill-bar close vs the bid hour; it exits with
+    its rung).
+  - Discount entries only when BTC 1h ≤ −1%.
+  - Basis: edge report "Improving the wick/discount engine". Each change passed alone; the combination was tested once.
+  - Still dry. The paper readers stay on their registered rules.
