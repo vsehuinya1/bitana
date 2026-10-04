@@ -1169,3 +1169,42 @@ Stop or 7 days:
   - FAIL.
 - **Portfolio:** A +169R, DD −84R vs A+B −937R, DD −1,320R.
 - **Verdict:** keep the 20 coins.
+
+## Improving the wick/discount engine: what public sources suggest, tested (2026-10-04, owner: "find how to improve it. How do others trade them? What improves it?")
+- **Sources:**
+  - Liquidation-cascade guides: ladder bids in thirds, quick 2–4% take-profits, crowded longs (L/S > 1.5), weekend
+    cascades.
+  - arXiv 2608.21888: short-horizon reversal peaks at about 15 min and is gone by 4h; stronger after bigger, flow-driven
+    moves; book depth and time of day don't matter.
+  - Hyperliquid HLP: liquidity providers earn most on the worst days.
+  - Also tested: earlier passes not yet in the engine.
+- **Rules (fixed before running; `edge/improve_wd.py`):**
+  - 20 coins, 2020-10..2026-09; the engine baseline; one change at a time.
+  - PASS: total R / |max DD R| ≥ baseline in every period (2020–21 / 2022–23 / 2024–26) and total R > 0 in each.
+
+| Variant | Total R (by period) | Max DD R | Total / DD | Verdict |
+|---|---|---|---|---|
+| Wick baseline (k5, TP or 24h) | +167 / +145 / +66 | −54 / −42 / −79 | 3.1 / 3.5 / 0.8 | — |
+| Ladder k5 / 6.5 / 8, ⅓ R each | +149 / +140 / +73 | −29 / −20 / −51 | 5.2 / 7.2 / 1.4 | **PASS** |
+| + BTC-dump add-on (2nd unit at the fill-bar close when BTC ≤ −1.7% vs the bid hour) | +327 / +295 / +169 | −80 / −53 / −92 | 4.1 / 5.6 / 1.9 | **PASS** |
+| Ladder k4 / 5 / 6 | +147 / +121 / +20 | | 2.6 / 2.8 / 0.2 | fail |
+| Time exit 4h / 8h | 4h: +138 / +122 / +125 | | 4h: 3.9 / 2.2 / 2.9; 8h: 6.1 / 2.4 / 3.2 | fail (2022–23) |
+| TP at half the retrace / fixed +3% | | | | fail |
+| Weekend only / weekday only | | | | fail |
+| Crowded longs (L/S ≥ 1.5) | | | | fail |
+| Market-wide fills only | | | 59.6 / 0.8 / 6.9 | fail (2022–23, n=29) |
+| Cap 5 fills/hour, 10 open | | | 2.8 / 3.1 / 0.8 | fail |
+| Discount baseline (−30 bps, 4h) | +239 / +123 / +143 | −17 / −12 / −27 | 13.8 / 10.0 / 5.4 | — |
+| Discount only when BTC 1h ≤ −1% | +186 / +107 / +166 | −13 / −4 / −6 | 14.0 / 25.1 / 27.3 | **PASS** (not falling: 2024–26 −23R) |
+| Discount hold 15m / 30m / 1h / 2h | | | | all worse (the 15-min academic reversal does not carry over) |
+| Discount −50 bps | +185 / +81 / +152 | | 11.4 / 13.1 / 53.5 | fail (2020–21) |
+| Discount crowded longs | | | | fail |
+
+- **Combination (post-hoc, disclosed; tested once; `edge/improve_combo.py`):** wick ladder + add-on + discount
+  BTC-falling vs the current engine, both strategies at the same $ per R.
+  - Total: +471 / +389 / +346R vs +406 / +268 / +209R.
+  - Max DD: −33 / −20 / −68R vs −41 / −37 / −84R.
+  - Worst day −38R vs −50.5R; 11.5 vs 17.3 trades a week.
+  - Every year positive (2026 YTD +26R vs −1R).
+- **Live constraint:** at $1/R a ⅓-R rung is below Binance's minimum order on BTC, LINK, LTC, BCH and ETC ($20–50
+  minimums). Either size those rungs at the minimum (a slightly larger R there) or run about $3/R.
