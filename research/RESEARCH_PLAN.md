@@ -2018,7 +2018,7 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   LATE-BULL-FLUSH, ASIA-MIDVOL): not read. Their arms are disabled; parking them is the owner's call.
 
 ### 2026-10-04 ~17:10Z: shadow read of the remaining live-Bitana watch rows (owner: "Can we read those arms from shadow db? I'm not setting it live anytime soon")
-- **Reader:**  (new), on a backup-API copy with 4,515 closed parity-era rows.
+- **Reader:** `research/watch_rows_shadow_read.py` (new), on a backup-API copy with 4,515 closed parity-era rows.
   - Mirror (WLA) cells are exact and gate-complete (unknown group n=22 reported, never counted).
   - Replica cells are approximate: no book caps; London age column mismatch, disclosed in the reader.
 - **The arms (mirror, parity era):**
@@ -2041,4 +2041,4 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Row 2 LON-NEUT-H13: n=5 / 100.
   - Row 4 NEUT-STOP: live legs only → unreadable.
 - **Why so thin:** the parity era (since 09-23) was mostly neutral regime, when these arms are off by config, and the
-  mirror binds the 09-27 config (weekdays only). Rows keep accruing on shadow while  runs.
+  mirror binds the 09-27 config (weekdays only). Rows keep accruing on shadow while `bitana-v5-paper` runs.
