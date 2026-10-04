@@ -1999,3 +1999,20 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Discount entries only when BTC 1h ≤ −1%.
   - Basis: edge report "Improving the wick/discount engine". Each change passed alone; the combination was tested once.
   - Still dry. The paper readers stay on their registered rules.
+
+### 2026-10-04 ~15:45Z: Sunday formal reads for the live-Bitana arms (owner: "Should be a read due for the system we're abandoning")
+- **Setup:** Hermes' Sunday loop is paused, so these were run by hand. The shadow DB was read through a backup-API copy
+  (99,891 rows; the writer was fresh, latest entry 15:39:59Z). All live arms have been disabled since 2026-10-03, so
+  neither verdict changes anything live.
+- **PREREG-WKNDNY (reader of record `research/wkndny_reader.py`, extension re-read): PARK.**
+  - Bull-weekend book: n=78, E +0.1749R, ΣR +13.64, 4 days (floor 5), 3 positive, top-day 76% (floor ≤ 40%).
+  - The ONE extension is exhausted, so the result is INCONCLUSIVE → park. `exclude_weekdays` stays (moot: arms off).
+  - Robustness: today's Sunday session cannot clear the floors. Top-day ≤ 40% would need today ≥ +12.4R, but such a
+    day would itself exceed 40%.
+- **PREREG-TUEASIA (frozen binding SQL, R = pnl_atr / 10): KILL.**
+  - n=15, 3 distinct Tuesdays (Sep-22 had no eligible legs), E +0.0221R, ΣR +0.332.
+  - By day: Sep-08 +1.58, Sep-15 +1.17, Sep-29 −2.42.
+  - Top-day share 476% > 40% at the formal read → KILL (park permanently).
+  - NULL-regime rows in the window: none.
+- **Other weekly watch rows on live arms** (NY-VOLZ-OFF, NEUT-STOP, FK1–3, OIGATE, LON-BULL-NARROW, Rows 11–13,
+  LATE-BULL-FLUSH, ASIA-MIDVOL): not read. Their arms are disabled; parking them is the owner's call.

@@ -1,5 +1,5 @@
 {
- "built": "2026-10-03T06:08:31+00:00",
+ "built": "2026-10-04T15:43:04+00:00",
  "rows": [
   {
    "name": "PREREG-ASIA-MIDVOL (paper since 2026-09-25)",
@@ -25,9 +25,9 @@
    "name": "PREREG-WICK-CATCHER (paper)",
    "kind": "dark",
    "next": "60 fills over 10 days or 2027-06-30",
-   "status": "n=1 days=1 mean +0.85% median +0.85% hit 100% t +nan top-5 days 100% positive months 1 worst +0.9% (open 1) | COUNTS-ONLY (formal at 60 fills over 10 days or 2027-06-30)",
-   "n": 1,
-   "days": 1,
+   "status": "n=2 days=2 mean +3.42% median +3.42% hit 100% t +nan top-5 days 100% positive months 1 worst +0.9% (open 0) | COUNTS-ONLY (formal at 60 fills over 10 days or 2027-06-30)",
+   "n": 2,
+   "days": 2,
    "n_target": 60,
    "days_target": 10
   },
@@ -45,7 +45,7 @@
    "name": "PREREG-BREAKOUT-4H (paper)",
    "kind": "dark",
    "next": "n>=150 over 16 weeks formal",
-   "status": "15 closed, E -0.977R, edge vs random longs -0.007R | COUNTS-ONLY (formal at n>=150 over >=16 weeks or 2027-03-31)",
+   "status": "15 closed, E -0.977R, edge vs random longs -0.184R | COUNTS-ONLY (formal at n>=150 over >=16 weeks or 2027-03-31)",
    "n": 15,
    "days": 2,
    "n_target": 150,
@@ -55,7 +55,7 @@
    "name": "PREREG-FUNDING-CARRY (paper)",
    "kind": "dark",
    "next": "20 closed or 2027-09-30 formal",
-   "status": "closed 0 | open 0 (none) | net on capital +0.000% | top trailing funding: UNI +10% AAVE +10% LTC +8% BCH +6% BTC +6% (enter >= 15%) | COUNTS-ONLY (0 closed; formal at 20 closed or 2027-09-30)",
+   "status": "closed 0 | open 0 (none) | net on capital +0.000% | top trailing funding: DOT +11% LTC +11% NEAR +11% BNB +9% ETC +9% (enter >= 15%) | COUNTS-ONLY (0 closed; formal at 20 closed or 2027-09-30)",
    "n": 0,
    "days": 0,
    "n_target": 20,
@@ -65,7 +65,7 @@
    "name": "PREREG-BREAKOUT-4H-VOL (paper)",
    "kind": "dark",
    "next": "n>=100 over 16 weeks formal",
-   "status": "6 closed, edge -0.052R vs plain +0.018R | COUNTS-ONLY (formal at n>=100 over >=16 weeks or 2027-03-31)",
+   "status": "6 closed, edge -0.240R vs plain -0.170R | COUNTS-ONLY (formal at n>=100 over >=16 weeks or 2027-03-31)",
    "n": 6,
    "days": 2,
    "n_target": 100,
@@ -191,15 +191,15 @@
   },
   {
    "name": "TUEASIA",
-   "kind": "queued",
-   "next": "2026-10-04",
-   "status": "Tuesday asia neutral re-open (formal)"
+   "kind": "dark",
+   "next": "parked",
+   "status": "KILL 2026-10-04 formal: n=15 over 3 Tuesdays, E +0.022R, top-day 476% (> 40%)"
   },
   {
    "name": "WKNDNY",
-   "kind": "queued",
-   "next": "2026-10-04",
-   "status": "bull-weekend NY buy, extension read"
+   "kind": "dark",
+   "next": "parked",
+   "status": "PARK 2026-10-04 (extension exhausted): n=78, E +0.175R, 4 days (< 5), top-day 76%"
   },
   {
    "name": "BEAR-* playbook",

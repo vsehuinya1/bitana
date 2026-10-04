@@ -42,8 +42,8 @@ ROWS = [
     ('NY-NEUT-KEEP (Row 1)', 'dark', 'n>=30 / 5d', 'NY neutral h16-17 status row'),
     ('LON-NEUT-H13 (Row 2)', 'dark', 'n>=100 / 5d', 'london neutral h12-13 measure-only'),
     ('ASIA-PUMP-NEUTRAL (Row 3)', 'dark', 'superseded', 'superseded 2026-09-25 by ASIA-MIDVOL (its trigger: -0.075 R/leg, n=224)'),
-    ('TUEASIA', 'queued', '2026-10-04', 'Tuesday asia neutral re-open (formal)'),
-    ('WKNDNY', 'queued', '2026-10-04', 'bull-weekend NY buy, extension read'),
+    ('TUEASIA', 'dark', 'parked', 'KILL 2026-10-04 formal: n=15 over 3 Tuesdays, E +0.022R, top-day 476% (> 40%)'),
+    ('WKNDNY', 'dark', 'parked', 'PARK 2026-10-04 (extension exhausted): n=78, E +0.175R, 4 days (< 5), top-day 76%'),
     ('BEAR-* playbook', 'dark', 'first bear bar', 'no bear bars since Aug-17; wired dormant'),
 ]
 
