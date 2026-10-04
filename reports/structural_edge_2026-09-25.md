@@ -1230,3 +1230,27 @@ Stop or 7 days:
 - **By year, v2 vs v1:**
   - 2020: +147 vs +111. 2021: +324 vs +295. 2022: +42 vs +45. 2023: +347 vs +223.
   - 2024: +203 vs +153. 2025: +116 vs +58. 2026: +26 vs −1.
+
+## wd engine by alt-vs-BTC regime, and switching versions (2026-10-04, owner shows the TOTAL3ES/BTC monthly Bollinger squeeze: "which version are we going with?")
+- **Regime (`edge/altseason_split.py`):** per calendar month, the 18 alts (ex BTC, ETH) equal-weight return minus BTC's.
+  Labels are contemporaneous.
+
+| Months | v1 original | v2 improved |
+|---|---|---|
+| Strong alt season (alts beat BTC by > +10%, 19 months) | +466R (+24.5/month) | +426R (+22.4/month) |
+| Alts beat BTC by 0..+10% (17 months) | +120R | +125R |
+| BTC leads (alts lag, 44 months) | +294R (+6.7/month) | +654R (+14.9/month) |
+
+- **What drives the difference:**
+  - The single 5-ATR bid at full R: +296R in strong alt months vs +15R in BTC-led months.
+  - The ladder: +202R vs +108R.
+  - Discount trades without BTC falling: +55R vs −17R.
+  - v1 is the alt-season specialist; v2 is the crash / BTC-led specialist.
+- **Switching (rule fixed before running):** v1 in a month after alts beat BTC, else v2; PASS = total/DD ≥ v2 alone in
+  every period.
+  - 1-month signal: 10.3 / 9.1 / 3.4 vs v2 14.4 / 19.4 / 5.0. Fail.
+  - 3-month (secondary): 13.2 / 8.5 / 3.5. Fail.
+- **Verdict:** keep v2.
+  - If the squeeze breaks toward alts, v1 earns ~10% more in those months.
+  - If it breaks toward BTC, v2 earns ~2.2× more.
+  - A Bollinger squeeze predicts a big move, not its direction.
