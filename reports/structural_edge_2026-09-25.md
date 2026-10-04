@@ -1208,3 +1208,25 @@ Stop or 7 days:
   - Every year positive (2026 YTD +26R vs −1R).
 - **Live constraint:** at $1/R a ⅓-R rung is below Binance's minimum order on BTC, LINK, LTC, BCH and ETC ($20–50
   minimums). Either size those rungs at the minimum (a slightly larger R there) or run about $3/R.
+
+## Run the original wd engine alongside v2? (2026-10-04, owner: "keep the quiet-week (original) setup run concurrently? It got almost 4R")
+- **Rule (fixed before running; `edge/both_versions.py`):** BOTH (v1 + v2 positions together) is better only if its
+  total R / |max DD R| >= v2's in every period, since v2 can always be sized up to the same total.
+
+| | Total R (2020–21 / 2022–23 / 2024–26) | Max DD R | Total / DD | Worst day |
+|---|---|---|---|---|
+| v2 alone | +471 / +389 / +346 | −33 / −20 / −69 | 14.4 / 19.4 / 5.0 | −38R |
+| v1 alone | +406 / +268 / +209 | −41 / −37 / −84 | 9.9 / 7.3 / 2.5 | −51R |
+| BOTH | +876 / +658 / +554 | −74 / −53 / −151 | 11.9 / 12.3 / 3.7 | −89R |
+
+- **Verdict:** BOTH fails in every period. For more profit, raise v2's $ per R instead. v2 at $1.60/R ≈ BOTH's 2024–26
+  total (+$553) with a max DD of −$110 vs −$151 and a worst day of −$61 vs −$89.
+- **Stress vs quiet days:** where the money comes from.
+  - Stress days = a market-wide selloff hour or a BTC-dump fill. They occur on ~105–120 days a year; BTC-dump add-on
+    days run 12–29 a year.
+  - v2: +1,094R on stress days vs +111R on other days.
+  - v1: +630R vs +254R; since 2024, other days made only +19R.
+  - The forward paper week's +3.76R (4 trades) was quiet-day trading, which has earned little since 2024.
+- **By year, v2 vs v1:**
+  - 2020: +147 vs +111. 2021: +324 vs +295. 2022: +42 vs +45. 2023: +347 vs +223.
+  - 2024: +203 vs +153. 2025: +116 vs +58. 2026: +26 vs −1.
