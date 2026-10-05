@@ -1308,3 +1308,23 @@ Stop or 7 days:
   - That falls after the test window (exits need 7 days of data); VELVET pumped and then fell.
 - **Verdict:** no pump engine on these rules. Fading pump days is the only positive line, small and unproven, and
   short-squeeze risk applies.
+
+## Expected ROI: main wd engine (6 coins) + proposed second pot (14 coins, max 2 open), $100 each at $1/R (2026-10-05)
+- **Source:** `edge/roi_by_year.py`, v2 rules. The second pot = single 5-ATR bid + BTC-dump add-on + discount only when
+  BTC falls, max 2 trades open.
+
+| Year | Main (6 coins) | Second pot (14 coins) | Both ($200) |
+|---|---|---|---|
+| 2020 (Oct–Dec only) | +$44 | +$20 | +$64 |
+| 2021 | +$97 | +$77 | +$174 |
+| 2022 | +$34 | −$17 | +$17 |
+| 2023 | +$130 | +$49 | +$179 |
+| 2024 | +$57 | +$12 | +$69 |
+| 2025 | +$22 | −$2 | +$20 |
+| 2026 (to Sep 20) | +$11 | +$12 | +$23 |
+
+- **Since 2024, annualized:** main ≈ +33%/yr on $100; second pot ≈ +8%/yr; both ≈ +20%/yr on $200. Earlier years were
+  stronger; the trend is down.
+- **Risk at $1/R:**
+  - Main: closed-trade max DD −$15; worst crash moment −$61 (2025-10-10).
+  - Second pot: closed-trade DD −$23; worst crash moment about −$56 (estimate: 2 positions + add-ons).
