@@ -1280,3 +1280,31 @@ Stop or 7 days:
   - Leverage 20× (cross-margin liquidation follows the maintenance margin; 20× keeps free margin so crash-time rungs
     are not rejected).
   - Equity floor $60 on the REALIZED wallet balance (an unrealized-equity floor would pause entries at every crash low).
+
+## Pump precursors for a "pump engine" (2026-10-05, owner: "I'm sure there's some sort of give away before a coin goes to the moon" — PUMPBTC, VELVET, BOB)
+- **Data and rules (fixed before running; `edge/pump_test.py`):**
+  - 880 Binance USDT-M perps incl. delisted, daily bars 2024-01 → 2026-09.
+  - Funding: the public monthly archive (daily sums).
+  - Signals at the day-t close: S1 flush (≤ −20% on ≥ 10× volume); S2 funding ≥ +1%/day; S3 funding ≤ −1%/day;
+    S4 coil break (10d volume ≤ 0.5× the 60d mean, then a ≥ 3× volume day at +5..15%); S5 pump day (≥ +30% on
+    ≥ 5× volume), chase and fade.
+  - Entry at the next open; stop under the signal low or 20% (fade: +30%); 7-day exit; 0.40% cost.
+  - PUMP7 = +50% within 7 days vs the base rate of same-tier coin-days.
+  - PASS = lift ≥ 2× and a positive trade beating random entries in 2024 AND 2025–26, holdout t ≥ 1.5.
+
+| Signal | 2025–26: +50% within 7d (base ~4%) | Lift | Trade net | Win | Verdict |
+|---|---|---|---|---|---|
+| S1 flush | 19.2% (n=104) | 4.7× | −6.35% | 12% | fail (2024 n=9) |
+| S2 funding ≥ +1% | 22.2% (n=45) | 5.4× | −7.19% (median −20%) | 11% | fail |
+| S3 funding ≤ −1% | 10.4% (n=1,156) | 2.5× | −4.30% | 24% | fail (2024 lift 1.4×) |
+| S4 coil break | 6.1% (n=1,036) | 1.5× | −1.37% | 29% | fail |
+| S5 pump day, chase | 26.0% (n=670) | 6.2× | −2.41% (median −20%) | 22% | fail |
+| S5 pump day, fade | — | — | +1.62% (median +9.3%) | 55% | fail (2024 +0.15%; holdout t 1.39) |
+
+- **Read:** the "tells" are real predictors of a violent move. The odds of +50% in a week rise 2.5–6×, but drops come
+  just as often and usually first, so a stopped long loses (win rates 11–30%).
+- **The owner's examples:**
+  - PUMPBTC and BOB both flushed 2026-10-01 (−29% / −22% on 18–21× volume, funding to 1–5%/day).
+  - That falls after the test window (exits need 7 days of data); VELVET pumped and then fell.
+- **Verdict:** no pump engine on these rules. Fading pump days is the only positive line, small and unproven, and
+  short-squeeze risk applies.
