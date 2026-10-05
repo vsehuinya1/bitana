@@ -1254,3 +1254,29 @@ Stop or 7 days:
   - If the squeeze breaks toward alts, v1 earns ~10% more in those months.
   - If it breaks toward BTC, v2 earns ~2.2× more.
   - A Bollinger squeeze predicts a big move, not its direction.
+
+## wd engine on $100: intra-crash drawdown and a 6-coin test universe (2026-10-05, owner: "Can we start it with $100?" / "limit the number of pairs while we test?")
+- **Method:** mark-to-market at 5m bar lows across all open legs on the six worst crash days (`edge/crash_mtm.py`,
+  `edge/subset_mtm.py`). Conservative: assumes every coin's low lands in the same 5m bar. v2 rules, R at $1/R = dollars.
+- **All 20 coins:**
+
+| Day | Worst moment | End of day |
+|---|---|---|
+| 2025-10-10 | −203R | +133R |
+| 2024-01-03 | −114R | +80R |
+| 2021-09-07 | −104R | −13R |
+| 2026-01-18 | −75R | −29R |
+| 2024-04-12 | −72R | −8R |
+| 2023-08-17 | −65R | +118R |
+
+  - v1 on 2025-10-10: −167R / +55R.
+  - The closed-trade drawdown (−66 to −84R) understates the account risk: on cross margin the intra-crash low is what
+    liquidates.
+- **Top-N by trailing-12-month volume** (BTC ETH SOL XRP DOGE BNB ADA NEAR LINK AVAX …), since 2024 / worst moment:
+  - Top 4: +56R / −43R. Top 5: +73R / −56R. **Top 6: +90R / −61R** (closed-trade DD −15R).
+  - Top 8: +132R / −79R. Top 10: +181R / −106R. All 20: +380R / −203R (this run; the earlier v2 total was +346R).
+- **Set for the $100 test:**
+  - Universe = top 6. At $1/R the worst historical moment leaves ~$39.
+  - Leverage 20× (cross-margin liquidation follows the maintenance margin; 20× keeps free margin so crash-time rungs
+    are not rejected).
+  - Equity floor $60 on the REALIZED wallet balance (an unrealized-equity floor would pause entries at every crash low).

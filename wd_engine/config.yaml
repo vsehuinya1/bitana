@@ -24,13 +24,19 @@ wick_ladder: [5.0, 6.5, 8.0]             # bid depths in ATR1h, R split equally 
 wick_addon_btc_dump: -0.017              # second unit per rung fill when BTC <= -1.7% vs the bid-hour close; null = off
 discount_btc_fall: -0.01                 # discount entries only when BTC 1h <= -1%; null = off
 
-leverage: 10                             # per symbol, set at start (testnet/live)
+leverage: 20                             # per symbol, set at start. 2026-10-05 ($100 test): cross-margin liquidation follows the
+                                         # maintenance margin, not this setting; 20x leaves free margin so crash-time rungs/add-ons aren't rejected
 margin_type: CROSSED
 max_open_legs: 140                       # 20 coins x 3 rungs x 2 (add-ons) + 20 discount
-equity_floor_usd: null                   # live: pause new entries below this account equity (set with the balance)
+equity_floor_usd: 60                     # live: pause new entries when the REALIZED wallet balance < $60 (open losses don't count, so
+                                         # crash lows never pause entries); $100 start, closed-trade max DD top-6 since 2020: -$15
 
-universe: [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, LINKUSDT, AVAXUSDT, DOTUSDT, LTCUSDT,
-           BCHUSDT, ATOMUSDT, NEARUSDT, UNIUSDT, FILUSDT, ETCUSDT, TRXUSDT, BNBUSDT, XLMUSDT, AAVEUSDT]
+# 2026-10-05 owner: "$100" + "limit the number of pairs while we test": the 6 most liquid of the 20 by trailing-12-month
+# volume (not by past results). At $1/R: since 2024 +$90, closed-trade max DD -$15, worst crash moment -$61 (2025-10-10,
+# all lows in one 5m bar) vs -$203 for all 20. BTC must stay in (add-on + discount filters read it). Full list:
+# [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, LINKUSDT, AVAXUSDT, DOTUSDT, LTCUSDT,
+#  BCHUSDT, ATOMUSDT, NEARUSDT, UNIUSDT, FILUSDT, ETCUSDT, TRXUSDT, BNBUSDT, XLMUSDT, AAVEUSDT]
+universe: [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, DOGEUSDT, BNBUSDT]
 
 db: /root/bitana/data/wd_engine.db
 status_file: /root/bitana/data/wd_engine_status.json

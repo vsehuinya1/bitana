@@ -246,9 +246,11 @@ class LiveBroker:
         return await self.rest.position_amt(symbol)
 
     async def equity(self) -> float | None:
+        """REALIZED wallet balance (2026-10-05): open losses are excluded so a crash low never pauses entries; the floor
+        stops new entries only after real losses."""
         a = await self.rest.get_account()
         try:
-            return float(a["totalWalletBalance"]) + float(a["totalUnrealizedProfit"])
+            return float(a["totalWalletBalance"])
         except (TypeError, KeyError, ValueError):
             return None
 

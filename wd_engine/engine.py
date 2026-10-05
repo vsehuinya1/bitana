@@ -430,11 +430,11 @@ class Engine:
             return
         floor = float(self.cfg["equity_floor_usd"])
         if eq < floor and not self.paused_reason:
-            self.paused_reason = f"equity ${eq:.2f} < floor ${floor:.2f}"
+            self.paused_reason = f"wallet balance ${eq:.2f} < floor ${floor:.2f}"
             await self.notify(f"PAUSED new entries: {self.paused_reason}. Open legs keep their exits.")
         elif self.paused_reason and eq >= floor * 1.1:
             self.paused_reason = None
-            await self.notify(f"entries resumed: equity ${eq:.2f}")
+            await self.notify(f"entries resumed: wallet balance ${eq:.2f}")
         for s in {x["symbol"] for x in self.store.live_legs() if x["state"] == "OPEN"}:   # position sanity
             amt = await self.broker.position_amt(s)
             exp = sum(float(x["qty"]) for x in self.store.live_legs() if x["symbol"] == s and x["state"] == "OPEN")
