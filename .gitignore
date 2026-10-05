@@ -55,3 +55,6 @@ dashboard/manual_stops.tmp
 .env.wd
 data/wd_engine_status.json
 data/wd_engine.PAUSE
+
+# Claude Code local permissions (machine-specific)
+.claude/settings.local.json
