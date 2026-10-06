@@ -9,6 +9,8 @@ WorkingDirectory=/root/bitana
 ExecStart=/root/bitana/venv/bin/python -u -m wd_engine.engine --config /root/bitana/wd_engine/config.yaml
 Restart=always
 RestartSec=15
+# setup failures (keys, exchange filters, preflight) exit 2: do not restart-loop them
+RestartPreventExitStatus=2
 TimeoutStopSec=30
 
 [Install]

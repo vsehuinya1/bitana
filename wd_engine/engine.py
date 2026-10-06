@@ -57,6 +57,7 @@ logger = get_logger("wd_engine")
 COST = {"wick": 0.0012, "discount": 0.0020, "addon": 0.0020}   # paper cost models (add-on = taker in, like discount)
 HOLD_H = {"wick": rules.WICK_HOLD_H, "discount": rules.DISC_HOLD_H}
 UTC = timezone.utc
+SETUP_EXIT = 2          # exit code for setup failures; the unit sets RestartPreventExitStatus=2 (one alert, no loop)
 
 
 def _env(path: str, key: str) -> str | None:
@@ -89,7 +90,8 @@ class Engine:
         else:
             key, sec = _env(cfg["env_file"], "WD_API_KEY"), _env(cfg["env_file"], "WD_API_SECRET")
             if not key or not sec:
-                raise SystemExit(f"{self.mode}: WD_API_KEY / WD_API_SECRET missing in {cfg['env_file']}")
+                logger.error("keys missing", env_file=cfg["env_file"])
+                raise SystemExit(SETUP_EXIT)         # setup problem: no systemd restart loop (RestartPreventExitStatus)
             self.broker = LiveBroker(key, sec, testnet=self.mode == "testnet")
         self.tag = {"dry": "WD[dry]", "testnet": "WD[testnet]", "live": "WD"}[self.mode]
         self.filters: dict = {}
@@ -501,11 +503,13 @@ class Engine:
         self.filters = await self.market.filters(self.syms)
         missing = [s for s in self.syms if s not in self.filters]
         if missing:
-            raise SystemExit(f"no exchange filters for {missing}")
+            logger.error("no exchange filters", symbols=missing)
+            raise SystemExit(SETUP_EXIT)
         problems = await self.broker.preflight(self.syms, int(self.cfg["leverage"]), self.cfg["margin_type"])
         if problems:
             await self.notify("NOT STARTED: " + "; ".join(problems)[:600])
-            raise SystemExit("preflight failed: " + "; ".join(problems))
+            logger.error("preflight failed", problems=problems)
+            raise SystemExit(SETUP_EXIT)
         await self.refresh_atr()
         for leg in self.store.live_legs():
             if self.mode == "dry":                                       # simulated orders do not survive a restart

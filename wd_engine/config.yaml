@@ -4,7 +4,7 @@
 
 # dry = public data, simulated fills, no keys | testnet = futures testnet keys | live = sub-account keys.
 # Switching to testnet / live is the owner's step (keys go in env_file).
-mode: dry
+mode: live                               # 2026-10-06 owner order "Go live" (dry run 2026-10-05 09:57 -> 10-06 09:5x: 24 clean hours)
 env_file: /root/bitana/.env.wd          # WD_API_KEY=... / WD_API_SECRET=... (sub-account, futures trading only, no withdrawals)
 
 r_usd: 1.0                               # $ per R; 1R = 3 x ATR1h. History at $1/R (2024-26): +$210, max drawdown -$84, worst day -$50
@@ -24,8 +24,9 @@ wick_ladder: [5.0, 6.5, 8.0]             # bid depths in ATR1h, R split equally 
 wick_addon_btc_dump: -0.017              # second unit per rung fill when BTC <= -1.7% vs the bid-hour close; null = off
 discount_btc_fall: -0.01                 # discount entries only when BTC 1h <= -1%; null = off
 
-leverage: 20                             # per symbol, set at start. 2026-10-05 ($100 test): cross-margin liquidation follows the
-                                         # maintenance margin, not this setting; 20x leaves free margin so crash-time rungs/add-ons aren't rejected
+leverage: 5                              # per symbol, set at start. Binance caps SUB-ACCOUNTS at 5x (-4421, 2026-10-06; 20x was planned).
+                                         # Liquidation follows the maintenance margin, not this setting; 5x caps capacity at ~5x the
+                                         # balance ($104 -> ~$520), so on the biggest crash days the last rungs/add-ons can be margin-rejected
 margin_type: CROSSED
 max_open_legs: 140                       # 20 coins x 3 rungs x 2 (add-ons) + 20 discount
 equity_floor_usd: 60                     # live: pause new entries when the REALIZED wallet balance < $60 (open losses don't count, so

@@ -2042,3 +2042,18 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Row 4 NEUT-STOP: live legs only → unreadable.
 - **Why so thin:** the parity era (since 09-23) was mostly neutral regime, when these arms are off by config, and the
   mirror binds the 09-27 config (weekdays only). Rows keep accruing on shadow while `bitana-v5-paper` runs.
+
+### Ops log 2026-10-06: wd_engine LIVE (owner order "Go live") on the $104 sub-account
+- **Dry run:** 2026-10-05 09:57Z → 10-06 09:50Z: 24 hourly rounds, 0 errors / warnings / restarts, no simulated fills.
+  The dry DB was archived as `data/wd_engine_dry_20261006.db`.
+- **First live start (09:50Z):** the preflight refused to start. Binance caps SUB-ACCOUNTS at 5× leverage (−4421), so
+  the planned 20× failed. No orders were sent. A systemd restart loop sent two "NOT STARTED" alerts before it was stopped.
+- **Fixes:**
+  - `leverage: 5` (capacity ≈ 5× the balance; the last rungs / add-ons on the biggest crash days can be margin-rejected;
+    liquidation is unchanged).
+  - Setup failures now exit with code 2, and the unit has `RestartPreventExitStatus=2` (one alert, no loop).
+- **Live since 2026-10-06 09:51:33Z.** First live hour (10:00Z): 16 conditional TAKE_PROFIT BUY orders confirmed on
+  Binance (3 each SOL / XRP / DOGE / BNB / ETH, 1 BTC single bid), status NEW, CONTRACT_PRICE; wallet $104.05; no positions.
+- **Pending checks:**
+  - 11:00Z cancel/replace (the old bids gone, ~16 new ones).
+  - The first real fill: its take-profit + −20R stop must appear on Binance.
