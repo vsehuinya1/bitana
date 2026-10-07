@@ -2057,3 +2057,19 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
 - **Pending checks:**
   - 11:00Z cancel/replace (the old bids gone, ~16 new ones).
   - The first real fill: its take-profit + −20R stop must appear on Binance.
+
+### Ops log 2026-10-07: first live fill, user-stream fix, restart incident
+- **First live fill:** ETH wick rung k5, 0.008 @ 2591.70 at 02:01:18Z (maker, fee $0.004). TP 2656.02 and stop 1820.01
+  (reduce-only, this leg's qty) were verified on Binance.
+- **Finding:** the engine detected the fill 45 s late (02:02:03Z) via the 60 s poll; the position had no exits for 45 s.
+  Cause: the user stream used the legacy `/ws/<listenKey>` route, retired by Binance on 2026-04-23 (it connects but pushes
+  no private data). Fix (ce2bc08): `/private/ws?listenKey=...&events=ORDER_TRADE_UPDATE/ACCOUNT_UPDATE`, with each event
+  logged.
+- **Restart (owner order "Restart", with the ETH position open; its exits are exchange-side):**
+  - 03:46:10Z: the preflight failed, so the engine was down. With open orders, Binance answers the margin-type call with
+    −4067 instead of −4046.
+  - 03:47:04Z: back after a fix that reads the actual margin type on −4067 and accepts cross.
+  - Down ~1 min with 13 bids resting; nothing filled.
+  - Verified after: 13 bids + ETH position + TP + stop on Binance = 13 BID + 1 OPEN legs in the engine; the user stream
+    connected on the private route.
+- **Lesson:** test the live startup path with open orders before any future restart.

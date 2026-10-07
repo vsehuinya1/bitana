@@ -168,7 +168,12 @@ class LiveBroker:
         for s in symbols:
             r = await self.rest.set_margin_type(s, margin_type)
             c, m = _err(r)
-            if c not in (None, -4046):                      # -4046: no need to change margin type
+            if c == -4067:                                  # open orders block the call (2026-10-07): read the actual type
+                pr = await self.rest._request("GET", "/fapi/v2/positionRisk", params={"symbol": s}, signed=True, weight=5)
+                mt = str(pr[0].get("marginType", "")).lower() if isinstance(pr, list) and pr else ""
+                if mt not in ("cross", "crossed") or margin_type.upper() != "CROSSED":
+                    problems.append(f"{s} margin type is {mt or 'unknown'} (wanted {margin_type}; cannot change with open orders)")
+            elif c not in (None, -4046):                    # -4046: no need to change margin type
                 problems.append(f"{s} margin type: {c} {m}")
             r = await self.rest.set_leverage(s, leverage)
             c, m = _err(r)
