@@ -397,6 +397,17 @@
         .board td.k-queued { color: var(--blue); } .board td.k-dark { color: var(--text-3); }
         .prog-mini { display: inline-block; width: 64px; height: 5px; background: var(--border); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
         .prog-mini > i { display: block; height: 100%; background: #3987e5; }
+        .acct-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+        .acct { background: linear-gradient(180deg, var(--bg-card), #0b111c); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+        .acct-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+        .acct-v { font-family: var(--mono); font-size: 24px; font-weight: 700; margin: 6px 0 4px; }
+        .acct-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12.5px; color: var(--text-2); }
+        .acct-rows b { font-family: var(--mono); color: var(--text); font-weight: 600; }
+        .acct-tag { font-size: 10.5px; font-weight: 800; letter-spacing: .5px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); }
+        .acct-tag.live { color: #22d67b; border-color: #22d67b55; } .acct-tag.warn { color: #f5b840; border-color: #f5b84055; }
+        details.dormant > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text-2); padding: 10px 0; list-style: none; }
+        details.dormant > summary::before { content: "▸ "; } details.dormant[open] > summary::before { content: "▾ "; }
+        details.dormant { border-top: 1px solid var(--border); padding-top: 4px; }
     </style>
 </head>
 <body>
@@ -417,6 +428,89 @@
 </header>
 
 <main class="dash">
+    <!-- 2026-10-07: accounts (main + 2 sub-accounts); Bitana bot panels folded below (dormant) -->
+    <section class="sec" id="acct-sec">
+        <h2>Accounts</h2>
+        <div class="acct-grid" id="acct-grid"><div class="empty">Loading…</div></div>
+    </section>
+    <section class="sec">
+        <h2>Sub-account 1 · open positions <span class="cnt" id="wd-pc">0</span> <span class="sub-h" id="wd-bids"></span></h2>
+        <div class="tbl-wrap"><table>
+            <thead><tr><th>Coin</th><th>Leg</th><th>Entry</th><th>Mark</th><th>uR</th><th>u$</th><th>Take-profit</th><th>Stop</th><th class="hs">Time exit</th></tr></thead>
+            <tbody id="wd-pos"></tbody></table></div>
+    </section>
+    <section class="sec">
+        <h2>Sub-account 1 · closed trades <span class="cnt" id="wd-tc">0</span></h2>
+        <div class="tbl-wrap"><table>
+            <thead><tr><th>Exit</th><th>Coin</th><th>Leg</th><th>Entry</th><th>Exit px</th><th>How</th><th>R</th><th>$</th></tr></thead>
+            <tbody id="wd-tb"></tbody></table></div>
+    </section>
+    <section class="sec">
+        <h2>Sub-account 2 · trades <span class="cnt" id="fs-tc">0</span> <span class="sub-h" id="fs-open"></span></h2>
+        <div class="tbl-wrap"><table>
+            <thead><tr><th>Settlement</th><th>Coin</th><th>Side</th><th>Funding</th><th>Entry</th><th>Exit</th><th>Stopped</th><th>Net bp</th><th>$</th></tr></thead>
+            <tbody id="fs-tb"></tbody></table></div>
+    </section>
+
+    <!-- Open Positions -->
+    <section class="sec">
+        <h2>Main account · open positions <span class="cnt" id="pc">0</span></h2>
+        <div class="pos-grid" id="pg">
+            <div class="empty">No open positions</div>
+        </div>
+    </section>
+
+    <!-- Cumulative P&L Chart (inline SVG, no CDN) -->
+    <section class="sec">
+        <h2>Main account P&amp;L <span class="sub-h">· $, Bitana bot + manual trades</span></h2>
+        <div class="chart-wrap" id="chart-wrap"><div class="empty">No P&amp;L data yet</div></div>
+    </section>
+
+    <!-- Recent Trades -->
+    <section class="sec">
+        <h2>Main account · recent trades <span class="cnt" id="tc">0</span></h2>
+        <div class="tbl-wrap">
+            <table>
+                <thead><tr>
+                    <th>Time</th><th>Arm</th><th>Hr</th><th>Symbol</th><th>Side</th>
+                    <th>Entry</th><th>Exit</th><th>PnL</th><th>R</th><th>Reason</th>
+                </tr></thead>
+                <tbody id="tb"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Transfers -->
+    <section class="sec">
+        <h2>Main account · transfers <span class="cnt" id="xc">0</span></h2>
+        <div class="tbl-wrap">
+            <table>
+                <thead><tr>
+                    <th>Time</th><th>Direction</th><th>Amount</th><th>Asset</th><th>Equity After</th>
+                </tr></thead>
+                <tbody id="xb"></tbody>
+            </table>
+        </div>
+    </section>
+    <!-- v3: system health -->
+    <section class="sec" id="ops-sec" hidden>
+        <h2>System health</h2>
+        <div class="ops-grid" id="ops"></div>
+    </section>
+
+    <!-- v3: research board -->
+    <section class="sec" id="board-sec" hidden>
+        <h2>Research board <span class="sub-h" id="board-built"></span></h2>
+        <div class="tbl-wrap">
+            <table class="board">
+                <thead><tr><th>Row</th><th>Type</th><th>Progress / next read</th><th>Status</th></tr></thead>
+                <tbody id="board-tb"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <details class="sec dormant" id="bitana-dormant">
+        <summary>Bitana bot · dormant <span class="sub-h">· all arms disabled since 2026-10-03; regime, sessions, gates, risk and arm history</span></summary>
     <!-- Metric Cards -->
     <section class="cards">
         <div class="card lit">
@@ -491,14 +585,6 @@
         <div class="arm-stack" id="arms"></div>
     </section>
 
-    <!-- Open Positions -->
-    <section class="sec">
-        <h2>Open Positions <span class="cnt" id="pc">0</span></h2>
-        <div class="pos-grid" id="pg">
-            <div class="empty">No open positions</div>
-        </div>
-    </section>
-
     <!-- v3: performance, current arms -->
     <section class="sec" id="perf-sec" hidden>
         <h2>Performance <span class="sub-h">· current arms, in R</span></h2>
@@ -516,61 +602,13 @@
         </div>
     </section>
 
-    <!-- Cumulative P&L Chart (inline SVG, no CDN) -->
-    <section class="sec">
-        <h2>Account P&amp;L <span class="sub-h">· $, all engines incl. retired</span></h2>
-        <div class="chart-wrap" id="chart-wrap"><div class="empty">No P&amp;L data yet</div></div>
-    </section>
-
-    <!-- Recent Trades -->
-    <section class="sec">
-        <h2>Recent Trades <span class="cnt" id="tc">0</span></h2>
-        <div class="tbl-wrap">
-            <table>
-                <thead><tr>
-                    <th>Time</th><th>Arm</th><th>Hr</th><th>Symbol</th><th>Side</th>
-                    <th>Entry</th><th>Exit</th><th>PnL</th><th>R</th><th>Reason</th>
-                </tr></thead>
-                <tbody id="tb"></tbody>
-            </table>
-        </div>
-    </section>
-
     <!-- Performance -->
     <section class="sec">
         <h2>All history <span class="sub-h">· every engine and era, for reference</span></h2>
         <div class="st-grid" id="sg"></div>
     </section>
 
-    <!-- v3: system health -->
-    <section class="sec" id="ops-sec" hidden>
-        <h2>System health</h2>
-        <div class="ops-grid" id="ops"></div>
-    </section>
-
-    <!-- v3: research board -->
-    <section class="sec" id="board-sec" hidden>
-        <h2>Research board <span class="sub-h" id="board-built"></span></h2>
-        <div class="tbl-wrap">
-            <table class="board">
-                <thead><tr><th>Row</th><th>Type</th><th>Progress / next read</th><th>Status</th></tr></thead>
-                <tbody id="board-tb"></tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- Transfers -->
-    <section class="sec">
-        <h2>Transfers <span class="cnt" id="xc">0</span></h2>
-        <div class="tbl-wrap">
-            <table>
-                <thead><tr>
-                    <th>Time</th><th>Direction</th><th>Amount</th><th>Asset</th><th>Equity After</th>
-                </tr></thead>
-                <tbody id="xb"></tbody>
-            </table>
-        </div>
-    </section>
+    </details>
 </main>
 
 <footer class="foot">
@@ -1354,6 +1392,42 @@ function uBoard(d) {
     }).join('');
 }
 
+
+/* ---- 2026-10-07: accounts (main + sub-accounts) ---- */
+function _age(sec) { return sec == null ? '—' : sec < 120 ? Math.round(sec) + 's ago' : sec < 7200 ? Math.round(sec / 60) + ' min ago' : (sec / 3600).toFixed(1) + ' h ago'; }
+function uAccounts(d) {
+    const A = ((d.v3 || {}).accounts) || {};
+    const m = A.main || {}, w = A.wd || {}, f = A.fs || {};
+    const tag = (mode, stale) => `<span class="acct-tag ${mode === 'live' && !stale ? 'live' : 'warn'}">${esc((mode || '—').toUpperCase())}${stale ? ' · STALE' : ''}</span>`;
+    const card = (title, tg, val, valCls, rows) => `<div class="acct"><div class="acct-h"><span>${esc(title)}</span>${tg}</div>
+        <div class="acct-v ${valCls || ''}">${val}</div><div class="acct-rows">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div></div>`;
+    let h = '';
+    h += m.error ? `<div class="acct">Main: ${esc(m.error)}</div>` : card(m.name || 'Main account', '<span class="acct-tag">MANUAL</span>', m.equity != null ? fmt$(m.equity) : '—', '',
+        [['Manual positions', m.n_manual ?? '—'], ['Bitana bot', 'dormant']]);
+    h += w.error ? `<div class="acct">Sub-account 1: ${esc(w.error)}</div>` : card(w.name || 'Sub-account 1', tag(w.mode, w.status_age_s > 180), '≈' + fmt$(w.balance_est + (w.unrealized || 0)), '',
+        [['Funded', fmt$(w.funded) + ' · ' + esc(w.funded_on || '')], ['Realized', fmtS$(w.realized)], ['Open', `${(w.positions || []).length} · ${fmtS$(w.unrealized)}`],
+         ['Closed', `${w.n_closed} · ${fmtR(w.sum_r)}`], ['Bids live', w.n_bids], ['Engine', _age(w.status_age_s) + (w.paused ? ' · PAUSED' : '')]]);
+    h += f.error ? `<div class="acct">Sub-account 2: ${esc(f.error)}</div>` : card(f.name || 'Sub-account 2', tag(f.mode, false), '≈' + fmt$(f.balance_est), '',
+        [['Funded', (f.funded != null ? fmt$(f.funded) : '—') + ' · ' + esc(f.funded_on || '')], ['Realized', fmtS$(f.realized)],
+         ['Live trades', `${f.n_closed} (${f.wins} won)`], ['Open', Object.keys(f.open || {}).length], ['Log updated', _age(f.log_age_s)], ['Dry events', f.dry_events ?? '—']]);
+    $('acct-grid').innerHTML = h;
+    const P = w.positions || [];
+    $('wd-pc').textContent = P.length;
+    $('wd-bids').textContent = w.bids ? '· bids now: ' + Object.entries(w.bids).map(([k, v]) => `${k} ${v}`).join(', ') : '';
+    $('wd-pos').innerHTML = P.length ? P.map(p => `<tr><td>${esc(p.symbol.replace('USDT', ''))}</td><td>${esc(p.label)}</td><td>${fmtP(p.entry)}</td><td>${fmtP(p.mark)}</td>
+        <td class="${clr(p.u_r)}">${fmtR(p.u_r)}</td><td class="${clr(p.u_usd)}">${fmtS$(p.u_usd)}</td><td>${p.tp != null ? fmtP(p.tp) : 'time exit'}</td><td class="red">${fmtP(p.stop)}</td>
+        <td class="hs">${fmtT(p.expires)}</td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text-3)">No open positions</td></tr>';
+    const T = w.trades || [];
+    $('wd-tc').textContent = w.n_closed || 0;
+    $('wd-tb').innerHTML = T.length ? T.map(t => `<tr><td>${fmtT(t.exit_time)}</td><td>${esc(t.symbol.replace('USDT', ''))}</td><td>${esc(t.label)}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td>
+        <td>${esc(t.why || '')}</td><td class="${clr(t.R)}">${fmtR(t.R)}</td><td class="${clr(t.usd)}">${fmtS$(t.usd)}</td></tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--text-3)">No closed trades yet</td></tr>';
+    const F = f.trades || [];
+    $('fs-tc').textContent = f.n_closed || 0;
+    $('fs-open').textContent = Object.keys(f.open || {}).length ? '· open now: ' + Object.keys(f.open).join(', ') : '';
+    $('fs-tb').innerHTML = F.length ? F.map(t => `<tr><td>${esc(t.s_utc || '')}</td><td>${esc((t.sym || '').replace('USDT', ''))}</td><td class="${t.d > 0 ? 'green' : 'red'}">${t.d > 0 ? 'LONG' : 'SHORT'}</td>
+        <td>${t.f_prev != null ? (100 * t.f_prev).toFixed(3) + '%' : '—'}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td><td>${t.stopped ? 'yes' : ''}</td>
+        <td class="${clr(t.net_bps)}">${t.net_bps != null ? t.net_bps.toFixed(1) : '—'}</td><td class="${clr(t.pnl_usd)}">${fmtS$(t.pnl_usd)}</td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text-3)">No live trades yet</td></tr>';
+}
 /* ---- main loop ---- */
 
 async function refresh() {
@@ -1375,7 +1449,7 @@ async function refresh() {
         uXfers(d.transfers || []);
         uStats(d.stats);
         uChart(d.pnl_curve);
-        for (const f of [uToday, uRegimeHealth, uFunnel, uPerf, uOps, uBoard]) {
+        for (const f of [uAccounts, uToday, uRegimeHealth, uFunnel, uPerf, uOps, uBoard]) {
             try { f(d); } catch (e) { console.error(f.name + ' failed:', e); }   /* one panel never blanks the page */
         }
 

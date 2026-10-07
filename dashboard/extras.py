@@ -29,7 +29,14 @@ BOT_LOG = ROOT / "logs" / "bitana-live-burst.log"
 SURVIVAL_JSON = Path(__file__).resolve().parent / "regime_survival.json"
 BOARD_JSON = Path(__file__).resolve().parent / "research_board.json"
 HERMES_JOBS = Path("/root/.hermes/cron/jobs.json")
-UNITS = ["bitana-live-burst-follow", "bitana-v5-paper", "bitana-dashboard", "hermes-gateway"]
+UNITS = ["bitana-wd-engine", "bitana-fsettle-live", "bitana-fsettle-paper", "bitana-live-burst-follow", "bitana-v5-paper",
+         "bitana-risk-watch", "bitana-dashboard", "hermes-gateway"]
+# 2026-10-07 owner: "I now have 2 sub accounts ... Add them to the dashboard". Read from each engine's own files (read-only);
+# the dashboard holds no exchange keys.
+WD_DB = ROOT / "data" / "wd_engine.db"
+WD_STATUS = ROOT / "data" / "wd_engine_status.json"
+WD_FUNDED = (104.05, "2026-10-05")          # sub-account 1 deposit (wick catcher + perp discount engine)
+FS_DIR = ROOT / "fsettle_live" / "data"     # sub-account 2 (funding-settlement live test, built in a separate chat)
 FRESHNESS = {
     "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
     "force-order feed": ROOT / "storage" / "force_orders_paper.db-wal",
@@ -333,6 +340,92 @@ def enrich_positions(positions):
     return out
 
 
+# ---------------------------------------------------------------- accounts (main + sub-accounts), 2026-10-07
+def _mark(sym):
+    return float(_cached(f"px:{sym}", 10, lambda: _http_json(f"https://fapi.binance.com/fapi/v1/ticker/price?symbol={sym}"))["price"])
+
+
+def wd_account():
+    """Sub-account 1: wd_engine (wick catcher + perp discount), from its own DB + status file."""
+    import sqlite3
+    st = json.loads(WD_STATUS.read_text()) if WD_STATUS.exists() else {}
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(st["t"])).total_seconds() if st.get("t") else None
+    db = sqlite3.connect(f"file:{WD_DB}?mode=ro", uri=True, timeout=5); db.row_factory = sqlite3.Row
+    legs = [dict(r) for r in db.execute("SELECT * FROM legs WHERE state IN ('OPEN', 'BID', 'CLOSED')")]
+    db.close()
+    live = [x for x in legs if x["mode"] == "live"]
+    open_, bids = [x for x in live if x["state"] == "OPEN"], [x for x in live if x["state"] == "BID"]
+    closed = sorted([x for x in live if x["state"] == "CLOSED"], key=lambda x: x["exit_time"] or "", reverse=True)
+    pos = []
+    for x in open_:
+        try:
+            m = _mark(x["symbol"])
+        except Exception:  # noqa: BLE001
+            m = None
+        q, unit = float(x["qty"]), 3 * x["atr"]
+        pos.append({"symbol": x["symbol"], "label": ("wick " + f"{x['rung']:g} ATR" + (" add-on" if x["parent"] else "")) if x["strategy"] == "wick" else x["strategy"],
+                    "entry": x["entry"], "qty": q, "mark": m, "u_usd": (m - x["entry"]) * q if m else None,
+                    "u_r": (m - x["entry"]) / unit if m else None, "r_usd": q * unit, "tp": x["ref"] if x["strategy"] == "wick" else None,
+                    "stop": x["stop"], "entry_time": x["entry_time"], "expires": x["expires"]})
+    realized = sum(x["pnl_usd"] or 0 for x in closed)
+    unreal = sum(p["u_usd"] or 0 for p in pos)
+    by = defaultdict(int)
+    for b in bids:
+        by[b["symbol"].replace("USDT", "")] += 1
+    return {"name": "Sub-account 1 · wick catcher + perp discount", "engine": "bitana-wd-engine", "mode": st.get("mode"),
+            "paused": st.get("paused"), "status_age_s": age, "funded": WD_FUNDED[0], "funded_on": WD_FUNDED[1],
+            "balance_est": WD_FUNDED[0] + realized, "realized": realized, "unrealized": unreal,
+            "n_closed": len(closed), "sum_r": sum(x["R"] or 0 for x in closed), "wins": sum(1 for x in closed if (x["R"] or 0) > 0),
+            "positions": pos, "bids": dict(by), "n_bids": len(bids),
+            "trades": [{"symbol": x["symbol"], "label": x["strategy"] + (f" {x['rung']:g}" if x["rung"] else "") + (" add-on" if x["parent"] else ""),
+                        "entry_time": x["entry_time"], "exit_time": x["exit_time"], "entry": x["entry"], "exit": x["exit"],
+                        "why": x["why"], "R": x["R"], "usd": x["pnl_usd"]} for x in closed[:15]]}
+
+
+def fs_account():
+    """Sub-account 2: funding-settlement live test (fsettle_live), from its own data dir."""
+    st = json.loads((FS_DIR / "state.json").read_text()) if (FS_DIR / "state.json").exists() else {}
+    kc = json.loads((FS_DIR / "keycheck.json").read_text()) if (FS_DIR / "keycheck.json").exists() else {}
+    ev = []
+    if (FS_DIR / "events.jsonl").exists():
+        for ln in (FS_DIR / "events.jsonl").read_text().splitlines():
+            try:
+                ev.append(json.loads(ln))
+            except ValueError:
+                pass
+    live = [e for e in ev if e.get("mode") == "live" and e.get("selected")]
+    done = [e for e in live if e.get("pnl_usd") is not None]
+    realized = sum(e["pnl_usd"] for e in done)
+    try:
+        log_age = time.time() - (FS_DIR / "engine.log").stat().st_mtime
+    except OSError:
+        log_age = None
+    return {"name": "Sub-account 2 · funding-settlement test", "engine": "bitana-fsettle-live", "mode": kc.get("mode"),
+            "funded": kc.get("wallet"), "funded_on": (kc.get("utc") or "")[:10], "balance_est": (kc.get("wallet") or 0) + realized,
+            "realized": realized, "n_closed": len(done), "wins": sum(1 for e in done if e["pnl_usd"] > 0),
+            "open": st.get("open_live") or {}, "n_live": st.get("n_live"), "log_age_s": log_age,
+            "trades": [{k: e.get(k) for k in ("sym", "s_utc", "d", "f_prev", "entry", "exit", "stopped", "net_bps", "pnl_usd")}
+                       for e in sorted(done, key=lambda e: e.get("s_utc") or "", reverse=True)[:15]],
+            "dry_events": sum(1 for e in ev if e.get("mode") == "dry")}
+
+
+def main_account(conn, positions):
+    rs = dict(conn.execute("SELECT * FROM risk_state LIMIT 1").fetchone() or {})
+    man = [p for p in positions or [] if p.get("externally_managed")]
+    return {"name": "Main account · manual trades", "equity": rs.get("current_equity"), "n_manual": len(man),
+            "bot": "Bitana bot dormant: all arms disabled since 2026-10-03 (process kept for position + equity sync)"}
+
+
+def accounts(conn, positions):
+    out = {}
+    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account)):
+        try:
+            out[k] = fn()
+        except Exception as e:  # noqa: BLE001 - one account never blanks the others
+            out[k] = {"error": f"{type(e).__name__}: {e}"[:200]}
+    return out
+
+
 # ---------------------------------------------------------------- risk context
 def risk_context(conn, positions):
     import yaml
@@ -407,6 +500,7 @@ def collect(conn, metrics, positions):
         "regime_health": lambda: regime_health(metrics),
         "gate_funnel": lambda: gate_funnel(metrics),
         "positions": lambda: enrich_positions(positions),
+        "accounts": lambda: accounts(conn, positions),
         "risk_context": lambda: risk_context(conn, positions),
         "ops": ops_health,
         "research_board": research_board,
