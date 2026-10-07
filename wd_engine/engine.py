@@ -456,7 +456,14 @@ class Engine:
 
     # ------------------------------------------------------------------------------------------- user stream (testnet/live)
     async def user_stream(self) -> None:
-        base = "wss://stream.binancefuture.com/ws/" if self.mode == "testnet" else "wss://fstream.binance.com/ws/"
+        # 2026-10-07: Binance retired the legacy futures user-stream route (/ws/<listenKey>) on 2026-04-23 — it still
+        # connects but pushes nothing private (first live fill was only caught by the 60 s poll, 45 s late). Private
+        # data now comes from /private/ws?listenKey=...&events=... ; a triggered conditional order becomes a regular
+        # order, so ORDER_TRADE_UPDATE covers fills and exit triggers, ACCOUNT_UPDATE covers position changes.
+        def stream_url(key: str) -> str:
+            if self.mode == "testnet":
+                return "wss://stream.binancefuture.com/ws/" + key
+            return f"wss://fstream.binance.com/private/ws?listenKey={key}&events=ORDER_TRADE_UPDATE/ACCOUNT_UPDATE"
 
         def syms_in(x) -> set:
             out = set()
@@ -477,11 +484,14 @@ class Engine:
                 if not key:
                     await asyncio.sleep(30)
                     continue
-                async with aiohttp.ClientSession() as sess, sess.ws_connect(base + key, heartbeat=60) as ws:
+                async with aiohttp.ClientSession() as sess, sess.ws_connect(stream_url(key), heartbeat=60) as ws:
                     logger.info("user stream connected")
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
-                            self.dirty |= syms_in(json.loads(msg.data)) & set(self.syms)
+                            data = json.loads(msg.data)
+                            hit = syms_in(data) & set(self.syms)
+                            logger.info("user stream event", e=data.get("e") if isinstance(data, dict) else None, symbols=sorted(hit))
+                            self.dirty |= hit
                         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                             break
             except Exception as e:
