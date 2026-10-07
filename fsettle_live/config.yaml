@@ -1,0 +1,33 @@
+# Funding-settlement LIVE TEST engine (fsettle_live/engine.py). Owner-approved test 2026-10-06.
+# mode: dry = no account side effects (simulated on the live trade stream); live = real orders — ONLY on the owner's "go".
+mode: live
+enabled: true                 # false = no new entries (open positions are still managed to exit)
+
+# rule (reports/scalping_prereg.md, C-X-tick)
+theta: 0.001                  # |previous settled funding| >= 0.10%
+entry_delay_ms: 250           # IOC entry at settlement + 250 ms (exchange clock)
+ioc_cap_bps: 50               # IOC limit price at most 0.5% beyond the last trade price
+stop_bps: 200                 # STOP_MARKET reduce-only 2% adverse (last-trade trigger)
+hold_min: 30                  # market reduce-only exit at settlement + 30 min
+
+# test limits (owner 2026-10-06: $6 notional)
+notional_usd: 6.0
+max_notional_usd: 9.0         # skip a coin whose step size forces a bigger order
+leverage: 5
+margin_type: ISOLATED
+max_open: 1                   # owner 2026-10-07: one trade at a time, minimum funding
+daily_loss_cap_usd: 1.5       # realized, UTC day → no new entries that day
+equity_floor_usd: 6           # funded $10 on 2026-10-07; test stops if wallet < $6
+max_trades: 200               # test ends after this many live entries ...
+test_days: 14                 # ... or this many days after go_live_utc
+go_live_utc: "2026-10-07 05:57"      # owner "go" 2026-10-07
+min_send_margin_ms: 100       # skip unless entry_delay_ms - clock uncertainty >= this (an early fill pays the funding).
+                              # Server→Binance RTT ~230 ms (Paris→Tokyo): uncertainty ~115 ms, order arrives ~s+365 ms.
+max_consecutive_errors: 3     # then halt new entries + alert
+
+# plumbing
+keys_env: /root/bitana/.env.fsettle      # FS_API_KEY / FS_API_SECRET (separate sub-account, owner places them)
+wd_keys_env: /root/bitana/.env.wd        # refuse to run on the WD engine's keys
+telegram: true                           # errors / halts / key check / daily summary only
+telegram_env: /root/bitana/.env
+data_dir: /root/bitana/fsettle_live/data

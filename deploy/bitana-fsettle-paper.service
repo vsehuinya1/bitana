@@ -1,0 +1,17 @@
+[Unit]
+Description=Bitana funding-settlement PAPER tracker (public market data only; no keys, no orders)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+ExecStart=/root/bitana/venv/bin/python -u /root/bitana/research/fsettle_paper.py
+Restart=always
+RestartSec=30
+MemoryMax=300M
+CPUQuota=50%
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

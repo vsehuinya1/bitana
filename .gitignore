@@ -60,4 +60,14 @@ data/wd_engine.PAUSE
 .claude/settings.local.json
 
 # research datasets + scratch scripts (2026-10-06, moved from a session scratchpad; ~5 GB, never commit)
-research_cache/
+research_cache/*
+# scalping research: scripts + calendar are versioned, data stays local
+!research_cache/scalp/
+research_cache/scalp/*
+!research_cache/scalp/*.py
+!research_cache/scalp/*.sh
+!research_cache/scalp/macro_calendar.json
+
+# funding-settlement live test: sub-account keys + engine data (2026-10-06)
+.env.fsettle
+fsettle_live/data/

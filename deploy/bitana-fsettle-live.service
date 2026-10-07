@@ -1,0 +1,16 @@
+[Unit]
+Description=Bitana funding-settlement LIVE TEST engine (fsettle_live; mode in fsettle_live/config.yaml, dry until owner go)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/bitana
+ExecStart=/root/bitana/venv/bin/python -u -m fsettle_live.engine
+Restart=always
+RestartSec=30
+MemoryMax=300M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
