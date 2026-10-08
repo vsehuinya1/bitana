@@ -2073,3 +2073,16 @@ Research basis: `reports/structural_edge_2026-09-25.md`, "internet-sourced impro
   - Verified after: 13 bids + ETH position + TP + stop on Binance = 13 BID + 1 OPEN legs in the engine; the user stream
     connected on the private route.
 - **Lesson:** test the live startup path with open orders before any future restart.
+
+### Ops log 2026-10-08: first live exit booked at price 0 (−67R on paper; real −0.36R), fixed
+- **What happened:** the ETH leg (fill 02:01:18Z Oct 7) took its 24h time exit at 02:05:07Z. Binance filled the market
+  sell @ 2579.46, but the RESULT response carried avgPrice 0. The engine booked exit 0, i.e. −67.25R / −$20.76, and sent
+  that on Telegram.
+- **Real result:** realized −$0.098, fees −$0.0145, funding +$0.002 = −$0.110 (−0.357R). Wallet $103.94.
+- **Risk found:** the same zero on a MARKET entry (discount entry or add-on) would have opened a leg at price 0 with a
+  sub-zero stop, i.e. NO stop. No such entry had happened.
+- **Fix (owner standing order: obvious fixes):**
+  - `LiveBroker.market` re-reads the order (then its trades) when avgPrice / executedQty is 0.
+  - `open_leg` / `finalize` never use a price ≤ 0 (they fall back to the last trade and alert).
+  - Leg 258 corrected to the Binance numbers.
+  - Deployed 03:09:40Z while flat; 0 errors; 14 bids reloaded.

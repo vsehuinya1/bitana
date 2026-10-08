@@ -177,6 +177,9 @@ class Engine:
     async def open_leg(self, leg_id: int, entry: float, qty: float, expires: str | None = None) -> None:
         leg = self.store.leg(leg_id)
         s, f = leg["symbol"], self.filters[leg["symbol"]]
+        if not entry or entry <= 0:                                        # never derive exits from a price of 0
+            entry = await self.market.last_price(s) or 0.0
+            await self.notify(f"{s[:-4]} fill price missing: using last trade {entry:.6g} for the entry and exits", key=f"px0:{s}", every_s=600)
         q = rules.floor_to(qty, f.step)
         now = datetime.now(UTC)
         stop = rules.floor_to(rules.stop_price(entry, leg["atr"], self.stop_r), f.tick)
@@ -237,6 +240,9 @@ class Engine:
 
     async def finalize(self, leg_id: int, exit_px: float, why: str) -> None:
         leg = self.store.leg(leg_id)
+        if not exit_px or exit_px <= 0:                                    # never book an exit at 0
+            exit_px = await self.market.last_price(leg["symbol"]) or leg["entry"]
+            self.store.event(leg_id, "warn", f"exit price missing; booked at last trade {exit_px}")
         q = float(leg["qty"])
         pnl = q * (exit_px - leg["entry"]) - COST["addon" if leg["parent"] else leg["strategy"]] * q * leg["entry"]
         R = pnl / (q * rules.R_ATR * leg["atr"])

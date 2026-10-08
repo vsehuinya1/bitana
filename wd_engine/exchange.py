@@ -199,8 +199,27 @@ class LiveBroker:
         c, m = _err(r)
         if c is not None:
             return OrderResult(ok=False, status="REJECTED", kind="market", code=c, msg=m, raw=r)
-        return OrderResult(ok=True, status=str(r.get("status", "")), kind="market", raw=r,
-                           filled_qty=float(r.get("executedQty", 0) or 0), avg_price=float(r.get("avgPrice", 0) or 0))
+        res = OrderResult(ok=True, status=str(r.get("status", "")), kind="market", raw=r,
+                          filled_qty=float(r.get("executedQty", 0) or 0), avg_price=float(r.get("avgPrice", 0) or 0))
+        if res.avg_price <= 0 or res.filled_qty <= 0:
+            # 2026-10-08: Binance answered a MARKET order with avgPrice "0" (ETH time exit booked at 0, -67R on paper).
+            # Ask the order, then its trades, for the real fill before anyone uses the price.
+            oid = r.get("orderId")
+            for _ in range(10):
+                await asyncio.sleep(0.3)
+                o = await self.rest.get_order(symbol, order_id=int(oid)) if oid else await self.rest.get_order(symbol, client_order_id=cid)
+                if isinstance(o, dict) and float(o.get("avgPrice", 0) or 0) > 0 and float(o.get("executedQty", 0) or 0) > 0:
+                    res.avg_price, res.filled_qty, res.status = float(o["avgPrice"]), float(o["executedQty"]), str(o.get("status", res.status))
+                    break
+            if res.avg_price <= 0 and oid:
+                tr = await self.rest.get_account_trades(symbol, order_id=int(oid))
+                if isinstance(tr, list) and tr:
+                    q = sum(float(t["qty"]) for t in tr)
+                    if q > 0:
+                        res.avg_price, res.filled_qty = sum(float(t["qty"]) * float(t["price"]) for t in tr) / q, q
+            if res.avg_price <= 0:
+                logger.error("market order fill price unknown", symbol=symbol, cid=cid, raw=r)
+        return res
 
     async def exit_algo(self, symbol: str, otype: str, qty: Decimal, trigger: Decimal, cid: str) -> OrderResult:
         r = await self.rest.algo(symbol, "SELL", otype, fmt_dec(qty), fmt_dec(trigger), None, True, cid)
