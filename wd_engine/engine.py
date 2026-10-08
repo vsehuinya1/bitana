@@ -98,6 +98,7 @@ class Engine:
         self.atr: dict[str, float] = {}
         self.close_h: dict[str, float] = {}
         self.dirty: set[str] = set()
+        self.recheck: dict[str, float] = {}    # symbol -> re-check every second until this time (stream wake races the algo record)
         self.paused_reason: str | None = None
         self.fed_1m: dict[str, int] = {}
         self.stop = False
@@ -498,6 +499,8 @@ class Engine:
                             hit = syms_in(data) & set(self.syms)
                             logger.info("user stream event", e=data.get("e") if isinstance(data, dict) else None, symbols=sorted(hit))
                             self.dirty |= hit
+                            for sym in hit:                       # 2026-10-08: the algo record can lag the fill by
+                                self.recheck[sym] = time.time() + 10   # seconds (DOGE: 21 s to exits) -> re-check 10 s
                         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                             break
             except Exception as e:
@@ -572,6 +575,12 @@ class Engine:
             if now.hour == 0 and now.minute == 5 and last_d != now.date():
                 last_d = now.date()
                 await self.safe(self.daily(), "daily")
+            tnow = time.time()
+            for sym, until in list(self.recheck.items()):
+                if tnow > until:
+                    del self.recheck[sym]
+                elif any(x["symbol"] == sym and x["state"] in ("BID", "OPEN") for x in self.store.live_legs()):
+                    self.dirty.add(sym)
             if self.dirty:
                 ds, self.dirty = self.dirty, set()
                 for leg in self.store.live_legs():
