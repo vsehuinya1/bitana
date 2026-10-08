@@ -37,6 +37,7 @@ WD_DB = ROOT / "data" / "wd_engine.db"
 WD_STATUS = ROOT / "data" / "wd_engine_status.json"
 WD_FUNDED = (104.05, "2026-10-05")          # sub-account 1 deposit (wick catcher + perp discount engine)
 FS_DIR = ROOT / "fsettle_live" / "data"     # sub-account 2 (funding-settlement live test, built in a separate chat)
+FS_FUNDED = (10.0, "2026-10-07")            # sub-account 2 deposit
 FRESHNESS = {
     "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
     "force-order feed": ROOT / "storage" / "force_orders_paper.db-wal",
@@ -396,12 +397,16 @@ def fs_account():
     live = [e for e in ev if e.get("mode") == "live" and e.get("selected")]
     done = [e for e in live if e.get("pnl_usd") is not None]
     realized = sum(e["pnl_usd"] for e in done)
+    # 2026-10-08 fix: keycheck.json holds the wallet at the engine's LAST (re)start, not the deposit. Balance = that
+    # wallet + only trades settled after it (adding all trades double-counted the pre-restart ones: $10.58 vs real $10.17).
+    since = [e for e in done if (e.get("s_utc") or "") > (kc.get("utc") or "")]
+    bal = (kc.get("wallet") or FS_FUNDED[0]) + sum(e["pnl_usd"] for e in since)
     try:
         log_age = time.time() - (FS_DIR / "engine.log").stat().st_mtime
     except OSError:
         log_age = None
     return {"name": "Sub-account 2 · funding-settlement test", "engine": "bitana-fsettle-live", "mode": kc.get("mode"),
-            "funded": kc.get("wallet"), "funded_on": (kc.get("utc") or "")[:10], "balance_est": (kc.get("wallet") or 0) + realized,
+            "funded": FS_FUNDED[0], "funded_on": FS_FUNDED[1], "balance_est": bal,
             "realized": realized, "n_closed": len(done), "wins": sum(1 for e in done if e["pnl_usd"] > 0),
             "open": st.get("open_live") or {}, "n_live": st.get("n_live"), "log_age_s": log_age,
             "trades": [{k: e.get(k) for k in ("sym", "s_utc", "d", "f_prev", "entry", "exit", "stopped", "net_bps", "pnl_usd")}
