@@ -112,6 +112,12 @@ class _Rest(BinanceRestClient):
     """The bot's REST client plus a conditional order that carries its own quantity + reduceOnly (the bot's version
     only knows closePosition, which would close every leg on the coin)."""
 
+    RECV_WINDOW_MS = 15000      # Binance default 5 s: a cancel at the 10-08 16:00 crash round arrived 8.4 s late (-1021)
+
+    def _sign(self, params: dict) -> dict:
+        params.setdefault("recvWindow", self.RECV_WINDOW_MS)
+        return super()._sign(params)
+
     async def algo(self, symbol: str, side: str, otype: str, qty: str, trigger: str, price: str | None,
                    reduce_only: bool, cid: str) -> dict:
         p: dict[str, Any] = {"algoType": "CONDITIONAL", "symbol": symbol, "side": side, "type": otype,

@@ -12,7 +12,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.append(os.path.join(ROOT, "research"))
 from wd_engine import rules  # noqa: E402
-from wd_engine.exchange import DryBroker  # noqa: E402
+from wd_engine.exchange import DryBroker, _Rest  # noqa: E402
 
 CACHE = os.path.join(ROOT, "logs", "paper_cache")
 COINS = ["BTCUSDT", "TRXUSDT", "LINKUSDT", "ATOMUSDT", "ADAUSDT"]
@@ -105,3 +105,15 @@ def test_v2_rules():
     # add-on: BTC -1.7% from the bid-hour close to the fill-bar close; discount filter: BTC -1% over 60 min
     assert rules.btc_dump(100.0, 98.3) and not rules.btc_dump(100.0, 98.4) and not rules.btc_dump(None, 90.0)
     assert rules.btc_falling(99.0, 100.0) and not rules.btc_falling(99.1, 100.0) and not rules.btc_falling(99.0, None)
+
+
+def test_signed_requests_carry_recv_window():
+    """Every signed call carries recvWindow 15 s, inside the signed query (-1021 on 2026-10-08: a reply 8.4 s late)."""
+    import hashlib, hmac
+    from urllib.parse import urlencode
+    r = _Rest(api_key="k", api_secret="s", testnet=True)
+    p = r._sign({"symbol": "ETHUSDT"})
+    assert p["recvWindow"] == 15000
+    q = {k: v for k, v in p.items() if k != "signature"}
+    assert p["signature"] == hmac.new(b"s", urlencode(q).encode(), hashlib.sha256).hexdigest()
+    assert r._sign({"recvWindow": 6000})["recvWindow"] == 6000
