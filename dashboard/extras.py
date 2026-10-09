@@ -37,7 +37,7 @@ WD_DB = ROOT / "data" / "wd_engine.db"
 WD_STATUS = ROOT / "data" / "wd_engine_status.json"
 WD_FUNDED = (104.05, "2026-10-05")          # sub-account 1 deposit (wick catcher + perp discount engine)
 FS_DIR = ROOT / "fsettle_live" / "data"     # sub-account 2 (funding-settlement live test, built in a separate chat)
-FS_FUNDED = (10.0, "2026-10-07")            # sub-account 2 deposit
+FS_FUNDED = (20.0, "2026-10-07 + 10-08")    # sub-account 2 deposits: $10 on 10-07, +$10 on 10-08 (owner)
 FRESHNESS = {
     "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
     "force-order feed": ROOT / "storage" / "force_orders_paper.db-wal",
@@ -399,8 +399,32 @@ def fs_account():
     realized = sum(e["pnl_usd"] for e in done)
     # 2026-10-08 fix: keycheck.json holds the wallet at the engine's LAST (re)start, not the deposit. Balance = that
     # wallet + only trades settled after it (adding all trades double-counted the pre-restart ones: $10.58 vs real $10.17).
-    since = [e for e in done if (e.get("s_utc") or "") > (kc.get("utc") or "")]
-    bal = (kc.get("wallet") or FS_FUNDED[0]) + sum(e["pnl_usd"] for e in since)
+    # anchor = the latest wallet the engine logged (key checks at start-up + daily summaries); that picks up deposits.
+    # Add only trades that exited after it (exit ~ settlement + 30 min hold).
+    import re
+    anc_t, anc_w = kc.get("utc") or "", kc.get("wallet")
+    try:
+        for ln in (FS_DIR / "engine.log").read_text().splitlines():
+            m = re.match(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ .*wallet ([0-9.]+)", ln)
+            if m and m.group(1) >= anc_t:
+                anc_t, anc_w = m.group(1), float(m.group(2))
+    except OSError:
+        pass
+    def _exit_utc(e):
+        ms = (e.get("s_ms") or 0) + 30 * 60_000
+        return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if e.get("s_ms") else (e.get("s_utc") or "")
+    since = [e for e in done if _exit_utc(e) > anc_t]
+    bal = (anc_w if anc_w is not None else FS_FUNDED[0]) + sum(e["pnl_usd"] for e in since)
+    opos = []
+    for sym, o in (st.get("open_live") or {}).items():
+        try:
+            mk = _mark(sym)
+        except Exception:  # noqa: BLE001
+            mk = None
+        q, ent, sgn = float(o.get("qty") or 0), float(o.get("entry") or 0), (-1 if o.get("side") == "SELL" else 1)
+        opos.append({"sym": sym, "side": "SHORT" if sgn < 0 else "LONG", "entry": ent, "qty": q, "mark": mk,
+                     "u_usd": sgn * (mk - ent) * q if mk and ent else None,
+                     "exit_due": datetime.fromtimestamp(o["exit_due"] / 1000, timezone.utc).isoformat() if o.get("exit_due") else None})
     try:
         log_age = time.time() - (FS_DIR / "engine.log").stat().st_mtime
     except OSError:
@@ -408,7 +432,8 @@ def fs_account():
     return {"name": "Sub-account 2 · funding-settlement test", "engine": "bitana-fsettle-live", "mode": kc.get("mode"),
             "funded": FS_FUNDED[0], "funded_on": FS_FUNDED[1], "balance_est": bal,
             "realized": realized, "n_closed": len(done), "wins": sum(1 for e in done if e["pnl_usd"] > 0),
-            "open": st.get("open_live") or {}, "n_live": st.get("n_live"), "log_age_s": log_age,
+            "open": st.get("open_live") or {}, "positions": opos, "n_live": st.get("n_live"), "log_age_s": log_age,
+            "wallet_anchor": {"utc": anc_t, "wallet": anc_w},
             "trades": [{k: e.get(k) for k in ("sym", "s_utc", "d", "f_prev", "entry", "exit", "stopped", "net_bps", "pnl_usd")}
                        for e in sorted(done, key=lambda e: e.get("s_utc") or "", reverse=True)[:15]],
             "dry_events": sum(1 for e in ev if e.get("mode") == "dry")}

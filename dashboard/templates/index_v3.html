@@ -1409,7 +1409,9 @@ function uAccounts(d) {
          ['Closed', `${w.n_closed} · ${fmtR(w.sum_r)}`], ['Bids live', w.n_bids], ['Engine', _age(w.status_age_s) + (w.paused ? ' · PAUSED' : '')]]);
     h += f.error ? `<div class="acct">Sub-account 2: ${esc(f.error)}</div>` : card(f.name || 'Sub-account 2', tag(f.mode, false), '≈' + fmt$(f.balance_est), '',
         [['Funded', (f.funded != null ? fmt$(f.funded) : '—') + ' · ' + esc(f.funded_on || '')], ['Realized', fmtS$(f.realized)],
-         ['Live trades', `${f.n_closed} (${f.wins} won)`], ['Open', Object.keys(f.open || {}).length], ['Log updated', _age(f.log_age_s)], ['Dry events', f.dry_events ?? '—']]);
+         ['Wallet logged', f.wallet_anchor && f.wallet_anchor.wallet != null ? fmt$(f.wallet_anchor.wallet) + ' · ' + esc((f.wallet_anchor.utc || '').slice(5, 16)) : '—'],
+         ['Live trades', `${f.n_closed} (${f.wins} won)`], ['Open', Object.keys(f.open || {}).length + ((f.positions || []).some(o => o.u_usd != null) ? ' · ' + fmtS$((f.positions || []).reduce((a, o) => a + (o.u_usd || 0), 0)) : '')],
+         ['Log updated', _age(f.log_age_s)]]);
     $('acct-grid').innerHTML = h;
     const P = w.positions || [];
     $('wd-pc').textContent = P.length;
@@ -1421,12 +1423,15 @@ function uAccounts(d) {
     $('wd-tc').textContent = w.n_closed || 0;
     $('wd-tb').innerHTML = T.length ? T.map(t => `<tr><td>${fmtT(t.exit_time)}</td><td>${esc(t.symbol.replace('USDT', ''))}</td><td>${esc(t.label)}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td>
         <td>${esc(t.why || '')}</td><td class="${clr(t.R)}">${fmtR(t.R)}</td><td class="${clr(t.usd)}">${fmtS$(t.usd)}</td></tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--text-3)">No closed trades yet</td></tr>';
+    const OP = (f.positions || []).map(o => `<tr><td><span class="acct-tag warn">OPEN</span> exits ${fmtT(o.exit_due)}</td><td>${esc((o.sym || '').replace('USDT', ''))}</td>
+        <td class="${o.side === 'LONG' ? 'green' : 'red'}">${o.side}</td><td>—</td><td>${fmtP(o.entry)}</td><td>${o.mark != null ? fmtP(o.mark) + ' <span style="opacity:.6">now</span>' : '—'}</td>
+        <td></td><td></td><td class="${clr(o.u_usd)}">${o.u_usd != null ? fmtS$(o.u_usd) : '—'}</td></tr>`).join('');
     const F = f.trades || [];
     $('fs-tc').textContent = f.n_closed || 0;
     $('fs-open').textContent = Object.keys(f.open || {}).length ? '· open now: ' + Object.keys(f.open).join(', ') : '';
-    $('fs-tb').innerHTML = F.length ? F.map(t => `<tr><td>${esc(t.s_utc || '')}</td><td>${esc((t.sym || '').replace('USDT', ''))}</td><td class="${t.d > 0 ? 'green' : 'red'}">${t.d > 0 ? 'LONG' : 'SHORT'}</td>
+    $('fs-tb').innerHTML = OP + (F.length || OP ? '' : '') + (F.length ? F.map(t => `<tr><td>${esc(t.s_utc || '')}</td><td>${esc((t.sym || '').replace('USDT', ''))}</td><td class="${t.d > 0 ? 'green' : 'red'}">${t.d > 0 ? 'LONG' : 'SHORT'}</td>
         <td>${t.f_prev != null ? (100 * t.f_prev).toFixed(3) + '%' : '—'}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td><td>${t.stopped ? 'yes' : ''}</td>
-        <td class="${clr(t.net_bps)}">${t.net_bps != null ? t.net_bps.toFixed(1) : '—'}</td><td class="${clr(t.pnl_usd)}">${fmtS$(t.pnl_usd)}</td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text-3)">No live trades yet</td></tr>';
+        <td class="${clr(t.net_bps)}">${t.net_bps != null ? t.net_bps.toFixed(1) : '—'}</td><td class="${clr(t.pnl_usd)}">${fmtS$(t.pnl_usd)}</td></tr>`).join('') : (OP ? '' : '<tr><td colspan="9" style="text-align:center;color:var(--text-3)">No live trades yet</td></tr>'));
 }
 /* ---- main loop ---- */
 
