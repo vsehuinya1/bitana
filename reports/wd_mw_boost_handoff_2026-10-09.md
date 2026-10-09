@@ -54,8 +54,9 @@
    - At build time 4 were open: ETH ×2, BNB ×2, filled 2026-10-08 ~15:3x–15:5xZ.
    - Their 24h time exits fall around 15:30–16:00Z 10-09 unless the TP hits first.
 2. `systemctl restart bitana-wd-engine`.
-   - At build time the auto-mode classifier blocked this session ("Production Deploy"), so the restart may need the
-     owner's approval, or this chat.
+   - **The owner's call.** At build time the auto-mode classifier blocked bitana-d9 ("Production Deploy").
+   - So the restart happens only on the owner's explicit order, to whichever chat he chooses.
+   - No chat restarts it on another chat's request.
 3. **Verify:**
    - the unit is active;
    - the log has "started (live) … market-wide boost 3x (20-coin tag) …";
