@@ -24,6 +24,15 @@ wick_ladder: [5.0, 6.5, 8.0]             # bid depths in ATR1h, R split equally 
 wick_addon_btc_dump: -0.017              # second unit per rung fill when BTC <= -1.7% vs the bid-hour close; null = off
 discount_btc_fall: -0.01                 # discount entries only when BTC 1h <= -1%; null = off
 
+# 2026-10-09 owner order ("If you can do it cleanly ... then yes"; reports/wd_sizing_prereg.md, design A3 PASS): wick bids
+# placed right after a market-wide selloff hour (>= 50% of mw_coins at hourly z <= -2 vs their trailing 720h stdev, >= 16
+# valid; rules.market_wide) carry wick_mw_mult x r_usd. The BTC-dump add-on keeps the 1x quantity. Replay 2024-26 from
+# $104 with the 5x cap: +$84 vs +$61 today, worst marked drawdown -$95 vs -$84; 2026 YTD unchanged (no market-wide hours).
+# null or 1 = off. If the coins' hourly klines can't be read, the hour is not boosted (never blocks the bids).
+wick_mw_mult: 3
+mw_coins: [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, LINKUSDT, AVAXUSDT, DOTUSDT, LTCUSDT,
+           BCHUSDT, ATOMUSDT, NEARUSDT, UNIUSDT, FILUSDT, ETCUSDT, TRXUSDT, BNBUSDT, XLMUSDT, AAVEUSDT]
+
 leverage: 5                              # per symbol, set at start. Binance caps SUB-ACCOUNTS at 5x (-4421, 2026-10-06; 20x was planned).
                                          # Liquidation follows the maintenance margin, not this setting; 5x caps capacity at ~5x the
                                          # balance ($104 -> ~$520), so on the biggest crash days the last rungs/add-ons can be margin-rejected

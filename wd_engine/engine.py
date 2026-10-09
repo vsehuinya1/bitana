@@ -11,6 +11,9 @@ the engine"; edge report "Improving the wick/discount engine": each passed alone
             is bought at market, exiting with its rung (same take-profit, same expiry).
   discount  every 5m close: perp/spot basis crosses below -30 bps AND BTC's 5m close is >= 1% under 60 min earlier ->
             buy the perp now; exit 4h later.
+Market-wide boost (owner order 2026-10-09; reports/wd_sizing_prereg.md, design A3): when the hour that just closed was a
+  market-wide selloff hour (rules.market_wide over `mw_coins`), that hour's wick bids carry wick_mw_mult x r_usd; the
+  BTC-dump add-on of a boosted rung keeps the 1x quantity. If the coins' klines can't be read, the hour is not boosted.
 Coins where a 1/3-R rung is below Binance's minimum order value (at $1/R: BTC, LINK, LTC, BCH, AAVE ... depending on
   ATR) take the v1 single 5-ATR bid at the full R instead, so every coin stays at ~r_usd per R.
 Sizing: 1R = 3 x ATR1h (the paper unit); each leg risks r_usd per R (qty = r_usd / (3 x ATR1h)).
@@ -83,6 +86,9 @@ class Engine:
         self.syms: list[str] = cfg["universe"]
         self.r_usd = float(cfg["r_usd"])
         self.stop_r = float(cfg["stop_r"])
+        self.mw_mult = float(cfg.get("wick_mw_mult") or 1.0)                # 2026-10-09 market-wide boost (1 = off)
+        self.mw_coins: list[str] = list(cfg.get("mw_coins") or [])
+        self.mw: tuple[bool, int, int] = (False, 0, 0)                      # (flag, coins down, coins valid) for this hour
         self.store = Store(cfg["db"])
         self.market = Market()
         if self.mode == "dry":
@@ -173,6 +179,26 @@ class Engine:
                 self.atr.pop(s, None)
                 self.close_h.pop(s, None)
                 logger.warning("no fresh hourly bar", symbol=s)
+
+    async def refresh_mw(self) -> None:
+        """Market-wide selloff tag for the hour that just closed (needs ~722 closed hourly bars per coin). Any failure
+        leaves the hour unboosted: it never blocks the bids."""
+        self.mw = (False, 0, 0)
+        if self.mw_mult <= 1 or not self.mw_coins:
+            return
+        try:
+            want = int((datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)).timestamp() * 1000)
+            n_need = rules.MW_WINDOW_H + 3                                       # 722 closed bars -> 720 returns before the last
+            got = dict(zip(self.mw_coins, await asyncio.gather(*[self.market.klines(s, "1h", n_need) for s in self.mw_coins])))
+            late = [s for s, b in got.items() if b and b[-1][0] < want]          # the just-closed hour not served yet
+            if late:
+                await asyncio.sleep(2)
+                got.update(zip(late, await asyncio.gather(*[self.market.klines(s, "1h", n_need) for s in late])))
+            closes = {s: [b[4] for b in bars] for s, bars in got.items() if bars and bars[-1][0] >= want}
+            self.mw = rules.market_wide(closes)
+        except Exception as e:
+            logger.warning("market-wide tag failed; hour not boosted", error=type(e).__name__)
+            self.mw = (False, 0, 0)
 
     # ------------------------------------------------------------------------------------------- leg lifecycle
     async def open_leg(self, leg_id: int, entry: float, qty: float, expires: str | None = None) -> None:
@@ -294,7 +320,7 @@ class Engine:
 
     # ------------------------------------------------------------------------------------------- schedule
     async def on_hour(self, hour: datetime) -> None:
-        await self.refresh_atr()
+        await asyncio.gather(self.refresh_atr(), self.refresh_mw())
         for leg in self.store.live_legs():
             if leg["strategy"] == "wick" and leg["state"] == "BID":
                 await self.end_bid(leg)
@@ -307,6 +333,8 @@ class Engine:
         placed, bumped = 0, []
         ladder = [float(k) for k in self.cfg.get("wick_ladder") or [rules.WICK_K]]
         btc_h = self.close_h.get("BTCUSDT")
+        mult = self.mw_mult if self.mw[0] else 1.0                          # market-wide boost for this hour's bids
+        r_usd = self.r_usd * mult
         for s in self.syms:
             if self.cooling("wick", s) or s not in self.atr:
                 continue
@@ -316,7 +344,7 @@ class Engine:
                 L = rules.wick_bid(self.close_h[s], self.atr[s], k)
                 if L is not None and L > 0:
                     bid = rules.floor_to(L, f.tick)
-                    plan.append((k, bid, *rules.rung_qty(self.r_usd, 1 / len(ladder), self.atr[s], f.step, float(bid), f.min_notional)))
+                    plan.append((k, bid, *rules.rung_qty(r_usd, 1 / len(ladder), self.atr[s], f.step, float(bid), f.min_notional)))
             if len(ladder) > 1 and any(p_[3] for p_ in plan):
                 # a 1/3-R rung is under Binance's minimum order: this coin takes the v1 single 5-ATR bid at the full R
                 # instead, so its risk stays ~r_usd per R (raising each rung to the minimum would be 2.4-4x the R)
@@ -324,15 +352,16 @@ class Engine:
                 plan = []
                 if L is not None and L > 0:
                     bid = rules.floor_to(L, f.tick)
-                    plan = [(rules.WICK_K, bid, *rules.rung_qty(self.r_usd, 1.0, self.atr[s], f.step, float(bid), f.min_notional))]
+                    plan = [(rules.WICK_K, bid, *rules.rung_qty(r_usd, 1.0, self.atr[s], f.step, float(bid), f.min_notional))]
                     bumped.append(s[:-4])
             for k, bid, qty, bump in plan:
                 if self.holding("wick", s, k) or qty <= 0:
                     continue
-                lid = self.store.new_leg(strategy="wick", symbol=s, state="BID", qty=str(qty), atr=self.atr[s], r_usd=self.r_usd,
+                lid = self.store.new_leg(strategy="wick", symbol=s, state="BID", qty=str(qty), atr=self.atr[s], r_usd=r_usd,
                                          bid=float(bid), ref=self.close_h[s], hour=hour.isoformat(), mode=self.mode, rung=k,
                                          expires=(hour + timedelta(hours=1)).isoformat(),
-                                         signal={"close_h": self.close_h[s], "btc_close_h": btc_h, "bumped": bump})
+                                         signal={"close_h": self.close_h[s], "btc_close_h": btc_h, "bumped": bump,
+                                                 "mult": mult, "mw": list(self.mw[1:])})
                 cid = self.cid(lid, "wick", "b")
                 r = await self.broker.entry_bid(s, qty, bid, cid)
                 if not r.ok:
@@ -343,7 +372,11 @@ class Engine:
                 placed += 1
                 if r.filled_qty > 0 and r.status == "FILLED":
                     await self.open_leg(lid, r.avg_price, r.filled_qty)
-        logger.info("wick bids placed", n=placed, hour=hour.isoformat(), single_bid_coins=bumped)
+        logger.info("wick bids placed", n=placed, hour=hour.isoformat(), single_bid_coins=bumped, mult=mult,
+                    mw_down=self.mw[1], mw_valid=self.mw[2])
+        if mult > 1 and placed:
+            await self.notify(f"market-wide selloff hour ({self.mw[1]}/{self.mw[2]} coins at hourly z <= {rules.MW_Z:g}): "
+                              f"{placed} wick bids at {mult:g}x (${r_usd:g}/R) this hour; add-ons stay 1x")
 
     async def on_5m(self, bar_close: datetime) -> None:
         for leg in self.store.live_legs():                                  # time exits at the first 5m open >= expiry
@@ -401,10 +434,17 @@ class Engine:
             if self.entries_blocked():
                 self.store.update(leg["id"], addon="blocked")
                 continue
-            s, q = leg["symbol"], Decimal(leg["qty"])
-            lid = self.store.new_leg(strategy="wick", symbol=s, state="ENTERING", qty=leg["qty"], atr=leg["atr"], r_usd=leg["r_usd"],
+            s, q, r_usd = leg["symbol"], Decimal(leg["qty"]), leg["r_usd"]
+            mult = float(sig.get("mult") or 1.0)
+            if mult > 1:                    # 2026-10-09: a boosted rung's add-on keeps the 1x quantity (it carries the crash tail)
+                f, px = self.filters[s], float(leg["entry"])
+                q = rules.floor_to(q / Decimal(str(mult)), f.market_step)
+                if float(q) * px < f.min_notional:
+                    q = rules.ceil_to(f.min_notional / px, f.market_step)
+                r_usd = r_usd / mult
+            lid = self.store.new_leg(strategy="wick", symbol=s, state="ENTERING", qty=str(q), atr=leg["atr"], r_usd=r_usd,
                                      ref=leg["ref"], rung=leg["rung"], parent=leg["id"], hour=leg["hour"], mode=self.mode,
-                                     signal={"btc_close_h": sig.get("btc_close_h"), "btc_fill_close": c_fill})
+                                     signal={"btc_close_h": sig.get("btc_close_h"), "btc_fill_close": c_fill, "mult": 1.0})
             r = await self.broker.market(s, "BUY", q, False, self.cid(lid, "wick", "a"))
             self.store.update(leg["id"], addon="done" if r.ok and r.filled_qty > 0 else "failed")
             if not r.ok or r.filled_qty <= 0:
@@ -547,7 +587,8 @@ class Engine:
         await self.notify(f"started ({self.mode}); ${self.r_usd:g}/R, stop -{self.stop_r:g}R, "
                           f"strategies {[k for k, v in self.cfg['strategies'].items() if v]}, ladder {self.cfg.get('wick_ladder')}, "
                           f"add-on {self.cfg.get('wick_addon_btc_dump')}, discount BTC filter {self.cfg.get('discount_btc_fall')}, "
-                          f"{len(live)} live legs")
+                          + (f"market-wide boost {self.mw_mult:g}x ({len(self.mw_coins)}-coin tag), " if self.mw_mult > 1 else "")
+                          + f"{len(live)} live legs")
 
     async def run(self) -> None:
         await self.startup()

@@ -9,6 +9,8 @@ Sizing: 1R = 3 x ATR1h (the paper tracks' reporting unit). A leg risks `r_usd` p
 """
 from __future__ import annotations
 
+import math
+import statistics
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 
 ATR_N = 14
@@ -22,6 +24,7 @@ BTC_DUMP = -0.017         # v2 add-on: BTC fill-bar close vs the bid-hour close 
 DISC_THR = -0.003         # perp/spot - 1 crosses below -30 bps
 DISC_HOLD_H = 4
 DISC_BTC_FALL = -0.01     # v2 filter: discount entries only when BTC's 5m close <= -1% vs 60 min earlier
+MW_Z, MW_SHARE, MW_MIN_VALID, MW_WINDOW_H, MW_MIN_H = -2.0, 0.5, 16, 720, 200   # market-wide selloff hour (2026-10-09)
 
 
 def atr1h(bars: list[tuple[float, float, float, float]]) -> float | None:
@@ -48,6 +51,27 @@ def btc_dump(btc_close_h: float | None, btc_close_fill: float | None, thr: float
 def btc_falling(c_now: float | None, c_60m: float | None, thr: float = DISC_BTC_FALL) -> bool:
     """BTC's 5m close at the signal bar vs the close 60 min earlier <= thr (the discount filter)."""
     return bool(c_now and c_60m and c_now / c_60m - 1 <= thr)
+
+
+def market_wide(closes: dict[str, list[float]], z: float = MW_Z, share: float = MW_SHARE, min_valid: int = MW_MIN_VALID,
+                window: int = MW_WINDOW_H, min_h: int = MW_MIN_H) -> tuple[bool, int, int]:
+    """Was the hour that just closed a market-wide selloff hour? (research tag of record: research_cache/edge/
+    improve_wd.py MKT, used by reports/wd_sizing_prereg.md). Per coin: the last hourly log return divided by the stdev
+    (ddof 1) of the up-to-`window` hourly log returns before it (needs >= min_h of them); the hour is market-wide when
+    >= share of the valid coins have z <= `z` and >= min_valid coins are valid.
+    closes: per coin, hourly closes oldest first, ending with the hour that just closed. Returns (flag, n_down, n_valid)."""
+    n_down = n_valid = 0
+    for c in closes.values():
+        lr = [math.log(b / a) for a, b in zip(c[:-1], c[1:]) if a > 0 and b > 0]
+        prev = lr[-1 - window:-1]
+        if len(prev) < max(min_h, 2):
+            continue
+        sd = statistics.stdev(prev)
+        if not sd > 0:
+            continue
+        n_valid += 1
+        n_down += lr[-1] / sd <= z
+    return n_valid >= min_valid and n_down >= share * n_valid, n_down, n_valid
 
 
 def rung_qty(r_usd: float, weight: float, atr: float, step: str, price: float, min_notional: float) -> tuple[Decimal, bool]:
