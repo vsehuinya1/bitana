@@ -29,7 +29,7 @@ BOT_LOG = ROOT / "logs" / "bitana-live-burst.log"
 SURVIVAL_JSON = Path(__file__).resolve().parent / "regime_survival.json"
 BOARD_JSON = Path(__file__).resolve().parent / "research_board.json"
 HERMES_JOBS = Path("/root/.hermes/cron/jobs.json")
-UNITS = ["bitana-wd-engine", "bitana-fsettle-live", "bitana-fsettle-paper", "bitana-live-burst-follow", "bitana-v5-paper",
+UNITS = ["bitana-wd-engine", "bitana-fsettle-live", "bitana-unl", "bitana-fsettle-paper", "bitana-live-burst-follow", "bitana-v5-paper",
          "bitana-risk-watch", "bitana-dashboard", "hermes-gateway"]
 # 2026-10-07 owner: "I now have 2 sub accounts ... Add them to the dashboard". Read from each engine's own files (read-only);
 # the dashboard holds no exchange keys.
@@ -38,6 +38,7 @@ WD_STATUS = ROOT / "data" / "wd_engine_status.json"
 WD_FUNDED = (104.05, "2026-10-05")          # sub-account 1 deposit (wick catcher + perp discount engine)
 FS_DIR = ROOT / "fsettle_live" / "data"     # sub-account 2 (funding-settlement live test, built in a separate chat)
 FS_FUNDED = (20.0, "2026-10-07 + 10-08")    # sub-account 2 deposits: $10 on 10-07, +$10 on 10-08 (owner)
+UNL_DIR = ROOT / "unl_live"                  # UNL engine (short ahead of team token unlocks, built in a separate chat), 2026-10-12
 FRESHNESS = {
     "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
     "force-order feed": ROOT / "storage" / "force_orders_paper.db-wal",
@@ -439,6 +440,92 @@ def fs_account():
             "dry_events": sum(1 for e in ev if e.get("mode") == "dry")}
 
 
+def unl_account():
+    """UNL engine (short ahead of team token unlocks, ETH-hedged), from its own data dir + config. Dry run since 2026-10-12;
+    no account yet. Open rows: unrealized short + hedge after the backtest costs, before funding."""
+    import yaml
+    c = yaml.safe_load((UNL_DIR / "config.yaml").read_text())
+    d = Path(c.get("data_dir") or UNL_DIR / "data")
+    st = json.loads((d / "state.json").read_text()) if (d / "state.json").exists() else {"open": {}, "last_U": {}}
+
+    def _jl(name):
+        out = []
+        if (d / name).exists():
+            for ln in (d / name).read_text().splitlines():
+                try:
+                    out.append(json.loads(ln))
+                except ValueError:
+                    pass
+        return out
+
+    def _day(ms):
+        return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d")
+
+    DAY = 86_400_000
+    trades, skips = _jl("trades.jsonl"), _jl("skips.jsonl")
+    cost = (c.get("cost_short_bps", 30) + c.get("cost_hedge_bps", 12)) / 1e4
+    hedge = c.get("hedge", "ETHUSDT")
+    try:
+        hm = _mark(hedge)
+    except Exception:  # noqa: BLE001
+        hm = None
+    pos = []
+    for sym, p in (st.get("open") or {}).items():
+        try:
+            m = _mark(sym)
+        except Exception:  # noqa: BLE001
+            m = None
+        sr = -(m / p["entry"] - 1) if m else None
+        hr = hm / p["hedge_entry"] - 1 if hm else None
+        net = sr + hr - cost if sr is not None and hr is not None else None
+        pos.append({"sym": sym, "U": _day(p["U"]), "team_pct": p.get("team_pct"), "entry_day": _day(p["entry_day"]),
+                    "exit_day": _day(p["exit_day"]), "entry": p["entry"], "mark": m, "stop": p.get("stop"),
+                    "short_pct": None if sr is None else 100 * sr, "hedge_pct": None if hr is None else 100 * hr,
+                    "net_pct": None if net is None else 100 * net, "u_usd": None if net is None else net * p.get("notional", 0)})
+    # next entries (the engine's rule: entry day = U - entry_days_before; same team-% sum per coin and UTC day)
+    sched = json.loads((d / "schedule.json").read_text()) if (d / "schedule.json").exists() else {}
+    ev = {}
+    for tk in (sched.get("tokens") or {}).values():
+        if not tk.get("perp"):
+            continue
+        for ts, amt, unl in tk.get("cliffs") or []:
+            if unl and unl > 0:
+                k = (tk["perp"], int(ts * 1000) // DAY * DAY)
+                ev[k] = ev.get(k, 0.0) + amt / unl * 100
+    today = int(time.time() * 1000) // DAY * DAY
+    first = today + DAY if st.get("last_action_day", 0) >= today else today
+    eb = c.get("entry_days_before", 7)
+    nxt = []
+    for (sym, U), pct in sorted(ev.items(), key=lambda kv: kv[0][1]):
+        D = U - eb * DAY
+        if pct >= c.get("min_team_pct", 1.0) and first <= D <= today + 14 * DAY:
+            last = (st.get("last_U") or {}).get(sym)
+            note = "open" if sym in (st.get("open") or {}) else (
+                "dedup" if last is not None and U - last < c.get("dedup_days", 10) * DAY else "")
+            nxt.append({"sym": sym, "entry_day": _day(D), "U": _day(U), "team_pct": round(pct, 2), "note": note})
+    try:
+        log_age = time.time() - (d / "engine.log").stat().st_mtime
+    except OSError:
+        log_age = None
+    try:        # the engine logs only at 00:00 and its 12:30 refresh, so log age is no health signal: use the unit
+        unit = subprocess.run(["systemctl", "is-active", "bitana-unl"], capture_output=True, text=True, timeout=3).stdout.strip()
+    except Exception:  # noqa: BLE001
+        unit = "unknown"
+    n_open, nu = len(pos), c.get("notional_usd", 20)
+    tot = sum(t.get("pnl_usd") or 0 for t in trades)
+    return {"name": "UNL · team-unlock shorts (ETH-hedged)", "engine": "bitana-unl", "mode": c.get("mode"),
+            "enabled": c.get("enabled", True), "notional": nu, "stop_pct": c.get("stop_pct"), "hedge": hedge,
+            "positions": pos, "u_usd": sum(p["u_usd"] or 0 for p in pos),
+            "n_closed": len(trades), "wins": sum(1 for t in trades if (t.get("pnl_usd") or 0) > 0), "realized": tot,
+            "mean_pct": (sum(t.get("net_pct") or 0 for t in trades) / len(trades)) if trades else None,
+            "margin_now": 2 * n_open * nu / c.get("leverage", 3) + nu * c.get("stop_pct", 50) / 100,
+            "next": nxt[:12], "skips": skips[-5:][::-1], "log_age_s": log_age, "unit": unit, "consec_err": st.get("consec_err"),
+            "schedule_built": _day(sched["built"]) if sched.get("built") else None,
+            "trades": [{k: t.get(k) for k in ("sym", "U", "team_pct", "entry_time", "exit_time", "reason", "entry", "exit",
+                                              "short_ret_pct", "hedge_ret_pct", "net_pct", "pnl_usd")}
+                       for t in sorted(trades, key=lambda t: t.get("exit_time") or "", reverse=True)[:15]]}
+
+
 def main_account(conn, positions):
     rs = dict(conn.execute("SELECT * FROM risk_state LIMIT 1").fetchone() or {})
     man = [p for p in positions or [] if p.get("externally_managed")]
@@ -448,7 +535,7 @@ def main_account(conn, positions):
 
 def accounts(conn, positions):
     out = {}
-    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account)):
+    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account), ("unl", unl_account)):
         try:
             out[k] = fn()
         except Exception as e:  # noqa: BLE001 - one account never blanks the others

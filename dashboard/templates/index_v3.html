@@ -451,6 +451,13 @@
             <thead><tr><th>Settlement</th><th>Coin</th><th>Side</th><th>Funding</th><th>Entry</th><th>Exit</th><th>Stopped</th><th>Net bp</th><th>$</th></tr></thead>
             <tbody id="fs-tb"></tbody></table></div>
     </section>
+    <!-- 2026-10-12: UNL engine (short ahead of team token unlocks, ETH-hedged; dry run, no account yet) -->
+    <section class="sec">
+        <h2>UNL · positions &amp; trades <span class="cnt" id="unl-tc">0</span> <span class="sub-h" id="unl-next"></span></h2>
+        <div class="tbl-wrap"><table>
+            <thead><tr><th>Entry day</th><th>Coin</th><th>Unlock</th><th>Team %</th><th>Entry</th><th>Exit / mark</th><th>Short</th><th>ETH hedge</th><th>Net</th><th>$</th><th>How</th></tr></thead>
+            <tbody id="unl-tb"></tbody></table></div>
+    </section>
 
     <!-- Open Positions -->
     <section class="sec">
@@ -1412,7 +1419,29 @@ function uAccounts(d) {
          ['Wallet logged', f.wallet_anchor && f.wallet_anchor.wallet != null ? fmt$(f.wallet_anchor.wallet) + ' · ' + esc((f.wallet_anchor.utc || '').slice(5, 16)) : '—'],
          ['Live trades', `${f.n_closed} (${f.wins} won)`], ['Open', Object.keys(f.open || {}).length + ((f.positions || []).some(o => o.u_usd != null) ? ' · ' + fmtS$((f.positions || []).reduce((a, o) => a + (o.u_usd || 0), 0)) : '')],
          ['Log updated', _age(f.log_age_s)]]);
+    const sPct = x => x == null || isNaN(x) ? '—' : (x > 0 ? '+' : '') + x.toFixed(2) + '%';
+    const u = A.unl || {};
+    if (u.error) h += `<div class="acct">UNL: ${esc(u.error)}</div>`;
+    else if (u.mode) h += card(u.name || 'UNL', tag(u.mode, u.unit !== 'active') + (u.enabled === false ? '<span class="acct-tag warn">NO ENTRIES</span>' : ''),
+        fmtS$(u.realized + (u.u_usd || 0)), clr(u.realized + (u.u_usd || 0)),
+        [['Per short', fmt$(u.notional) + ' + ' + esc((u.hedge || '').replace('USDT', '')) + ' hedge · stop +' + u.stop_pct + '%'],
+         ['Open', `${(u.positions || []).length}` + ((u.positions || []).length ? ' · ' + fmtS$(u.u_usd) : '')],
+         ['Closed', `${u.n_closed} (${u.wins} won)` + (u.mean_pct != null ? ' · avg ' + sPct(u.mean_pct) : '')],
+         ['Next entry', (u.next || []).filter(n => !n.note).slice(0, 1).map(n => esc(n.sym.replace('USDT', '')) + ' ' + esc(n.entry_day.slice(5)) + ' 00:00Z')[0] || '—'],
+         ['Live margin now', '~' + fmt$(u.margin_now)], ['Engine', esc(u.unit || '—') + (u.consec_err ? ' · ' + u.consec_err + ' errors' : '')]]);
     $('acct-grid').innerHTML = h;
+    const UP = (u.positions || []).map(o => `<tr><td><span class="acct-tag warn">OPEN</span> ${esc(o.entry_day.slice(5))}</td><td>${esc(o.sym.replace('USDT', ''))}</td>
+        <td>${esc(o.U.slice(5))}</td><td>${o.team_pct != null ? o.team_pct.toFixed(1) + '%' : '—'}</td><td>${fmtP(o.entry)}</td>
+        <td>${o.mark != null ? fmtP(o.mark) + ' <span style="opacity:.6">now</span>' : '—'}</td><td class="${clr(o.short_pct)}">${sPct(o.short_pct)}</td>
+        <td class="${clr(o.hedge_pct)}">${sPct(o.hedge_pct)}</td><td class="${clr(o.net_pct)}">${sPct(o.net_pct)}</td><td class="${clr(o.u_usd)}">${fmtS$(o.u_usd)}</td>
+        <td>exits ${esc(o.exit_day.slice(5))} · stop ${fmtP(o.stop)}</td></tr>`).join('');
+    const UT = (u.trades || []).map(t => `<tr><td>${esc((t.entry_time || '').slice(5, 10))}</td><td>${esc((t.sym || '').replace('USDT', ''))}</td>
+        <td>${esc((t.U || '').slice(5))}</td><td>${t.team_pct != null ? t.team_pct.toFixed(1) + '%' : '—'}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td>
+        <td class="${clr(t.short_ret_pct)}">${sPct(t.short_ret_pct)}</td><td class="${clr(t.hedge_ret_pct)}">${sPct(t.hedge_ret_pct)}</td>
+        <td class="${clr(t.net_pct)}">${sPct(t.net_pct)}</td><td class="${clr(t.pnl_usd)}">${fmtS$(t.pnl_usd)}</td><td>${esc(t.reason || '')}</td></tr>`).join('');
+    $('unl-tc').textContent = u.n_closed || 0;
+    $('unl-next').textContent = (u.next || []).length ? '· next entries: ' + u.next.map(n => `${n.sym.replace('USDT', '')} ${n.entry_day.slice(5)} (${n.team_pct.toFixed(1)}%${n.note ? ', ' + n.note : ''})`).join(', ') : '';
+    $('unl-tb').innerHTML = UP + UT || `<tr><td colspan="11" style="text-align:center;color:var(--text-3)">${u.mode ? 'No ' + esc(u.mode) + ' trades yet' : '—'}</td></tr>`;
     const P = w.positions || [];
     $('wd-pc').textContent = P.length;
     $('wd-bids').textContent = w.bids ? '· bids now: ' + Object.entries(w.bids).map(([k, v]) => `${k} ${v}`).join(', ') : '';
