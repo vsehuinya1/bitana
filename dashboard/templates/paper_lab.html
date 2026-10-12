@@ -65,7 +65,7 @@ svg text{fill:var(--text-3);font:10px var(--mono)}
   </div>
   <nav class="tabs sys-tabs" id="systabs">
     <button data-k="overview" class="on">Overview</button><button data-k="capitulation">Capitulation</button>
-    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button><button data-k="wick">Wick catcher</button><button data-k="discount">Perp below spot</button><button data-k="pattern">4h patterns</button>
+    <button data-k="breakout">4h Breakout</button><button data-k="breakout_vol">Breakout + volume</button><button data-k="carry">Funding carry</button><button data-k="wick">Wick catcher</button><button data-k="discount">Perp below spot</button><button data-k="pattern">4h patterns</button><button data-k="calls">Calls + zones</button>
   </nav>
   <div id="errors"></div>
   <div id="view"></div>
@@ -328,6 +328,33 @@ function viewPat(s) {
   return head(s) + k + lk + `<div class="card"><h3>Cumulative R (double bottom + divergence, closed)</h3>${lineChart(s.curve)}</div>
     <div class="card"><h3>Paper trades</h3>${tr}</div>`;
 }
+function viewCalls(s) {
+  const T = s.stats.trigger, C = s.stats.control;
+  const k = `<div class="card"><div class="kpis">
+    ${kpi('Calls', s.calls.length, s.n_resolved + ' resolved · hit rate at ~20')}
+    ${kpi('Zone trades (trigger)', T.n, T.open + ' open · read at 10 closed')}
+    ${kpi('Trigger avg', T.n ? rr(T.E, 3) : '—', 'closed, 0.30% costs', cls(T.E))}
+    ${kpi('Zone-touch control', C.n ? rr(C.E, 3) : '—', `${C.n} closed · ${C.open} open`, cls(C.E))}
+    ${kpi('Plain trigger, 200 coins', (() => { const p = ((DATA.systems.pattern || {}).stats || {})['DBL+div'] || {}; return p.n ? rr(p.E, 3) : '—'; })(), 'the 4h patterns tab')}
+  </div><div class="note">Scored every 4h by the tracker (Telegram "CALLS[paper]" on new events only). Last tracker run: ${dt(s.updated)}.</div></div>`;
+  const stCls = v => /RIGHT/.test(v) ? 'good' : /WRONG/.test(v) ? 'bad' : /MISSED/.test(v) ? 'warn' : '';
+  const cr = s.calls.map(c => [esc(c.id), esc(c.by), dt(c.made), esc(c.asset.replace(/USDT$/, '')), esc(c.view),
+    c.steps.map((x, i) => `${i + 1}. ${esc(x.what)} by ${esc(x.by.slice(5))}: <span class="${/HIT/.test(x.state) ? 'pos' : /MISSED/.test(x.state) ? 'neg' : 'mut'}">${esc(x.state)}</span>`).join('<br>'),
+    esc(c.invalidation) + (c.inv_tbc ? ' <span class="pill warn">placeholder</span>' : '') + (c.invalidated ? ` <span class="neg">hit ${dt(c.invalidated)}</span>` : ''),
+    c.last == null ? '—' : px(c.last) + ` <span class="${cls(c.move)}">${pct(c.move, 1)}</span><br><span class="mut">range ${pct(c.lo, 1)} to ${pct(c.hi, 1)}</span>`,
+    `<span class="pill ${stCls(c.status)}">${esc(c.status)}</span>`]);
+  const ct = table(['Call', 'By', 'Made', 'Asset', 'View', 'Steps', 'Invalidation', 'Now vs call', 'Status'], cr, 'No calls logged.');
+  const zr = s.zones.map(z => [esc(z.call), esc(z.sym.replace('USDT', '')), `${z.lo}–${z.hi}`, dt(z.active_to).slice(0, 5),
+    z.touched ? '<span class="pill warn">touched</span>' : '<span class="mut">not reached</span>', z.n_trig, z.n_report, dt(z.data_to)]);
+  const zt = table(['Call', 'Coin', 'Zone', 'Active to', 'Price', 'Triggers', 'No-div', '4h data to'], zr, 'No long zones on a perp.');
+  const tr = s.trades.map(t => [esc(t.call), esc(t.sym.replace('USDT', '')), t.kind === 'trigger' ? 'Trigger' : t.kind === 'control' ? '<span class="mut">Zone touch (control)</span>' : '<span class="mut">No divergence (report)</span>',
+    dt(t.entry_time), px(t.entry), px(t.stop) + ` <span class="mut">−${t.risk_pct.toFixed(1)}%</span>`, t.closed ? dt(t.exit_time) : '—',
+    t.closed ? px(t.mark) : px(t.mark) + ' <span class="mut">mark</span>', t.closed ? esc(t.why) : '<span class="pill warn">open</span>',
+    `<span class="${cls(t.R)}">${rr(t.R)}</span>`, `<span class="${cls(t.R_btc)}">${rr(t.R_btc)}</span>`]);
+  const tt = table(['Call', 'Coin', 'Kind', 'Entry', 'Entry px', 'Stop', 'Exit', 'Exit px', 'How', 'R', 'R at 0.12%'], tr,
+    'No zone trade yet: no zone has been reached. A trade needs the price in a zone and a 4h double bottom + divergence there.');
+  return head(s) + k + `<div class="card"><h3>Calls</h3>${ct}</div><div class="card"><h3>Buy zones</h3>${zt}</div><div class="card"><h3>Zone paper trades</h3>${tt}</div>`;
+}
 function viewOverview(d) {
   const S = d.systems, c = S.capitulation, b = S.breakout, f = S.carry;
   const card = (key, name, line1, line2, v) => `<div class="card" style="cursor:pointer" onclick="go('${key}')">
@@ -361,6 +388,11 @@ function viewOverview(d) {
     kpi('Closed', st.n || 0, pt.trades.filter(t => t.pat === 'DBL' && t.div && !t.closed).length + ' open') + kpi('Avg per trade', st.n ? rr(st.E, 3) : '—', 'net', cls(st.E))
     + kpi('Edge vs random', st.n ? rr(st.edge, 3) : '—', '', cls(st.edge)) + kpi('Open R', rr(pt.open_R), 'marked', cls(pt.open_R)),
     'Chart pattern + RSI divergence on 200 coins, stop under the lows, 7-day exit. ~1–2 trades a week.', pt.verdict); }
+  const cz = S.calls;
+  if (cz) { const T = cz.stats.trigger; h += card('calls', 'Call log + zone trigger',
+    kpi('Calls', cz.calls.length, cz.n_resolved + ' resolved') + kpi('Zones touched', cz.zones.filter(z => z.touched).length + '/' + cz.zones.length, 'long zones on perps')
+    + kpi('Zone trades', T.n, T.open + ' open') + kpi('Trigger avg', T.n ? rr(T.E, 3) : '—', 'closed', cls(T.E)),
+    'Owner and Claude chart calls scored forward; their buy zones traded only on the 4h double bottom + divergence trigger.', cz.verdict); }
   if (f) { h += card('carry', 'Funding carry',
     kpi('Open', f.trades.filter(t => !t.closed).length, f.trades.filter(t => t.closed).length + ' closed') + kpi('Net on capital', pct(f.net_on_capital, 3), '', cls(f.net_on_capital))
     + kpi('Highest funding', f.watch[0] ? pct(f.watch[0].trailing_ann, 0) : '—', 'entry at 15%/yr'),
@@ -380,7 +412,8 @@ function render() {
     : TAB === 'carry' && S.carry ? viewCarry(S.carry)
     : TAB === 'wick' && S.wick ? viewWick(S.wick)
     : TAB === 'discount' && S.discount ? viewDisc(S.discount)
-    : TAB === 'pattern' && S.pattern ? viewPat(S.pattern) : '<div class="empty">No data for this system in the snapshot.</div>';
+    : TAB === 'pattern' && S.pattern ? viewPat(S.pattern)
+    : TAB === 'calls' && S.calls ? viewCalls(S.calls) : '<div class="empty">No data for this system in the snapshot.</div>';
 }
 document.querySelectorAll('#systabs button').forEach(b => b.onclick = () => go(b.dataset.k));
 async function load() {

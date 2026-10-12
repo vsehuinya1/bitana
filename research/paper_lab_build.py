@@ -259,11 +259,65 @@ def pattern(today):
             'trades': st['trades']}
 
 
+def calls(today):
+    """Call log + zone-trigger paper track (reports/zone_paper_prereg.md, owner order 2026-10-09 "Both"). Uses the
+    tracker's own read-only functions (research/calls/track.py: score, zones, zone_trades); its cron run sends the alerts."""
+    if '/root/bitana/research/calls' not in sys.path:
+        sys.path.insert(0, '/root/bitana/research/calls')
+    import track as ct
+    now = pd.Timestamp.now(tz='UTC')
+    cl = json.load(open(ct.CALLS))['calls']
+    st = json.load(open(ct.OUT + 'state.json')) if os.path.exists(ct.OUT + 'state.json') else {}
+    out_calls, zone_rows, trades = [], [], []
+    for c in cl:
+        sc = ct.score(c, now)
+        steps = []
+        for k, spec in enumerate(c['steps']):
+            what = f"into {spec['lo']:g}–{spec['hi']:g}" if spec['kind'] == 'reach' else f"{spec['dir']} through {spec['level']:g}"
+            s_ = sc['steps'][k] if k < len(sc['steps']) else None
+            state = ('HIT ' + s_['hit'][:16].replace('T', ' ')) if s_ and s_['hit'] else ('MISSED' if s_ and s_['missed'] else ('pending' if s_ else 'after the step before'))
+            steps.append({'what': what, 'by': spec['by'], 'state': state, 'zone': bool(spec.get('buy_zone'))})
+        inv = c.get('invalidation', {})
+        out_calls.append({'id': c['id'], 'by': c['by'], 'made': c['made'], 'asset': c['asset'], 'view': c['view'],
+                          'thesis': c.get('thesis', ''), 'status': sc['status'], 'last': sc.get('last'), 'move': sc.get('move'),
+                          'hi': sc.get('hi'), 'lo': sc.get('lo'), 'steps': steps, 'invalidated': sc.get('invalidated'),
+                          'invalidation': ('daily close below ' + str(inv['close_below'])) if 'close_below' in inv
+                          else ('daily close above ' + str(inv.get('close_above'))), 'inv_tbc': bool(inv.get('tbc'))})
+        for z in ct.zones(c, sc):
+            trig, rep, ctrl, last4 = ct.zone_trades(z)
+            zone_rows.append({'call': z['call'], 'sym': z['sym'], 'lo': z['lo'], 'hi': z['hi'], 'active_to': z['w1'],
+                              'data_to': last4, 'touched': ctrl is not None, 'n_trig': len(trig), 'n_report': len(rep)})
+            for kind, rows in (('trigger', trig), ('no-div (report)', rep), ('control', [ctrl] if ctrl else [])):
+                for r in rows:
+                    trades.append({'call': z['call'], 'sym': z['sym'], 'kind': kind, 'entry_time': r['entry_time'], 'entry': r['entry'],
+                                   'stop': r['stop'], 'risk_pct': 100 * (r['entry'] - r['stop']) / r['entry'], 'closed': r['closed'],
+                                   'exit_time': r.get('exit_time'), 'mark': r['mark'], 'why': r['why'], 'R': r['R'], 'R_btc': r['R_btc_cost']})
+
+    def _st(kind):
+        x = [t['R'] for t in trades if t['kind'] == kind and t['closed']]
+        return {'n': len(x), 'E': (sum(x) / len(x)) if x else None, 'total': sum(x),
+                'open': sum(1 for t in trades if t['kind'] == kind and not t['closed'])}
+    stats = {'trigger': _st('trigger'), 'control': _st('control')}
+    n_res = sum(1 for c in out_calls if c['status'] != 'open')
+    verdict = (f"collecting: {stats['trigger']['n']}/10 zone trades closed" if stats['trigger']['n'] < 10
+               else 'read due: trigger-in-zone vs zone touch vs plain trigger')
+    return {'name': 'Call log + zone trigger', 'prereg': 'reports/zone_paper_prereg.md', 'forward_from': '2026-10-09T05:00:00+00:00',
+            'verdict': verdict, 'updated': st.get('updated'), 'calls': out_calls, 'zones': zone_rows, 'trades': trades,
+            'stats': stats, 'n_resolved': n_res,
+            'rule': ('Calls (owner and Claude) are logged with ordered steps, deadlines and an invalidation, and scored forward: '
+                     'RIGHT, WRONG (invalidated first) or MISSED (deadline first). Every long zone on a Binance perp is '
+                     'paper-traded only on the 4h double bottom + RSI divergence trigger (PREREG-DBL-DIV-4H detector) with '
+                     'the lower low inside the zone or at most 3% under it: entry next 4h open, stop at the lower low, exit '
+                     'on the stop or after 7 days, 0.30% costs (0.12% shown too). Control: buy the first touch of the zone at '
+                     'its top, stop 3% under it, same exit. A hit rate needs ~20 resolved calls; the trigger read needs 10 '
+                     'closed zone trades.')}
+
+
 def main():
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     out = {'built': datetime.now(timezone.utc).isoformat(timespec='seconds'), 'systems': {}, 'errors': {}}
     for key, fn in (('capitulation', capitulation), ('breakout', breakout), ('breakout_vol', lambda d: breakout(d, vol=True)),
-                    ('carry', carry), ('wick', wick), ('discount', discount), ('pattern', pattern)):
+                    ('carry', carry), ('wick', wick), ('discount', discount), ('pattern', pattern), ('calls', calls)):
         try:
             out['systems'][key] = fn(today)
         except Exception as e:

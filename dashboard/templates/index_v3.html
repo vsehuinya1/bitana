@@ -458,6 +458,16 @@
             <thead><tr><th>Entry day</th><th>Coin</th><th>Unlock</th><th>Team %</th><th>Entry</th><th>Exit / mark</th><th>Short</th><th>ETH hedge</th><th>Net</th><th>$</th><th>How</th></tr></thead>
             <tbody id="unl-tb"></tbody></table></div>
     </section>
+    <!-- 2026-10-12: Fleet v3 (separate project /root/liquidity_events, pm2 trading-bot, Binance testnet) -->
+    <section class="sec">
+        <h2>Fleet v3 · testnet positions <span class="cnt" id="fl-pc">0</span> <span class="sub-h" id="fl-sub"></span></h2>
+        <div class="tbl-wrap"><table>
+            <thead><tr><th>Coin</th><th>Side</th><th>Entry</th><th>Mark</th><th>Move</th><th>u$</th><th>Notional</th><th>Weight</th><th class="hs">Opened</th></tr></thead>
+            <tbody id="fl-pos"></tbody></table></div>
+        <div class="tbl-wrap" style="margin-top:10px"><table>
+            <thead><tr><th>Order time</th><th>Coin</th><th>Side</th><th>Qty</th><th>Price</th><th>Notional</th><th>Close</th><th>Target w</th></tr></thead>
+            <tbody id="fl-ord"></tbody></table></div>
+    </section>
 
     <!-- Open Positions -->
     <section class="sec">
@@ -1429,7 +1439,26 @@ function uAccounts(d) {
          ['Closed', `${u.n_closed} (${u.wins} won)` + (u.mean_pct != null ? ' · avg ' + sPct(u.mean_pct) : '')],
          ['Next entry', (u.next || []).filter(n => !n.note).slice(0, 1).map(n => esc(n.sym.replace('USDT', '')) + ' ' + esc(n.entry_day.slice(5)) + ' 00:00Z')[0] || '—'],
          ['Live margin now', '~' + fmt$(u.margin_now)], ['Engine', esc(u.unit || '—') + (u.consec_err ? ' · ' + u.consec_err + ' errors' : '')]]);
+    const fl = A.fleet || {};
+    if (fl.error) h += `<div class="acct">Fleet v3: ${esc(fl.error)}</div>`;
+    else if (fl.mode) h += card(fl.name || 'Fleet v3', `<span class="acct-tag warn">TESTNET${fl.killed ? ' · KILLED' : ''}${fl.bar_age_s > 1200 ? ' · STALE' : ''}</span>`,
+        fl.equity != null ? fmt$(fl.equity) : '—', '',
+        [['Since start', (fl.equity != null && fl.equity_start != null ? fmtS$(fl.equity - fl.equity_start) : '—') + ' · ' + esc((fl.start || '').slice(5, 10))],
+         ['Today', fmtS$(fl.equity_day)],
+         ['Model net', `${sPct(fl.model_day_pct)} day · ${sPct(fl.model_7d_pct)} 7d · ${sPct(fl.model_all_pct)} all`],
+         ['Open', `${(fl.positions || []).length} · ${fmtS$(fl.u_usd)}`], ['Gross · crash open', `${fl.gross != null ? fl.gross.toFixed(2) + 'x' : '—'} · ${fl.n_crash}`],
+         ['Last bar', fl.last_bar ? esc(fl.last_bar.slice(5, 16).replace('T', ' ')) + 'Z' : '—']]);
     $('acct-grid').innerHTML = h;
+    const FP = fl.positions || [];
+    $('fl-pc').textContent = FP.length;
+    $('fl-sub').textContent = fl.mode ? '· marks from the testnet ticker; model net = the strategy on mainnet prices after modeled costs' : '';
+    $('fl-pos').innerHTML = FP.length ? FP.map(p => `<tr><td>${esc(p.sym.replace('USDT', ''))}${p.crash ? ' ⚡' : ''}</td><td class="${p.side === 'LONG' ? 'green' : 'red'}">${p.side}</td>
+        <td>${fmtP(p.entry)}</td><td>${fmtP(p.mark)}</td><td class="${clr(p.move_pct)}">${sPct(p.move_pct)}</td><td class="${clr(p.u_usd)}">${fmtS$(p.u_usd)}</td>
+        <td>${fmt$(p.notional)}</td><td>${p.w != null ? (p.w > 0 ? '+' : '') + (100 * p.w).toFixed(1) + '%' : '—'}</td><td class="hs">${fmtT(p.opened)}</td></tr>`).join('')
+        : `<tr><td colspan="9" style="text-align:center;color:var(--text-3)">${fl.mode ? 'Flat' : '—'}</td></tr>`;
+    $('fl-ord').innerHTML = (fl.orders || []).map(o => `<tr><td>${fmtT(o.time)}</td><td>${esc((o.symbol || '').replace('USDT', ''))}</td>
+        <td class="${o.side === 'BUY' ? 'green' : 'red'}">${esc(o.side)}</td><td>${esc(o.qty_filled)}</td><td>${fmtP(+o.avg_price)}</td><td>${fmt$(+o.notional)}</td>
+        <td>${o.reduce_only === 'True' ? 'yes' : ''}</td><td>${o.target_w != null ? (100 * o.target_w).toFixed(1) + '%' : '—'}</td></tr>`).join('');
     const UP = (u.positions || []).map(o => `<tr><td><span class="acct-tag warn">OPEN</span> ${esc(o.entry_day.slice(5))}</td><td>${esc(o.sym.replace('USDT', ''))}</td>
         <td>${esc(o.U.slice(5))}</td><td>${o.team_pct != null ? o.team_pct.toFixed(1) + '%' : '—'}</td><td>${fmtP(o.entry)}</td>
         <td>${o.mark != null ? fmtP(o.mark) + ' <span style="opacity:.6">now</span>' : '—'}</td><td class="${clr(o.short_pct)}">${sPct(o.short_pct)}</td>

@@ -38,6 +38,7 @@ WD_STATUS = ROOT / "data" / "wd_engine_status.json"
 WD_FUNDED = (104.05, "2026-10-05")          # sub-account 1 deposit (wick catcher + perp discount engine)
 FS_DIR = ROOT / "fsettle_live" / "data"     # sub-account 2 (funding-settlement live test, built in a separate chat)
 FS_FUNDED = (20.0, "2026-10-07 + 10-08")    # sub-account 2 deposits: $10 on 10-07, +$10 on 10-08 (owner)
+FLEET_DIR = Path("/root/liquidity_events")   # Fleet v3 (pm2 'trading-bot'): trend book + crash-buy overlay, Binance TESTNET, 2026-10-10
 UNL_DIR = ROOT / "unl_live"                  # UNL engine (short ahead of team token unlocks, built in a separate chat), 2026-10-12
 FRESHNESS = {
     "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
@@ -526,6 +527,71 @@ def unl_account():
                        for t in sorted(trades, key=lambda t: t.get("exit_time") or "", reverse=True)[:15]]}
 
 
+def fleet_account():
+    """Fleet v3 (separate project, pm2 'trading-bot', Binance testnet), read-only from its own files: the model ledger
+    (analysis/fleet_ledger.csv: per 15m bar, what the strategy earned on mainnet prices after modeled costs, + testnet
+    equity), the order log and the state file. Positions are rebuilt from the order log (all current ones were opened from
+    flat at its 2026-10-10 start, checked against the target weights); marks from the testnet's public ticker."""
+    import csv
+    led = list(csv.DictReader(open(FLEET_DIR / "analysis" / "fleet_ledger.csv")))
+    orders = list(csv.DictReader(open(FLEET_DIR / "analysis" / "fleet_orders.csv")))
+    st = json.loads((FLEET_DIR / "data" / "state" / "fleet_state.json").read_text())
+    killed = (FLEET_DIR / "data" / "state" / "fleet_KILLED").exists()
+    now = datetime.now(timezone.utc)
+    last_bar = datetime.fromisoformat(led[-1]["bar"]) if led else None
+    eq = [(r["bar"], float(r["equity_actual"])) for r in led if r.get("equity_actual")]
+    day0 = now.strftime("%Y-%m-%d")
+    wk0 = (now - timedelta(days=7)).isoformat()
+
+    def _net(rows):
+        return 100 * sum(float(r["model_net"] or 0) for r in rows)
+    eq_day = [e for b, e in eq if b[:10] >= day0]
+    pos = {}
+    for o in orders:
+        if (o.get("status") or "").upper() != "FILLED":
+            continue
+        sym, q, px = o["symbol"], float(o["qty_filled"]) * (1 if o["side"] == "BUY" else -1), float(o["avg_price"])
+        cur = pos.get(sym, {"qty": 0.0, "entry": 0.0, "opened": None})
+        if o.get("reduce_only") == "True":                                # a close never opens: at start-up the bot closed
+            if cur["qty"] == 0 or (cur["qty"] > 0) == (q > 0):            # positions older than this log (no entry known)
+                continue
+            q = max(q, -cur["qty"]) if cur["qty"] > 0 else min(q, -cur["qty"])
+        nq = cur["qty"] + q
+        if abs(nq) < 1e-12:
+            pos.pop(sym, None)
+            continue
+        if cur["qty"] == 0 or (cur["qty"] > 0) != (nq > 0):            # opened, or flipped: entry = this fill
+            pos[sym] = {"qty": nq, "entry": px, "opened": o["time"]}
+        elif abs(nq) > abs(cur["qty"]):                                   # added: weighted average entry
+            pos[sym] = {"qty": nq, "entry": (cur["entry"] * abs(cur["qty"]) + px * abs(q)) / abs(nq), "opened": cur["opened"]}
+        else:                                                             # reduced: entry unchanged
+            pos[sym] = {**cur, "qty": nq}
+    tw, cw = st.get("trend_w") or {}, st.get("crash_open") or {}
+    rows = []
+    for sym, p in pos.items():
+        try:
+            m = float(_cached(f"tpx:{sym}", 10, lambda: _http_json(f"https://testnet.binancefuture.com/fapi/v1/ticker/price?symbol={sym}"))["price"])
+        except Exception:  # noqa: BLE001
+            m = None
+        rows.append({"sym": sym, "side": "LONG" if p["qty"] > 0 else "SHORT", "qty": abs(p["qty"]), "entry": p["entry"],
+                     "opened": p["opened"], "mark": m, "notional": abs(p["qty"]) * (m or p["entry"]),
+                     "move_pct": None if m is None else 100 * (m / p["entry"] - 1) * (1 if p["qty"] > 0 else -1),
+                     "u_usd": None if m is None else (m - p["entry"]) * p["qty"],
+                     "w": (st.get("model_w") or {}).get(sym), "crash": sym in cw})
+    rows.sort(key=lambda r: -r["notional"])
+    return {"name": "Fleet v3 · trend book + crash-buy (testnet)", "engine": "pm2 trading-bot", "mode": "testnet",
+            "killed": killed, "last_bar": last_bar.isoformat() if last_bar else None,
+            "bar_age_s": (now - last_bar).total_seconds() - 900 if last_bar else None,   # the ledger row lands after its bar closes
+            "start": led[0]["bar"] if led else None, "equity": eq[-1][1] if eq else None, "equity_start": eq[0][1] if eq else None,
+            "equity_day": (eq[-1][1] - eq_day[0]) if eq_day else None,
+            "model_day_pct": _net([r for r in led if r["bar"][:10] >= day0]),
+            "model_7d_pct": _net([r for r in led if r["bar"] >= wk0]), "model_all_pct": _net(led),
+            "gross": float(led[-1]["gross_expo"]) if led else None, "n_crash": int(led[-1]["n_crash"]) if led else 0,
+            "positions": rows, "u_usd": sum(r["u_usd"] or 0 for r in rows), "trend_w": tw,
+            "orders": [{k: o.get(k) for k in ("time", "symbol", "side", "qty_filled", "avg_price", "notional", "reduce_only", "target_w")}
+                       for o in orders[-10:][::-1]]}
+
+
 def main_account(conn, positions):
     rs = dict(conn.execute("SELECT * FROM risk_state LIMIT 1").fetchone() or {})
     man = [p for p in positions or [] if p.get("externally_managed")]
@@ -535,7 +601,7 @@ def main_account(conn, positions):
 
 def accounts(conn, positions):
     out = {}
-    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account), ("unl", unl_account)):
+    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account), ("unl", unl_account), ("fleet", fleet_account)):
         try:
             out[k] = fn()
         except Exception as e:  # noqa: BLE001 - one account never blanks the others
