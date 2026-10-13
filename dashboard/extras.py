@@ -29,7 +29,7 @@ BOT_LOG = ROOT / "logs" / "bitana-live-burst.log"
 SURVIVAL_JSON = Path(__file__).resolve().parent / "regime_survival.json"
 BOARD_JSON = Path(__file__).resolve().parent / "research_board.json"
 HERMES_JOBS = Path("/root/.hermes/cron/jobs.json")
-UNITS = ["bitana-wd-engine", "bitana-fsettle-live", "bitana-unl", "bitana-fsettle-paper", "bitana-live-burst-follow", "bitana-v5-paper",
+UNITS = ["bitana-wd-engine", "bitana-fsettle-live", "bitana-unl", "bitana-degen", "bitana-fsettle-paper", "bitana-live-burst-follow", "bitana-v5-paper",
          "bitana-risk-watch", "bitana-dashboard", "hermes-gateway"]
 # 2026-10-07 owner: "I now have 2 sub accounts ... Add them to the dashboard". Read from each engine's own files (read-only);
 # the dashboard holds no exchange keys.
@@ -39,6 +39,7 @@ WD_FUNDED = (104.05, "2026-10-05")          # sub-account 1 deposit (wick catche
 FS_DIR = ROOT / "fsettle_live" / "data"     # sub-account 2 (funding-settlement live test, built in a separate chat)
 FS_FUNDED = (20.0, "2026-10-07 + 10-08")    # sub-account 2 deposits: $10 on 10-07, +$10 on 10-08 (owner)
 FLEET_DIR = Path("/root/liquidity_events")   # Fleet v3 (pm2 'trading-bot'): trend book + crash-buy overlay, Binance TESTNET, 2026-10-10
+DEGEN_DIR = ROOT / "degen_live"              # DEGEN (whole account on the next wick/disc/capit signal, 3x; dry), 2026-10-12
 UNL_DIR = ROOT / "unl_live"                  # UNL engine (short ahead of team token unlocks, built in a separate chat), 2026-10-12
 FRESHNESS = {
     "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
@@ -592,6 +593,59 @@ def fleet_account():
                        for o in orders[-10:][::-1]]}
 
 
+def degen_account():
+    """DEGEN engine (the whole account on the next wick / perp-below-spot / capitulation signal, one coin, 3x; built in a
+    separate chat, dry since 2026-10-12), read-only from its config + data dir. Open P&L = lev x price move - entry cost."""
+    import yaml
+    c = yaml.safe_load((DEGEN_DIR / "config.yaml").read_text())
+    d = Path(c.get("data_dir") or DEGEN_DIR / "data")
+    st = json.loads((d / "state.json").read_text()) if (d / "state.json").exists() else {}
+    trades = []
+    if (d / "trades.jsonl").exists():
+        for ln in (d / "trades.jsonl").read_text().splitlines():
+            try:
+                trades.append(json.loads(ln))
+            except ValueError:
+                pass
+    cost = {"wick": 0.0012, "disc": 0.0020, "capit": 0.0015}       # the engine's COST on notional
+    pos = st.get("pos")
+    op = None
+    if pos:
+        try:
+            m = _mark(pos["sym"])
+        except Exception:  # noqa: BLE001
+            m = None
+        acc = pos["lev"] * (m / pos["e"] - 1) - pos["lev"] * cost.get(pos["eng"], 0) if m else None
+        op = {"sym": pos["sym"], "eng": pos["eng"], "rung": pos.get("rung"), "entry_time": datetime.fromtimestamp(pos["fb"] / 1000, timezone.utc).isoformat(),
+              "entry": pos["e"], "mark": m, "move_pct": None if m is None else 100 * (m / pos["e"] - 1),
+              "account_pct": None if acc is None else 100 * acc, "u_usd": None if acc is None else acc * pos["eq_before"],
+              "eq_before": pos["eq_before"], "pliq": pos.get("pliq"), "tp": pos.get("tp"), "stop": pos.get("stop"),
+              "end": datetime.fromtimestamp(pos["end"] / 1000, timezone.utc).isoformat() if pos.get("end") else None,
+              "also_filled": pos.get("also_filled") or []}
+    b = st.get("bids") or {}
+    rungs = b.get("rungs") or []
+    near = max(((r[2] / r[4] - 1, r[0]) for r in rungs if r[4]), default=None)   # closest bid vs its hour close
+    try:
+        upd_age = (datetime.now(timezone.utc) - datetime.strptime(st["updated"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)).total_seconds()
+    except Exception:  # noqa: BLE001
+        upd_age = None
+    try:
+        unit = subprocess.run(["systemctl", "is-active", "bitana-degen"], capture_output=True, text=True, timeout=3).stdout.strip()
+    except Exception:  # noqa: BLE001
+        unit = "unknown"
+    lives_lost = sum(1 for t in trades if t.get("why") == "liquidated")
+    return {"name": "DEGEN · whole account on the next signal (3x)", "engine": "bitana-degen", "mode": c.get("mode"),
+            "enabled": c.get("enabled", True), "lev": c.get("leverage"), "start": c.get("start_usd"), "refill": c.get("refill"),
+            "eq": st.get("eq"), "life": st.get("life"), "peak": st.get("peak"), "lives_lost": lives_lost, "open": op,
+            "n_bids": len(rungs), "bid_hour": datetime.fromtimestamp(b["H"] / 1000, timezone.utc).isoformat() if b.get("H") else None,
+            "nearest_bid_pct": None if near is None else 100 * near[0], "nearest_bid_sym": None if near is None else near[1],
+            "disc_armed": bool(st.get("disc")), "updated": st.get("updated"), "updated_age_s": upd_age, "unit": unit,
+            "n_closed": len(trades), "wins": sum(1 for t in trades if (t.get("account_pct") or 0) > 0),
+            "trades": [{k: t.get(k) for k in ("life", "eng", "sym", "rung", "entry_time", "exit_time", "entry", "exit", "why",
+                                              "move_pct", "account_pct", "eq_before", "eq_after", "also_filled")}
+                       for t in sorted(trades, key=lambda t: t.get("exit_time") or "", reverse=True)[:15]]}
+
+
 def main_account(conn, positions):
     rs = dict(conn.execute("SELECT * FROM risk_state LIMIT 1").fetchone() or {})
     man = [p for p in positions or [] if p.get("externally_managed")]
@@ -601,7 +655,7 @@ def main_account(conn, positions):
 
 def accounts(conn, positions):
     out = {}
-    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account), ("unl", unl_account), ("fleet", fleet_account)):
+    for k, fn in (("main", lambda: main_account(conn, positions)), ("wd", wd_account), ("fs", fs_account), ("unl", unl_account), ("degen", degen_account), ("fleet", fleet_account)):
         try:
             out[k] = fn()
         except Exception as e:  # noqa: BLE001 - one account never blanks the others

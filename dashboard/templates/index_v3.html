@@ -458,6 +458,13 @@
             <thead><tr><th>Entry day</th><th>Coin</th><th>Unlock</th><th>Team %</th><th>Entry</th><th>Exit / mark</th><th>Short</th><th>ETH hedge</th><th>Net</th><th>$</th><th>How</th></tr></thead>
             <tbody id="unl-tb"></tbody></table></div>
     </section>
+    <!-- 2026-10-13: DEGEN (whole account on the next wick / perp-below-spot / capitulation signal, 3x; dry run) -->
+    <section class="sec">
+        <h2>DEGEN · trades <span class="cnt" id="dg-tc">0</span> <span class="sub-h" id="dg-sub"></span></h2>
+        <div class="tbl-wrap"><table>
+            <thead><tr><th>Entry</th><th>Life</th><th>Signal</th><th>Coin</th><th>Entry px</th><th>Exit / mark</th><th>How</th><th>Price</th><th>Account</th><th>$ before → after</th><th class="hs">Also filled</th></tr></thead>
+            <tbody id="dg-tb"></tbody></table></div>
+    </section>
     <!-- 2026-10-12: Fleet v3 (separate project /root/liquidity_events, pm2 trading-bot, Binance testnet) -->
     <section class="sec">
         <h2>Fleet v3 · testnet positions <span class="cnt" id="fl-pc">0</span> <span class="sub-h" id="fl-sub"></span></h2>
@@ -1439,6 +1446,18 @@ function uAccounts(d) {
          ['Closed', `${u.n_closed} (${u.wins} won)` + (u.mean_pct != null ? ' · avg ' + sPct(u.mean_pct) : '')],
          ['Next entry', (u.next || []).filter(n => !n.note).slice(0, 1).map(n => esc(n.sym.replace('USDT', '')) + ' ' + esc(n.entry_day.slice(5)) + ' 00:00Z')[0] || '—'],
          ['Live margin now', '~' + fmt$(u.margin_now)], ['Engine', esc(u.unit || '—') + (u.consec_err ? ' · ' + u.consec_err + ' errors' : '')]]);
+    const g = A.degen || {};
+    if (g.error) h += `<div class="acct">DEGEN: ${esc(g.error)}</div>`;
+    else if (g.mode) {
+        const go = g.open;
+        h += card(g.name || 'DEGEN', tag(g.mode, g.unit !== 'active' || g.updated_age_s > 900) + (g.enabled === false ? '<span class="acct-tag warn">NO ENTRIES</span>' : ''),
+            fmt$(g.eq), '',
+            [['Start · peak', fmt$(g.start) + ' · ' + fmt$(g.peak)], ['Life', `${g.life}` + (g.lives_lost ? ` (${g.lives_lost} liquidated)` : '') + (g.refill ? ' · refill on' : '')],
+             ['Position', go ? `${esc(go.sym.replace('USDT', ''))} ${esc(go.eng)} · ${sPct(go.account_pct)} acct` : 'flat'],
+             ['Closed', `${g.n_closed} (${g.wins} won)`],
+             ['Wick bids now', go ? 'paused (in a trade)' : `${g.n_bids}` + (g.nearest_bid_pct != null ? ` · nearest ${esc((g.nearest_bid_sym || '').replace('USDT', ''))} ${sPct(g.nearest_bid_pct)}` : '')],
+             ['Engine', esc(g.unit || '—') + (g.updated ? ' · ' + esc(g.updated.slice(11)) + 'Z' : '')]]);
+    }
     const fl = A.fleet || {};
     if (fl.error) h += `<div class="acct">Fleet v3: ${esc(fl.error)}</div>`;
     else if (fl.mode) h += card(fl.name || 'Fleet v3', `<span class="acct-tag warn">TESTNET${fl.killed ? ' · KILLED' : ''}${fl.bar_age_s > 1200 ? ' · STALE' : ''}</span>`,
@@ -1449,6 +1468,18 @@ function uAccounts(d) {
          ['Open', `${(fl.positions || []).length} · ${fmtS$(fl.u_usd)}`], ['Gross · crash open', `${fl.gross != null ? fl.gross.toFixed(2) + 'x' : '—'} · ${fl.n_crash}`],
          ['Last bar', fl.last_bar ? esc(fl.last_bar.slice(5, 16).replace('T', ' ')) + 'Z' : '—']]);
     $('acct-grid').innerHTML = h;
+    const gr = g.open ? [`<tr><td><span class="acct-tag warn">OPEN</span> ${fmtT(g.open.entry_time)}</td><td>${g.life}</td><td>${esc(g.open.eng)}${g.open.rung != null ? ' ' + g.open.rung + ' ATR' : ''}</td>
+        <td>${esc(g.open.sym.replace('USDT', ''))}</td><td>${fmtP(g.open.entry)}</td><td>${g.open.mark != null ? fmtP(g.open.mark) + ' <span style="opacity:.6">now</span>' : '—'}</td>
+        <td>${g.open.tp != null ? 'TP ' + fmtP(g.open.tp) + ' · ' : ''}liq ${fmtP(g.open.pliq)} · exit ${fmtT(g.open.end)}</td><td class="${clr(g.open.move_pct)}">${sPct(g.open.move_pct)}</td>
+        <td class="${clr(g.open.account_pct)}">${sPct(g.open.account_pct)}</td><td>${fmt$(g.open.eq_before)} → <span class="${clr(g.open.u_usd)}">${g.open.u_usd != null ? fmt$(g.open.eq_before + g.open.u_usd) : '—'}</span></td>
+        <td class="hs">${esc((g.open.also_filled || []).join(', '))}</td></tr>`] : [];
+    const gt = (g.trades || []).map(t => `<tr><td>${esc((t.entry_time || '').slice(5, 16))}</td><td>${t.life}</td><td>${esc(t.eng)}${t.rung != null ? ' ' + t.rung + ' ATR' : ''}</td>
+        <td>${esc((t.sym || '').replace('USDT', ''))}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td><td class="${t.why === 'liquidated' ? 'red' : ''}">${esc(t.why)}</td>
+        <td class="${clr(t.move_pct)}">${sPct(t.move_pct)}</td><td class="${clr(t.account_pct)}">${sPct(t.account_pct)}</td>
+        <td>${fmt$(t.eq_before)} → ${fmt$(t.eq_after)}</td><td class="hs">${esc((t.also_filled || []).join(', '))}</td></tr>`);
+    $('dg-tc').textContent = g.n_closed || 0;
+    $('dg-sub').textContent = g.mode ? `· ${g.lev}x the whole account · simulated fills, no orders` : '';
+    $('dg-tb').innerHTML = gr.concat(gt).join('') || `<tr><td colspan="11" style="text-align:center;color:var(--text-3)">${g.mode ? 'No ' + esc(g.mode) + ' trades yet: waiting for the next signal' : '—'}</td></tr>`;
     const FP = fl.positions || [];
     $('fl-pc').textContent = FP.length;
     $('fl-sub').textContent = fl.mode ? '· marks from the testnet ticker; model net = the strategy on mainnet prices after modeled costs' : '';
