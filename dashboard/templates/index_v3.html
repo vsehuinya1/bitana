@@ -446,7 +446,7 @@
             <tbody id="wd-tb"></tbody></table></div>
     </section>
     <section class="sec">
-        <h2>Sub-account 2 · trades <span class="cnt" id="fs-tc">0</span> <span class="sub-h" id="fs-open"></span></h2>
+        <h2>Sub-account 2 · funding-settlement test trades (ended 10-14) <span class="cnt" id="fs-tc">0</span> <span class="sub-h" id="fs-open"></span></h2>
         <div class="tbl-wrap"><table>
             <thead><tr><th>Settlement</th><th>Coin</th><th>Side</th><th>Funding</th><th>Entry</th><th>Exit</th><th>Stopped</th><th>Net bp</th><th>$</th></tr></thead>
             <tbody id="fs-tb"></tbody></table></div>
@@ -522,13 +522,14 @@
         <div class="ops-grid" id="ops"></div>
     </section>
 
-    <!-- v3: research board -->
-    <section class="sec" id="board-sec" hidden>
-        <h2>Research board <span class="sub-h" id="board-built"></span></h2>
+    <!-- 2026-10-14: research loop (owner 2026-10-13) replaces the research board (last built 10-04; its builder needs the
+         archived shadow DB, and its Bitana rows are dead; the paper tracks live in Paper Lab) -->
+    <section class="sec" id="loop-sec" hidden>
+        <h2>Research loop <span class="cnt" id="loop-n">0</span> <span class="sub-h" id="loop-sub"></span></h2>
         <div class="tbl-wrap">
             <table class="board">
-                <thead><tr><th>Row</th><th>Type</th><th>Progress / next read</th><th>Status</th></tr></thead>
-                <tbody id="board-tb"></tbody>
+                <thead><tr><th>Run</th><th>Idea</th><th>Discovery net</th><th>Gate</th><th>Holdout net</th><th>Verdict</th></tr></thead>
+                <tbody id="loop-tb"></tbody>
             </table>
         </div>
     </section>
@@ -1382,7 +1383,7 @@ function uPerf(d) {
 }
 
 /* ---- System health ---- */
-const FRESH_LIMIT = { 'shadow writer': 900, 'force-order feed': 900, 'live bot log': 180, 'paper log': 600 };
+const FRESH_LIMIT = {};   // 2026-10-14: limits come from the backend (ops.fresh_limit_s)
 function stLabel(ok, warn) { return ok ? '<span class="st-ok">● ok</span>' : warn ? '<span class="st-warn">▲ check</span>' : '<span class="st-bad">✖ down</span>'; }
 function uOps(d) {
     const O = d.v3 && d.v3.ops;
@@ -1391,7 +1392,7 @@ function uOps(d) {
     const units = Object.entries(O.units || {}).map(([u, s]) => `<div class="ops-row"><span>${esc(u)}</span>${stLabel(s === 'active', s === 'activating')} <b>${esc(s)}</b></div>`).join('');
     const pm2 = Object.entries(O.pm2 || {}).map(([u, s]) => `<div class="ops-row"><span>pm2 ${esc(u)}</span>${stLabel(s === 'online', s === 'launching')} <b>${esc(s)}</b></div>`).join('');
     const fresh = Object.entries(O.freshness_s || {}).map(([k, s]) => {
-        const lim = FRESH_LIMIT[k] || 900;
+        const lim = (O.fresh_limit_s || {})[k] || FRESH_LIMIT[k] || 900;
         return `<div class="ops-row"><span>${esc(k)}</span>${stLabel(s != null && s <= lim, s != null && s <= lim * 3)} <b>${s == null ? 'missing' : fmtDur(s) + ' ago'}</b></div>`;
     }).join('');
     const disk = `<div class="ops-row"><span>disk used</span>${stLabel(O.disk_pct < 85, O.disk_pct < 92)} <b>${O.disk_pct}% · ${O.disk_free_gb} GB free</b></div>`;
@@ -1404,16 +1405,17 @@ function uOps(d) {
         `<div class="ops-card"><h3>Scheduled jobs · last run</h3>${cron || '<div class="ops-row">none</div>'}</div>`;
 }
 
-/* ---- Research board ---- */
+/* ---- Research loop (2026-10-14; replaces the research board) ---- */
 function uBoard(d) {
-    const B = d.v3 && d.v3.research_board;
-    if (!B || B.error || !(B.rows || []).length) { show('board-sec', false); return; }
-    show('board-sec', true);
-    $('board-built').textContent = '· built ' + ago(B.built);
-    $('board-tb').innerHTML = B.rows.map(r => {
-        const prog = r.n_target ? `<span class="prog-mini"><i style="width:${Math.min(100, Math.round(100 * (r.n || 0) / r.n_target))}%"></i></span>${r.n || 0}/${r.n_target} legs · ${r.days || 0}/${r.days_target} days` : esc(r.next);
-        return `<tr><td>${esc(r.name)}</td><td class="k k-${esc(r.kind)}">${esc(r.kind)}</td><td>${prog}</td><td>${esc(r.status)}</td></tr>`;
-    }).join('');
+    const L = d.v3 && d.v3.research_loop;
+    if (!L || L.error || !(L.runs || []).length) { show('loop-sec', false); return; }
+    show('loop-sec', true);
+    $('loop-n').textContent = L.n;
+    $('loop-sub').textContent = `· ${L.n_pass} passed · ${L.n_gate} cleared discovery · next holdout needs t ≥ ${L.next_t_req} (m = ${L.m}) · ${L.status}`;
+    const bp = (x, t) => x == null ? '—' : `<span class="${clr(x)}">${x > 0 ? '+' : ''}${x.toFixed(1)} bp</span>` + (t != null ? ` <span style="opacity:.6">t ${t.toFixed(2)}</span>` : '');
+    $('loop-tb').innerHTML = L.runs.map(r => `<tr><td>${esc(r.utc.slice(5, 16).replace('T', ' '))}<br><b>${esc(r.id)}</b></td><td>${esc(r.idea)}</td>
+        <td>${bp(r.disc_bp, r.disc_t)}</td><td>${esc(r.gate)}</td><td>${r.hold_n ? bp(r.hold_bp, r.hold_t) + ` <span style="opacity:.6">vs ${r.t_req}</span>` : '—'}</td>
+        <td class="${/PASS/.test(r.verdict) ? 'green' : /FAIL/.test(r.verdict) ? 'red' : ''}">${esc(r.verdict)}</td></tr>`).join('');
 }
 
 
@@ -1427,16 +1429,18 @@ function uAccounts(d) {
         <div class="acct-v ${valCls || ''}">${val}</div><div class="acct-rows">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div></div>`;
     let h = '';
     h += m.error ? `<div class="acct">Main: ${esc(m.error)}</div>` : card(m.name || 'Main account', '<span class="acct-tag">MANUAL</span>', m.equity != null ? fmt$(m.equity) : '—', '',
-        [['Manual positions', m.n_manual ?? '—'], ['Bitana bot', 'dormant']]);
+        [['Manual positions', m.n_manual ?? '—'], ['Bitana bot', 'arms off · tracks manual trades']]);
     h += w.error ? `<div class="acct">Sub-account 1: ${esc(w.error)}</div>` : card(w.name || 'Sub-account 1', tag(w.mode, w.status_age_s > 180), '≈' + fmt$(w.balance_est + (w.unrealized || 0)), '',
         [['Funded', fmt$(w.funded) + ' · ' + esc(w.funded_on || '')], ['Realized', fmtS$(w.realized)], ['Open', `${(w.positions || []).length} · ${fmtS$(w.unrealized)}`],
          ['Closed', `${w.n_closed} · ${fmtR(w.sum_r)}`], ['Bids live', w.n_bids], ['Engine', _age(w.status_age_s) + (w.paused ? ' · PAUSED' : '')]]);
-    h += f.error ? `<div class="acct">Sub-account 2: ${esc(f.error)}</div>` : card(f.name || 'Sub-account 2', tag(f.mode, false), '≈' + fmt$(f.balance_est), '',
-        [['Funded', (f.funded != null ? fmt$(f.funded) : '—') + ' · ' + esc(f.funded_on || '')], ['Realized', fmtS$(f.realized)],
-         ['Wallet logged', f.wallet_anchor && f.wallet_anchor.wallet != null ? fmt$(f.wallet_anchor.wallet) + ' · ' + esc((f.wallet_anchor.utc || '').slice(5, 16)) : '—'],
-         ['Live trades', `${f.n_closed} (${f.wins} won)`], ['Open', Object.keys(f.open || {}).length + ((f.positions || []).some(o => o.u_usd != null) ? ' · ' + fmtS$((f.positions || []).reduce((a, o) => a + (o.u_usd || 0), 0)) : '')],
-         ['Log updated', _age(f.log_age_s)]]);
     const sPct = x => x == null || isNaN(x) ? '—' : (x > 0 ? '+' : '') + x.toFixed(2) + '%';
+    h += f.error ? `<div class="acct">Sub-account 2: ${esc(f.error)}</div>` : card(f.name || 'Sub-account 2',
+        `<span class="acct-tag warn">${f.unl_go_live ? 'UNL LIVE' : 'NO ENGINE LIVE'}</span>`, '≈' + fmt$(f.balance_est), '',
+        [['Wallet logged', f.wallet_anchor && f.wallet_anchor.wallet != null ? fmt$(f.wallet_anchor.wallet) + ' · ' + esc((f.wallet_anchor.utc || '').slice(5, 16)) : '—'],
+         ['Funding test', (f.fs_enabled === false ? 'ended ' + esc((f.fs_last_trade || '').slice(5, 10)) + ' · ' : 'running · ') + `${f.n_closed} trades · ${fmtS$(f.realized)}`],
+         ['Its paper tracker', f.paper && f.paper.events != null ? `${f.paper.events} events · ${f.paper.rule_mean_bp > 0 ? '+' : ''}${f.paper.rule_mean_bp.toFixed(1)} bp (backtest +${f.paper_backtest_bp})` : '—'],
+         ['UNL live', f.unl_on_this_account ? (f.unl_go_live ? 'from ' + esc(f.unl_go_live) : 'built · waits for your go-unl (ZRO dry exit 10-22)') : '—'],
+         ['Open', Object.keys(f.open || {}).length + ((f.positions || []).some(o => o.u_usd != null) ? ' · ' + fmtS$((f.positions || []).reduce((a, o) => a + (o.u_usd || 0), 0)) : '')]]);
     const u = A.unl || {};
     if (u.error) h += `<div class="acct">UNL: ${esc(u.error)}</div>`;
     else if (u.mode) h += card(u.name || 'UNL', tag(u.mode, u.unit !== 'active') + (u.enabled === false ? '<span class="acct-tag warn">NO ENTRIES</span>' : ''),
@@ -1445,7 +1449,10 @@ function uAccounts(d) {
          ['Open', `${(u.positions || []).length}` + ((u.positions || []).length ? ' · ' + fmtS$(u.u_usd) : '')],
          ['Closed', `${u.n_closed} (${u.wins} won)` + (u.mean_pct != null ? ' · avg ' + sPct(u.mean_pct) : '')],
          ['Next entry', (u.next || []).filter(n => !n.note).slice(0, 1).map(n => esc(n.sym.replace('USDT', '')) + ' ' + esc(n.entry_day.slice(5)) + ' 00:00Z')[0] || '—'],
-         ['Live margin now', '~' + fmt$(u.margin_now)], ['Engine', esc(u.unit || '—') + (u.consec_err ? ' · ' + u.consec_err + ' errors' : '')]]);
+         ['Live margin now', '~' + fmt$(u.margin_now)],
+         ['Live', u.go_live ? esc(u.account || '') + ' from ' + esc(u.go_live) + (u.n_live ? ` · ${u.n_live} live trades` : '') : 'not yet · ' + esc(u.account || '') + ' on your go-unl'],
+         ['Investor shadow (paper)', u.shadow ? `${u.shadow.open} open · ${u.shadow.closed} closed` + (u.shadow.mean_pct != null ? ' · avg ' + sPct(u.shadow.mean_pct) : '') : '—'],
+         ['Engine', esc(u.unit || '—') + (u.consec_err ? ' · ' + u.consec_err + ' errors' : '')]]);
     const g = A.degen || {};
     if (g.error) h += `<div class="acct">DEGEN: ${esc(g.error)}</div>`;
     else if (g.mode) {
@@ -1495,12 +1502,13 @@ function uAccounts(d) {
         <td>${o.mark != null ? fmtP(o.mark) + ' <span style="opacity:.6">now</span>' : '—'}</td><td class="${clr(o.short_pct)}">${sPct(o.short_pct)}</td>
         <td class="${clr(o.hedge_pct)}">${sPct(o.hedge_pct)}</td><td class="${clr(o.net_pct)}">${sPct(o.net_pct)}</td><td class="${clr(o.u_usd)}">${fmtS$(o.u_usd)}</td>
         <td>exits ${esc(o.exit_day.slice(5))} · stop ${fmtP(o.stop)}</td></tr>`).join('');
-    const UT = (u.trades || []).map(t => `<tr><td>${esc((t.entry_time || '').slice(5, 10))}</td><td>${esc((t.sym || '').replace('USDT', ''))}</td>
+    const UT = (u.trades || []).map(t => `<tr><td>${t.mode === 'live' ? '<span class="acct-tag live">LIVE</span> ' : ''}${esc((t.entry_time || '').slice(5, 10))}</td><td>${esc((t.sym || '').replace('USDT', ''))}</td>
         <td>${esc((t.U || '').slice(5))}</td><td>${t.team_pct != null ? t.team_pct.toFixed(1) + '%' : '—'}</td><td>${fmtP(t.entry)}</td><td>${fmtP(t.exit)}</td>
         <td class="${clr(t.short_ret_pct)}">${sPct(t.short_ret_pct)}</td><td class="${clr(t.hedge_ret_pct)}">${sPct(t.hedge_ret_pct)}</td>
         <td class="${clr(t.net_pct)}">${sPct(t.net_pct)}</td><td class="${clr(t.pnl_usd)}">${fmtS$(t.pnl_usd)}</td><td>${esc(t.reason || '')}</td></tr>`).join('');
     $('unl-tc').textContent = u.n_closed || 0;
-    $('unl-next').textContent = (u.next || []).length ? '· next entries: ' + u.next.map(n => `${n.sym.replace('USDT', '')} ${n.entry_day.slice(5)} (${n.team_pct.toFixed(1)}%${n.note ? ', ' + n.note : ''})`).join(', ') : '';
+    $('unl-next').textContent = ((u.next || []).length ? '· next entries: ' + u.next.map(n => `${n.sym.replace('USDT', '')} ${n.entry_day.slice(5)} (${n.team_pct.toFixed(1)}%${n.note ? ', ' + n.note : ''})`).join(', ') : '')
+        + ((u.next_shadow || []).length ? ' · investor shadow: ' + u.next_shadow.map(n => `${n.sym.replace('USDT', '')} ${n.entry_day.slice(5)} (${n.inv_pct.toFixed(1)}%)`).join(', ') : '');
     $('unl-tb').innerHTML = UP + UT || `<tr><td colspan="11" style="text-align:center;color:var(--text-3)">${u.mode ? 'No ' + esc(u.mode) + ' trades yet' : '—'}</td></tr>`;
     const P = w.positions || [];
     $('wd-pc').textContent = P.length;

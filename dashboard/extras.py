@@ -27,10 +27,11 @@ ROOT = Path(__file__).resolve().parent.parent
 LIVE_YAML = ROOT / "config" / "live_burst_ny_asia.yaml"
 BOT_LOG = ROOT / "logs" / "bitana-live-burst.log"
 SURVIVAL_JSON = Path(__file__).resolve().parent / "regime_survival.json"
-BOARD_JSON = Path(__file__).resolve().parent / "research_board.json"
 HERMES_JOBS = Path("/root/.hermes/cron/jobs.json")
-UNITS = ["bitana-wd-engine", "bitana-fsettle-live", "bitana-unl", "bitana-degen", "bitana-fsettle-paper", "bitana-live-burst-follow", "bitana-v5-paper",
-         "bitana-risk-watch", "bitana-dashboard", "hermes-gateway"]
+# 2026-10-14 rewire: bitana-v5-paper retired (stopped + disabled by the owner; signal_shadow.db archived), fsettle-live
+# entries off since its checkpoint (sub-account 2 goes to UNL live), research loop added.
+UNITS = ["bitana-wd-engine", "bitana-unl", "bitana-degen", "bitana-fsettle-live", "bitana-fsettle-paper",
+         "bitana-live-burst-follow", "bitana-risk-watch", "bitana-dashboard", "hermes-gateway"]
 # 2026-10-07 owner: "I now have 2 sub accounts ... Add them to the dashboard". Read from each engine's own files (read-only);
 # the dashboard holds no exchange keys.
 WD_DB = ROOT / "data" / "wd_engine.db"
@@ -41,12 +42,15 @@ FS_FUNDED = (20.0, "2026-10-07 + 10-08")    # sub-account 2 deposits: $10 on 10-
 FLEET_DIR = Path("/root/liquidity_events")   # Fleet v3 (pm2 'trading-bot'): trend book + crash-buy overlay, Binance TESTNET, 2026-10-10
 DEGEN_DIR = ROOT / "degen_live"              # DEGEN (whole account on the next wick/disc/capit signal, 3x; dry), 2026-10-12
 UNL_DIR = ROOT / "unl_live"                  # UNL engine (short ahead of team token unlocks, built in a separate chat), 2026-10-12
-FRESHNESS = {
-    "shadow writer": ROOT / "storage" / "signal_shadow.db-wal",
-    "force-order feed": ROOT / "storage" / "force_orders_paper.db-wal",
-    "live bot log": BOT_LOG,
-    "paper log": ROOT / "logs" / "v5_forward_test.log",
+FRESHNESS = {      # name: (file, stale after s). The retired v5 feeds (shadow writer, force-order feed, paper log) are gone.
+    "wd engine status": (ROOT / "data" / "wd_engine_status.json", 180),
+    "UNL state": (ROOT / "unl_live" / "data" / "state.json", 1800),
+    "DEGEN state": (ROOT / "degen_live" / "data" / "state.json", 900),
+    "fsettle paper tracker": (ROOT / "research_cache" / "scalp" / "paper_fsettle" / "tracker.log", 4000),
+    "Fleet v3 ledger": (Path("/root/liquidity_events/analysis/fleet_ledger.csv"), 1500),
+    "burst bot log (manual trades)": (BOT_LOG, 180),
 }
+LOOP_DIR = ROOT / "research" / "loop"          # research loop (owner 2026-10-13): ledger.csv + queue.md
 SESSION_END_H = {"asia": 8, "london": 14, "ny": 22, "late": 24}
 # 2026-10-03: owner-entered stops for manual (EXT_) positions. The bot only sees a 2% placeholder stop (it ignores the
 # exchange's conditional/algo orders), so R for manual trades comes from here or is not shown. Written by
@@ -432,7 +436,23 @@ def fs_account():
         log_age = time.time() - (FS_DIR / "engine.log").stat().st_mtime
     except OSError:
         log_age = None
-    return {"name": "Sub-account 2 · funding-settlement test", "engine": "bitana-fsettle-live", "mode": kc.get("mode"),
+    import yaml
+    fcfg = yaml.safe_load((ROOT / "fsettle_live" / "config.yaml").read_text())
+    ucfg = yaml.safe_load((UNL_DIR / "config.yaml").read_text())
+    paper = {}
+    try:        # the paper tracker's hourly heartbeat: "written N, rule mean X"
+        import re as _re
+        for ln in (ROOT / "research_cache" / "scalp" / "paper_fsettle" / "tracker.log").read_text().splitlines()[-200:]:
+            m2 = _re.search(r"written (\d+), rule mean (-?[0-9.]+)", ln)
+            if m2:
+                paper = {"events": int(m2.group(1)), "rule_mean_bp": float(m2.group(2)), "utc": ln[:16]}
+    except OSError:
+        pass
+    last_live = max((e.get("s_utc") or "" for e in live), default=None)
+    return {"name": "Sub-account 2 · UNL live (pending) · funding test ended", "engine": "bitana-fsettle-live", "mode": kc.get("mode"),
+            "fs_enabled": fcfg.get("enabled", True), "fs_last_trade": last_live, "paper": paper, "paper_backtest_bp": 21.2,
+            "unl_mode": ucfg.get("mode"), "unl_go_live": ucfg.get("go_live_utc") or None,
+            "unl_on_this_account": str(ucfg.get("keys_env", "")).endswith(".env.fsettle"),
             "funded": FS_FUNDED[0], "funded_on": FS_FUNDED[1], "balance_est": bal,
             "realized": realized, "n_closed": len(done), "wins": sum(1 for e in done if e["pnl_usd"] > 0),
             "open": st.get("open_live") or {}, "positions": opos, "n_live": st.get("n_live"), "log_age_s": log_age,
@@ -486,14 +506,18 @@ def unl_account():
                     "net_pct": None if net is None else 100 * net, "u_usd": None if net is None else net * p.get("notional", 0)})
     # next entries (the engine's rule: entry day = U - entry_days_before; same team-% sum per coin and UTC day)
     sched = json.loads((d / "schedule.json").read_text()) if (d / "schedule.json").exists() else {}
-    ev = {}
-    for tk in (sched.get("tokens") or {}).values():
-        if not tk.get("perp"):
-            continue
-        for ts, amt, unl in tk.get("cliffs") or []:
-            if unl and unl > 0:
-                k = (tk["perp"], int(ts * 1000) // DAY * DAY)
-                ev[k] = ev.get(k, 0.0) + amt / unl * 100
+    def _events(col):       # the engine's cliff_events: cliff = [t, team amount, supply unlocked before, investor amount]
+        ev = {}
+        for tk in (sched.get("tokens") or {}).values():
+            if not tk.get("perp"):
+                continue
+            for cl in tk.get("cliffs") or []:
+                amt = cl[col] if len(cl) > col else 0.0
+                if cl[2] > 0 and amt > 0:
+                    k = (tk["perp"], int(cl[0] * 1000) // DAY * DAY)
+                    ev[k] = ev.get(k, 0.0) + amt / cl[2] * 100
+        return ev
+    ev, ev_inv = _events(1), _events(3)
     today = int(time.time() * 1000) // DAY * DAY
     first = today + DAY if st.get("last_action_day", 0) >= today else today
     eb = c.get("entry_days_before", 7)
@@ -505,6 +529,11 @@ def unl_account():
             note = "open" if sym in (st.get("open") or {}) else (
                 "dedup" if last is not None and U - last < c.get("dedup_days", 10) * DAY else "")
             nxt.append({"sym": sym, "entry_day": _day(D), "U": _day(U), "team_pct": round(pct, 2), "note": note})
+    nxt_inv = []
+    for (sym, U), pct in sorted(ev_inv.items(), key=lambda kv: kv[0][1]):
+        D = U - eb * DAY
+        if c.get("shadow_inv_pct") and pct >= c["shadow_inv_pct"] and first <= D <= today + 14 * DAY:
+            nxt_inv.append({"sym": sym, "entry_day": _day(D), "U": _day(U), "inv_pct": round(pct, 2)})
     try:
         log_age = time.time() - (d / "engine.log").stat().st_mtime
     except OSError:
@@ -513,6 +542,10 @@ def unl_account():
         unit = subprocess.run(["systemctl", "is-active", "bitana-unl"], capture_output=True, text=True, timeout=3).stdout.strip()
     except Exception:  # noqa: BLE001
         unit = "unknown"
+    sh_tr = _jl("shadow_trades.jsonl")
+    shadow = {"open": len(st.get("shadow_open") or {}), "closed": len(sh_tr),
+              "mean_pct": (sum(t.get("net_pct") or 0 for t in sh_tr) / len(sh_tr)) if sh_tr else None,
+              "usd": sum(t.get("pnl_usd") or 0 for t in sh_tr), "min_pct": c.get("shadow_inv_pct")}
     n_open, nu = len(pos), c.get("notional_usd", 20)
     tot = sum(t.get("pnl_usd") or 0 for t in trades)
     return {"name": "UNL · team-unlock shorts (ETH-hedged)", "engine": "bitana-unl", "mode": c.get("mode"),
@@ -522,9 +555,11 @@ def unl_account():
             "mean_pct": (sum(t.get("net_pct") or 0 for t in trades) / len(trades)) if trades else None,
             "margin_now": 2 * n_open * nu / c.get("leverage", 3) + nu * c.get("stop_pct", 50) / 100,
             "next": nxt[:12], "skips": skips[-5:][::-1], "log_age_s": log_age, "unit": unit, "consec_err": st.get("consec_err"),
+            "go_live": c.get("go_live_utc") or None, "account": "sub-account 2" if str(c.get("keys_env", "")).endswith(".env.fsettle") else c.get("keys_env"),
+            "shadow": shadow, "next_shadow": nxt_inv[:8], "n_live": sum(1 for t in trades if t.get("mode") == "live"),
             "schedule_built": _day(sched["built"]) if sched.get("built") else None,
             "trades": [{k: t.get(k) for k in ("sym", "U", "team_pct", "entry_time", "exit_time", "reason", "entry", "exit",
-                                              "short_ret_pct", "hedge_ret_pct", "net_pct", "pnl_usd")}
+                                              "short_ret_pct", "hedge_ret_pct", "net_pct", "pnl_usd", "mode")}
                        for t in sorted(trades, key=lambda t: t.get("exit_time") or "", reverse=True)[:15]]}
 
 
@@ -706,7 +741,8 @@ def _ops():
         pm2 = {p["name"]: p["pm2_env"]["status"] for p in json.loads(r.stdout or "[]")} or {"pm2": "no processes listed"}
     except Exception:  # noqa: BLE001
         pm2 = {"pm2": "unavailable"}
-    fresh = {k: (int(time.time() - p.stat().st_mtime) if p.exists() else None) for k, p in FRESHNESS.items()}
+    fresh = {k: (int(time.time() - p.stat().st_mtime) if p.exists() else None) for k, (p, _) in FRESHNESS.items()}
+    fresh_lim = {k: lim for k, (_, lim) in FRESHNESS.items()}
     du = shutil.disk_usage("/")
     jobs = []
     if HERMES_JOBS.exists():
@@ -716,7 +752,7 @@ def _ops():
         for x in items:
             if isinstance(x, dict):
                 jobs.append({k: x.get(k) for k in ("name", "enabled", "last_run_at", "last_status", "next_run_at", "last_error")})
-    return {"units": units, "pm2": pm2, "freshness_s": fresh, "disk_pct": round(100 * du.used / du.total, 1),
+    return {"units": units, "pm2": pm2, "freshness_s": fresh, "fresh_limit_s": fresh_lim, "disk_pct": round(100 * du.used / du.total, 1),
             "disk_free_gb": round(du.free / 1e9, 1), "cron": jobs}
 
 
@@ -724,10 +760,31 @@ def ops_health():
     return _cached("ops", 30, _ops)
 
 
-def research_board():
-    if not BOARD_JSON.exists():
-        return None
-    return json.loads(BOARD_JSON.read_text())
+def research_loop():
+    """Research loop (owner 2026-10-13, research/loop/PROTOCOL.md): one row per run from ledger.csv, the queue's status
+    line, m (ideas that reached a holdout) and the t the next holdout needs, t_req = Phi^-1(1 - 0.025 / (m + 1))."""
+    import csv
+    from statistics import NormalDist
+    rows = list(csv.DictReader(open(LOOP_DIR / "ledger.csv")))
+    status = ""
+    for ln in (LOOP_DIR / "queue.md").read_text().splitlines()[1:12]:
+        if ln.strip() and not ln.startswith(("#", "|", "Statuses")):
+            status = ln.strip()
+            break
+    m = sum(1 for r in rows if (r.get("hold_n") or "").strip())
+    def _f(x):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+    runs = [{"utc": r["run_utc"], "id": r["id"], "idea": r["idea"], "gate": r["gate"], "disc_bp": _f(r["disc_net_bp"]),
+             "disc_t": _f(r["disc_t"]), "hold_n": r.get("hold_n") or None, "hold_bp": _f(r.get("hold_net_bp")),
+             "hold_t": _f(r.get("hold_t")), "t_req": _f(r.get("t_req")), "verdict": r["verdict"], "prereg": r.get("prereg")}
+            for r in rows]
+    return {"status": status, "paused": status.upper().startswith("PAUSED"), "n": len(rows),
+            "n_pass": sum(1 for r in rows if r["verdict"].upper().startswith("PASS")),
+            "n_gate": sum(1 for r in rows if r["gate"] in ("QUALIFIED", "PASS")), "m": m,
+            "next_t_req": round(NormalDist().inv_cdf(1 - 0.025 / (m + 1)), 2), "runs": runs[::-1]}
 
 
 # ---------------------------------------------------------------- entry point used by server.py
@@ -740,7 +797,7 @@ def collect(conn, metrics, positions):
         "accounts": lambda: accounts(conn, positions),
         "risk_context": lambda: risk_context(conn, positions),
         "ops": ops_health,
-        "research_board": research_board,
+        "research_loop": research_loop,
     }
     out = {}
     for k, fn in blocks.items():
